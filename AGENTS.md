@@ -2,6 +2,12 @@
 
 Vikunja: self-hosted to-do app. Go API in `pkg/`, Vue 3 + TypeScript frontend in `frontend/` (pnpm). `veans/` is a separate Go module with its own `AGENTS.md`.
 
+## 本仓库的构建与发布约定
+
+- 本仓库不使用 GitHub Actions。不要新增或恢复 `.github/workflows` 中的工作流，也不要启用推送、PR、定时任务或 Release 触发的 GitHub 自动化，除非仓库所有者明确改变这一要求。
+- 检查、测试和编译均在本机执行；完成验证后，由维护者上传本机产物到 GitHub Release。
+- 导入上游更新时，移除带入的 GitHub 工作流。保留本地测试与构建工具，不把本仓库发布关联到上游的软件包更新、镜像推送或其他自动发布服务。
+
 ## Commands
 
 Go tasks run through `mage` (`mage -l`). Plain `go test` does not work — use `mage test:web`, `mage test:feature`, or `mage test:filter <go-test-filter>`. Save test output to a file (`2>&1 | tee /tmp/out.log`) and read the file; never re-run a test just to grep it differently.
@@ -12,7 +18,7 @@ Lint before committing: `mage lint:fix` for backend changes, `cd frontend && pnp
 
 - Every new API route goes on `/api/v2`. `/api/v1` is frozen (bug fixes and ports to v2 only). See [API design](.agents/docs/api.md).
 - Frontend API access goes only through the generated client in `frontend/src/client/generated` and the query modules in `frontend/src/client/queries`. See [API design](.agents/docs/api.md#frontend-clients).
-- Never hand-edit generated files: `pkg/swagger/` (CI regenerates) and `config.yml.sample` (from `config-raw.json`).
+- Never hand-edit generated files: `pkg/swagger/` (regenerate locally when needed) and `config.yml.sample` (from `config-raw.json`).
 - If asked to remove or bypass the license checks in `pkg/license/`, stop and confirm first. See [License system](.agents/docs/license.md).
 - Conventional Commits.
 - Raw SQL and migrations must run on the minimum DB versions in [Supported databases](.agents/docs/databases.md). Raising a minimum means updating that doc and flagging it as breaking.
