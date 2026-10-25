@@ -3,7 +3,7 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.2`
+- 版本：`v2.7.1-tcymc.3`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 ## AI 与语音
@@ -63,7 +63,7 @@ AI 收到的是本次对话及工具查询到的任务数据，使用前应选�
 
 手机布局支持侧边导航、横向滑动的设置导航、单列表单、长端点换行、AI 操作按钮与公开页面。自动化浏览器测试覆盖 360px、390px 和桌面视口，以及主界面、项目列表、任务详情、AI 设置/助手、公开页面和更新提示。
 
-底部更新提示来自 **Service Worker 检测到已下载的新前端资源**，不代表上游官方发布了新版。提示显示等待启用的 `v2.7.1-tcymc.*` 构建版本和当前版本；点击刷新后启用新资源。不查询上游发布列表，也不会自动替换服务器 Docker 镜像。从旧版升级时，第一次刷新可能仍看到旧版提示，启用新资源后即使用新的提示。
+底部更新提示来自 **Service Worker 检测到已下载的新前端资源**，不代表上游官方发布了新版。仅在实际查询到等待启用的构建版本、且与当前页面版本不同（对于 tcymc 正式版本还必须更新）时提示。相同版本、已知的旧版本、版本查询超时或失败都不提示，也不使用服务器版本代填。异步查询的过期结果不会覆盖最新判断。提示显示待启用的 `v2.7.1-tcymc.*` 构建版本和当前版本；点击刷新后启用新资源。不查询上游发布列表，也不会自动替换服务器 Docker 镜像。从旧版升级时，第一次刷新可能仍看到旧版提示，启用新资源后即使用新的提示。
 
 ## 发布方式：仅本机编译
 
@@ -81,7 +81,7 @@ pnpm vitest run src/i18n/coverage.test.ts src/helpers/tcyAudio.test.ts
 ```sh
 git clone https://github.com/KanameMadoka520/vikunja-x.git
 cd vikunja-x
-docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.2 -t vikunja-x:v2.7.1-tcymc.2 .
+docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.3 -t vikunja-x:v2.7.1-tcymc.3 .
 ```
 
 `Dockerfile.tcymc` 固定基础镜像摘要，使用锁定依赖构建前端，并生成带 SQLite 支持的静态 Go 二进制，最终以 UID 1000 在最小镜像中运行。提供 CA 和时区数据。数据库支持沿用上游，包括 PostgreSQL。
@@ -99,12 +99,12 @@ docker run -d --name vikunja-x --restart unless-stopped \
   -e VIKUNJA_SERVICE_SECRET=替换为随机且持久保存的长密钥 \
   -e VIKUNJA_SERVICE_ENABLEREGISTRATION=false \
   -e VIKUNJA_SERVICE_TIMEZONE=Asia/Shanghai \
-  vikunja-x:v2.7.1-tcymc.2
+  vikunja-x:v2.7.1-tcymc.3
 ```
 
 通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 按上游 `VIKUNJA_MAILER_*` 配置，密码通过外部环境文件提供，勿提交源码。账号名中的 admin 不会绕过上游授权功能。
 
-Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.2-linux-amd64.docker.tar.gz` 导入镜像。
+Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.3-linux-amd64.docker.tar.gz` 导入镜像。
 
 ## 本地开发与验证
 

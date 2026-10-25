@@ -24,13 +24,12 @@ import {useI18n} from 'vue-i18n'
 import {useElementSize} from '@vueuse/core'
 import {useBaseStore} from '@/stores/base'
 import {useAuthStore} from '@/stores/auth'
-import {useConfigStore} from '@/stores/config'
+import {needsFrontendRefresh, readWorkerVersion} from '@/helpers/frontendUpdate'
 import {VERSION} from '@/version.json'
 
 const {t} = useI18n({useScope: 'global'})
 const baseStore = useBaseStore()
 const authStore = useAuthStore()
-const configStore = useConfigStore()
 const updateAvailable = computed(() => baseStore.updateAvailable && authStore.authenticated)
 const banner = ref<HTMLElement>()
 const {height: bannerHeight} = useElementSize(banner)
@@ -39,25 +38,37 @@ const registration = ref<ServiceWorkerRegistration | null>(null)
 const refreshing = ref(false)
 const targetVersion = ref('')
 let disposed = false
+let updateCheck = 0
 
+function clearUpdate() {
+	registration.value = null
+	targetVersion.value = ''
+	baseStore.setUpdateAvailable(false)
+}
 async function showRefreshUI(e?: Event) {
+	const check = ++updateCheck
 	if (!('serviceWorker' in navigator)) return
-	const reg = (e as CustomEvent<ServiceWorkerRegistration> | undefined)?.detail ?? await navigator.serviceWorker.getRegistration()
-	if (disposed || !reg?.waiting) return
-	registration.value = reg
-	const channel = new MessageChannel()
-	const version = await new Promise<string>(resolve => {
-		const timer = setTimeout(() => resolve(''), 1000)
-		channel.port1.onmessage = e => { clearTimeout(timer); resolve(typeof e.data?.version === 'string' ? e.data.version : '') }
-		reg.waiting?.postMessage('getVersion', [channel.port2])
-	})
-	channel.port1.close()
-	if (disposed || !reg.waiting) return
-	targetVersion.value = version || configStore.version || t('tcymc.updateUnknown')
-	baseStore.setUpdateAvailable(true)
+	try {
+		const reg = (e as CustomEvent<ServiceWorkerRegistration> | undefined)?.detail ?? await navigator.serviceWorker.getRegistration()
+		if (disposed || check !== updateCheck) return
+		clearUpdate()
+		const waiting = reg?.waiting
+		if (!reg || !waiting) return
+		const version = await readWorkerVersion(waiting)
+		if (disposed || check !== updateCheck || reg.waiting !== waiting) return
+		if (!needsFrontendRefresh(VERSION, version)) return
+		registration.value = reg
+		targetVersion.value = version
+		baseStore.setUpdateAvailable(true)
+	} catch {
+		if (!disposed && check === updateCheck) clearUpdate()
+	}
 }
 function controllerChanged() {
-	if (!refreshing.value) return
+	if (!refreshing.value) {
+		void showRefreshUI()
+		return
+	}
 	refreshing.value = false
 	window.location.reload()
 }
