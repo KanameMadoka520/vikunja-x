@@ -117,31 +117,31 @@ async function testConnection(id: string, kind: string) {
 					></label>
 				</div>
 				<div class="actions">
-					<button
-						class="button"
+					<XButton
+						variant="secondary"
 						type="button"
 						:disabled="test.isPending.value || !initial.connections.some(c => c.id === connection.id)"
 						@click="testConnection(connection.id, connection.kind)"
 					>
 						测试已保存连接
-					</button>
-					<button
-						class="button is-text"
+					</XButton>
+					<XButton
+						variant="tertiary"
 						type="button"
 						@click="removeConnection(connection.id)"
 					>
 						移除连接
-					</button>
+					</XButton>
 				</div>
 			</fieldset>
-			<button
-				class="button"
+			<XButton
+				variant="secondary"
 				type="button"
 				:disabled="draft.connections.length >= 20"
 				@click="addConnection"
 			>
 				＋ 添加模型连接
-			</button>
+			</XButton>
 			<label class="audio-test">语音连接测试文件<input
 				type="file"
 				accept="audio/*"
@@ -185,18 +185,18 @@ async function testConnection(id: string, kind: string) {
 			</div>
 		</section>
 		<div class="actions">
-			<button
-				class="button is-primary"
+			<XButton
+				variant="primary"
 				type="submit"
 				:disabled="save.isPending.value"
 			>
 				{{ save.isPending.value ? '保存中…' : '保存配置' }}
-			</button><RouterLink
-				class="button"
+			</XButton><XButton
+				variant="secondary"
 				:to="{name: 'tcy-ai'}"
 			>
 				打开 AI 助手
-			</RouterLink>
+			</XButton>
 		</div>
 	</form>
 </template>

@@ -8,7 +8,7 @@
 
 # Vikunja
 
-> The task manager you actually own. 
+> The task manager you actually own.
 
 If Vikunja is useful to you, please consider [supporting the project](https://vikunja.io/support/). You can [buy a coffee](https://www.buymeacoffee.com/kolaente), [sponsor on GitHub](https://github.com/sponsors/kolaente) or buy [a sticker pack](https://vikunja.io/stickers).
 We're also offering [a hosted version of Vikunja](https://vikunja.cloud/) if you want a hassle-free solution for yourself or your team.
@@ -34,7 +34,7 @@ If you find any security-related issues you don't want to disclose publicly, ple
 
 ## Features
 
-See [the features page](https://vikunja.io/features/) on our website for a more exhaustive list or 
+See [the features page](https://vikunja.io/features/) on our website for a more exhaustive list or
 try it on [try.vikunja.io](https://try.vikunja.io)!
 
 ## Docs

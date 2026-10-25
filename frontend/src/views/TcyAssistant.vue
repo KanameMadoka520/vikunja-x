@@ -23,6 +23,7 @@ const tidy = ref(true)
 const original = ref('')
 const notice = ref('')
 const conversation = ref<{prompt: string, result: AIRunResult}[]>([])
+const audioInput = ref<HTMLInputElement>()
 const recording = ref(false)
 const elapsed = ref(0)
 const busy = computed(() => run.isPending.value || transcribe.isPending.value || cleanup.isPending.value)
@@ -125,12 +126,12 @@ onBeforeUnmount(() => {
 					VIKUNJA X · YOUR WORK, YOUR MODELS
 				</p><h1>AI 任务助手</h1><p>说出计划，让任务开始行动。</p>
 			</div>
-			<RouterLink
-				class="button"
+			<XButton
+				variant="secondary"
 				:to="{name: 'user.settings.ai'}"
 			>
 				AI 与语音设置
-			</RouterLink>
+			</XButton>
 		</header>
 		<div
 			v-if="!hasAssistant && !settings.isPending.value"
@@ -172,17 +173,17 @@ onBeforeUnmount(() => {
 				<h2>从一句话开始</h2>
 				<p>查询进度、拆分计划，或把口头想法变成具体任务。</p>
 				<div class="suggestions">
-					<button
-						class="button"
+					<XButton
+						variant="secondary"
 						@click="prompt = '列出我还未完成的任务，按优先级给我一个今天的安排建议。'"
 					>
 						今天先做什么
-					</button><button
-						class="button"
+					</XButton><XButton
+						variant="secondary"
 						@click="prompt = '在当前项目中新建一个任务：整理本周工作总结，截止时间是本周五下午六点。'"
 					>
 						一句话创建任务
-					</button>
+					</XButton>
 				</div>
 			</div>
 			<article
@@ -230,43 +231,49 @@ onBeforeUnmount(() => {
 				:disabled="run.isPending.value"
 			/>
 			<div class="composer-tools">
-				<button
-					class="button"
+				<XButton
+					variant="secondary"
 					type="button"
 					:disabled="busy || !hasSpeech"
 					@click="toggleRecording"
 				>
 					{{ recording ? `停止录音 · ${elapsed}s` : '语音输入' }}
-				</button>
-				<label
-					class="button"
-					:class="{'is-disabled': busy || !hasSpeech || recording}"
-				>上传音频<input
+				</XButton>
+				<XButton
+					variant="secondary"
+					:disabled="busy || !hasSpeech || recording"
+					@click="audioInput?.click()"
+				>
+					上传音频
+				</XButton>
+				<input
+					ref="audioInput"
 					class="audio-upload"
 					type="file"
 					accept="audio/*"
 					:disabled="busy || !hasSpeech || recording"
 					@change="upload"
-				></label>
+				>
 				<label class="checkbox"><input
 					v-model="tidy"
 					type="checkbox"
 				> 识别后整理文字</label>
-				<button
-					class="button"
+				<XButton
+					variant="secondary"
 					type="button"
 					:disabled="busy || !prompt.trim() || !settings.data.value?.cleanup"
 					@click="tidyText"
 				>
 					仅整理文字
-				</button>
-				<button
-					class="button is-primary send"
+				</XButton>
+				<XButton
+					variant="primary"
+					class="send"
 					type="submit"
 					:disabled="busy || recording || !hasAssistant || !prompt.trim()"
 				>
 					{{ busy ? '处理中…' : '发送指令' }}
-				</button>
+				</XButton>
 			</div>
 			<p
 				v-if="notice"

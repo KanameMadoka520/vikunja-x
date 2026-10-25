@@ -64,13 +64,13 @@ function insertTemplate() {
 					:href="jsonURL"
 					target="_blank"
 					rel="noopener noreferrer"
-				>机器人 JSON 接口 ↗</a><button
-					class="button"
+				>机器人 JSON 接口 ↗</a><XButton
+					variant="secondary"
 					:disabled="busy"
 					@click="takeDown"
 				>
 					撤下公开页面
-				</button>
+				</XButton>
 			</template>
 		</div>
 		<section class="editor-panel">
@@ -136,12 +136,12 @@ function insertTemplate() {
 					>
 						{{ project.title }}
 					</option>
-				</select><button
-					class="button"
+				</select><XButton
+					variant="secondary"
 					@click="addProject"
 				>
 					添加展示规则
-				</button>
+				</XButton>
 			</div><div
 				v-for="rule in draft.projects"
 				:key="rule.id"
@@ -154,12 +154,12 @@ function insertTemplate() {
 				></label><label>展示程度<select
 					v-model="rule.mode"
 					class="input"
-				><option value="busy">只显示忙碌，不公开任务原名</option><option value="titles">公开任务标题（支持下方别名覆盖）</option><option value="hidden">完全隐藏，不参与忙闲计算</option></select></label><button
-					class="button is-text"
+				><option value="busy">只显示忙碌，不公开任务原名</option><option value="titles">公开任务标题（支持下方别名覆盖）</option><option value="hidden">完全隐藏，不参与忙闲计算</option></select></label><XButton
+					variant="tertiary"
 					@click="draft.projects = draft.projects.filter(p => p.id !== rule.id)"
 				>
 					移除
-				</button>
+				</XButton>
 			</div>
 		</section>
 		<section class="editor-panel">
@@ -176,12 +176,12 @@ function insertTemplate() {
 					</option><option value="html">
 						静态 HTML（可包含样式）
 					</option>
-				</select><button
-					class="button"
+				</select><XButton
+					variant="secondary"
 					@click="insertTemplate"
 				>
 					插入日程模板
-				</button>
+				</XButton>
 			</div><textarea
 				v-model="draft.content"
 				class="textarea template-editor"
@@ -215,25 +215,25 @@ function insertTemplate() {
 			</div>
 		</section>
 		<div class="actions">
-			<button
-				class="button"
+			<XButton
+				variant="secondary"
 				:disabled="busy"
 				@click="saveDraft"
 			>
 				保存草稿
-			</button><button
-				class="button"
+			</XButton><XButton
+				variant="secondary"
 				:disabled="busy"
 				@click="showPreview"
 			>
 				预览公开效果
-			</button><button
-				class="button is-primary"
+			</XButton><XButton
+				variant="primary"
 				:disabled="busy || !readyToPublish"
 				@click="publishDraft"
 			>
 				发布当前预览
-			</button>
+			</XButton>
 		</div><p class="help">
 			先预览，再发布。发布后日程按已发布规则实时更新；修改草稿不会改变公开页面，重新发布才会生效。
 		</p>
