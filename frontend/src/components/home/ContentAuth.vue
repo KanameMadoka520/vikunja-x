@@ -1,5 +1,6 @@
 <template>
 	<div class="content-auth">
+		<GuidedTour />
 		<BaseButton
 			v-show="menuActive"
 			:aria-label="$t('navigation.closeSidebar')"
@@ -84,6 +85,7 @@ import {useRoute, useRouter} from 'vue-router'
 
 import {SHORTCUTS} from '@/constants/shortcuts'
 import Navigation from '@/components/home/Navigation.vue'
+import GuidedTour from '@/components/home/GuidedTour.vue'
 import QuickActions from '@/components/quick-actions/QuickActions.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 

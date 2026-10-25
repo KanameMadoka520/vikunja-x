@@ -3,8 +3,34 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.3`
+- 版本：`v2.7.1-tcymc.4`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
+
+## 可重放的界面引导
+
+首次登录进入总览时，会出现可关闭的教程提示。点击右上角 **问号图标 → 帮助与引导教程**，或使用头像菜单中的同名入口，可以随时选择、重放三组高亮教程：
+
+- **基础使用（9 步）**：总览、项目、快速添加、日期与时间段、团队协作、搜索、AI、个人设置和帮助入口。
+- **AI 与语音（7 步）**：模型连接、协议与端点、获取或手填模型、功能分工、保存测试、权限和语音输入。
+- **公开展示（6 步）**：发布状态、可联系时段、别名和隐藏规则、自定义正文、预览与发布。
+
+教程会前往相关页面，但不会自动编辑、保存、发起 AI 请求、录音或发布内容；开始前请保存正在编辑的表单。支持上一步、下一步、跳过、键盘左右键、Esc 退出和完成后重放。手机上按步骤展开或收起侧边栏，说明卡片适应屏幕并可滚动；不可用的区域会给出继续或退出提示。
+
+首次提示和完成状态按 **API 服务地址 + 用户账号** 记录在当前浏览器，本地存储被禁用时仍可使用教程。公开访客页、分享访客页和登录页不显示私人工作台教程。图标沿用 Font Awesome SVG，设置菜单、AI、语音和公开主页的主要操作补充了图标。
+
+## 保存会话的任务助手
+
+进入侧边栏 **AI 任务助手**。左侧新建、选择、重命名或删除会话；消息支持 Enter 发送、Shift+Enter 换行、复制 Markdown 回答和停止执行。默认只读，可为每次请求选择模型、项目及操作权限。
+
+- **真实过程**：展开“思考与执行步骤”查看服务商主动返回的思考文字或思考摘要、每轮模型请求、工具参数、真实结果及耗时。服务商没有返回时明确提示未提供；签名和加密推理上下文仅在服务器保存，不作为可读思考内容展示。
+- **请求详情**：显示请求和实际返回的模型、协议、端点、当轮实际系统提示词、输入/输出/缓存/思考 Token、总耗时、首个 Token 和首段回答时间。用量来自服务商，不进行估算；缓存及思考 Token 已包含在输入或输出中。首个 Token 以首段流式文字或思考为准，非流式响应不伪造首字时间。
+- **压缩上下文**：超过四轮后可使用当前模型生成较早消息摘要。保留原文，后续请求使用最新摘要和最近四轮。压缩仅总结，不执行任务工具；仍消耗模型用量。
+- **创建分支**：从某条回复复制到该处的历史及模型上下文，原会话保留。分支不会回滚或重做真实任务操作。
+- **可靠续用**：会话绑定当前账户，服务器加密保存。页面刷新后可恢复查看进行中的执行。服务重启会把未完成请求标为中断，不会自动重试；相同请求编号仅允许重试相同消息，防止重复操作。
+
+连接测试现在使用与助手相同的只读工具参数，并通过合成结果检查工具续接，不读取或修改真实项目。模型未调用工具时明确说明续接尚未验证。DeepSeek Anthropic 地址 `https://api.deepseek.com/anthropic` 可直接填写；空的工具 `required` 字段按 JSON Schema 发送 `[]`。
+
+会话与完整模型上下文位于持久文件目录 `.tcymc-ai/conversations/<用户ID>/`，AES-GCM 加密、目录权限 0700、文件权限 0600。备份时连同 `VIKUNJA_SERVICE_SECRET` 保存。每账户最多 100 个会话、每会话 200 轮，单个加密记录上限 16 MiB；达到限制后新建或删除旧会话。每账户同时运行一个助手请求。切换模型或协议后以纯文字和真实操作记录续接，避免把旧服务商的签名上下文发给另一服务商。会话接口不接受 API Token、公开分享或机器人身份，也不暴露到 MCP。
 
 ## AI 与语音
 
@@ -81,7 +107,7 @@ pnpm vitest run src/i18n/coverage.test.ts src/helpers/tcyAudio.test.ts
 ```sh
 git clone https://github.com/KanameMadoka520/vikunja-x.git
 cd vikunja-x
-docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.3 -t vikunja-x:v2.7.1-tcymc.3 .
+docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.4 -t vikunja-x:v2.7.1-tcymc.4 .
 ```
 
 `Dockerfile.tcymc` 固定基础镜像摘要，使用锁定依赖构建前端，并生成带 SQLite 支持的静态 Go 二进制，最终以 UID 1000 在最小镜像中运行。提供 CA 和时区数据。数据库支持沿用上游，包括 PostgreSQL。
@@ -99,12 +125,12 @@ docker run -d --name vikunja-x --restart unless-stopped \
   -e VIKUNJA_SERVICE_SECRET=替换为随机且持久保存的长密钥 \
   -e VIKUNJA_SERVICE_ENABLEREGISTRATION=false \
   -e VIKUNJA_SERVICE_TIMEZONE=Asia/Shanghai \
-  vikunja-x:v2.7.1-tcymc.3
+  vikunja-x:v2.7.1-tcymc.4
 ```
 
 通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 按上游 `VIKUNJA_MAILER_*` 配置，密码通过外部环境文件提供，勿提交源码。账号名中的 admin 不会绕过上游授权功能。
 
-Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.3-linux-amd64.docker.tar.gz` 导入镜像。
+Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.4-linux-amd64.docker.tar.gz` 导入镜像。
 
 ## 本地开发与验证
 

@@ -1,6 +1,13 @@
 import {library} from '@fortawesome/fontawesome-svg-core'
 import {
 	faAlignLeft,
+	faCompass,
+	faCodeBranch,
+	faCompress,
+	faArrowUp,
+	faRobot,
+	faGlobe,
+	faMicrophone,
 	faAngleLeft,
 	faAngleRight,
 	faAnglesUp,
@@ -112,6 +119,11 @@ import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
 import type {FontAwesomeIcon as FontAwesomeIconFixedTypes} from '@/types/vue-fontawesome'
 
 library.add(faBold)
+library.add(faCodeBranch)
+library.add(faCompass)
+library.add(faRobot)
+library.add(faGlobe)
+library.add(faMicrophone)
 library.add(faUndo)
 library.add(faRedo)
 library.add(faItalic)
@@ -226,3 +238,6 @@ library.add(faArrowUpRightFromSquare)
 
 // overwriting the wrong types
 export default FontAwesomeIcon as unknown as FontAwesomeIconFixedTypes
+
+library.add(faCompress)
+library.add(faArrowUp)

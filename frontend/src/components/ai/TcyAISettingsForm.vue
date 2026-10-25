@@ -64,7 +64,7 @@ async function testConnection(id: string, kind: string) {
 	}
 	try {
 		const result = await test.mutateAsync({connection_id: id, audio, filename})
-		testResult.value = result.text ?? ''
+		testResult.value = [result.text, result.warning].filter(Boolean).join('\n')
 		endpointResult.value = result.endpoint ?? ''
 	} catch (e) { if (isRequestContextAbort(e)) return; testResult.value = e instanceof Error ? e.message : t('tcymc.text.connection_test_failed_check_the_url_key_model') }
 }
@@ -108,11 +108,13 @@ function savedMatches(c: AIConnection) {
 			<p class="eyebrow">
 				VIKUNJA X
 			</p>
-			<h2>{{ t('tcymc.text.ai_and_voice') }}</h2>
+			<h2><Icon icon="robot" /> {{ t('tcymc.text.ai_and_voice') }}</h2>
 			<p>{{ t('tcymc.text.connect_your_own_models_and_choose_one_for') }}</p>
 		</header>
 		<section class="tcy-panel">
-			<h3>{{ t('tcymc.text.model_connections') }}</h3>
+			<h3 data-tour="ai-connections">
+				<Icon icon="link" /> {{ t('tcymc.text.model_connections') }}
+			</h3>
 			<p>{{ t('tcymc.text.choose_your_provider_s_protocol_and_include_its') }}</p>
 			<p
 				v-if="!draft.connections.length"
@@ -180,6 +182,7 @@ function savedMatches(c: AIConnection) {
 				<div class="actions">
 					<XButton
 						variant="secondary"
+						icon="cloud-download-alt"
 						:disabled="modelFetcher.isPending.value || !connection.base_url"
 						@click="fetchModels(connection)"
 					>
@@ -188,6 +191,7 @@ function savedMatches(c: AIConnection) {
 					<XButton
 						variant="secondary"
 						type="button"
+						icon="play"
 						:disabled="test.isPending.value || !savedMatches(connection)"
 						@click="testConnection(connection.id, connection.kind)"
 					>
@@ -211,6 +215,8 @@ function savedMatches(c: AIConnection) {
 			<XButton
 				variant="secondary"
 				type="button"
+				icon="plus"
+				data-tour="ai-add"
 				:disabled="draft.connections.length >= 20"
 				@click="addConnection"
 			>
@@ -233,7 +239,9 @@ function savedMatches(c: AIConnection) {
 			</p>
 		</section>
 		<section class="tcy-panel">
-			<h3>{{ t('tcymc.text.models_for_each_feature') }}</h3>
+			<h3 data-tour="ai-roles">
+				<Icon icon="sitemap" /> {{ t('tcymc.text.models_for_each_feature') }}
+			</h3>
 			<div class="fields">
 				<label>{{ t('tcymc.text.task_ai_assistant') }}<select
 					v-model="draft.assistant"
@@ -265,6 +273,8 @@ function savedMatches(c: AIConnection) {
 			<XButton
 				variant="primary"
 				type="submit"
+				icon="save"
+				data-tour="ai-save"
 				:disabled="save.isPending.value"
 			>
 				{{ save.isPending.value ? t('tcymc.text.saving') : t('tcymc.text.save_settings') }}

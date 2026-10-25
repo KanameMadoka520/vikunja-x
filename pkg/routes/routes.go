@@ -355,6 +355,12 @@ func collectRoutesForAPITokens(e *echo.Echo) {
 			continue
 		}
 
+		// Saved AI credentials and conversations belong to human sessions only.
+		// Keep these custom state routes out of API-token scope discovery.
+		if strings.HasPrefix(route.Path, "/api/v2/ai/") {
+			continue
+		}
+
 		// Check if this route requires JWT authentication
 		requiresJWT := !unauthenticatedAPIPaths[route.Path]
 

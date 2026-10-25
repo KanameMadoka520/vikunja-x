@@ -34,7 +34,18 @@ func (e *LocalizedError) Error() string { return i18n.T("en", e.Key, e.Args...) 
 func Error(key string, args ...any) error {
 	return &LocalizedError{Key: "tcymc.errors." + key, Args: args}
 }
+
+type languageKey struct{}
+
+// Detached model jobs must not retain Echo's pooled request context.
+func WithLanguage(ctx context.Context, language string) context.Context {
+	return context.WithValue(ctx, languageKey{}, language)
+}
+
 func Language(ctx context.Context) string {
+	if language, ok := ctx.Value(languageKey{}).(string); ok {
+		return language
+	}
 	ec := humabridge.EchoContextFrom(ctx)
 	if ec != nil && strings.HasPrefix(strings.ToLower((*ec).Request().Header.Get("Accept-Language")), "zh") {
 		return "zh-CN"

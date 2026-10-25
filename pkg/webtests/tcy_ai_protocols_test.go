@@ -144,7 +144,8 @@ func TestTCYAIProtocols(t *testing.T) {
 				respond(`{"content":[{"type":"text","text":"Done"}],"stop_reason":"end_turn"}`)
 			}
 		case "gemini":
-			assert.Equal(t, "/custom/v1/models/task-model:generateContent", r.URL.Path)
+			assert.Equal(t, "/custom/v1/models/task-model:streamGenerateContent", r.URL.Path)
+			assert.Equal(t, "sse", r.URL.Query().Get("alt"))
 			assert.Contains(t, string(raw), `"parametersJsonSchema"`)
 			if calls == 1 {
 				respond(`{"candidates":[{"content":{"parts":[{"functionCall":{"id":"call-1","name":"list_projects","args":{}},"thoughtSignature":"opaque-thought"}]},"finishReason":"STOP"}]}`)
@@ -178,7 +179,9 @@ func TestTCYAIProtocols(t *testing.T) {
 			assert.Contains(t, run.Body.String(), `"reply":"Done"`)
 			assert.Contains(t, run.Body.String(), `"success":true`)
 			assert.NotContains(t, run.Body.String(), "opaque-")
-			assert.NotContains(t, run.Body.String(), "Do not expose")
+			if p == "gemini" {
+				assert.Contains(t, run.Body.String(), `"reasoning":"Do not expose"`)
+			}
 			assert.Equal(t, 2, calls)
 			mode, calls = "models", 0
 			query := fmt.Sprintf(`{"id":"connection","base_url":%q,"protocol":%q,"kind":"chat"}`, base, p)

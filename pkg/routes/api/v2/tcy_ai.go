@@ -148,9 +148,8 @@ func RegisterTCYAIRoutes(api huma.API) {
 				out := &aiTextResponse{}
 				out.Body.Endpoint = tcyai.Endpoint(c)
 				if c.Kind == "chat" {
-					m, e := tcyai.Chat(ctx, c, []tcyai.Message{{Role: "user", Content: tcylocale.Text(ctx, "connectionTest")}}, nil)
-					out.Body.Text = m.Content
-					err = e
+					out.Body.Endpoint = tcyai.AgentEndpoint(c)
+					out.Body.Text, out.Body.Warning, err = tcyai.TestConnection(ctx, c)
 				} else {
 					data, e := decodeAIAudio(in.Body.Audio)
 					if e != nil {

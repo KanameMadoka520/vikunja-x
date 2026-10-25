@@ -18,6 +18,11 @@
 								:class="{'is-active': (exact ? isExactActive : isActive) || isAliasActive(item)}"
 								@click="navigate"
 							>
+								<Icon
+									v-if="item.icon"
+									:icon="item.icon"
+									class="navigation-icon"
+								/>
 								{{ item.title }}
 							</a>
 						</RouterLink>
@@ -51,10 +56,12 @@
 
 <script setup lang="ts">
 import {useRoute} from 'vue-router'
+import type {IconProp} from '@fortawesome/fontawesome-svg-core'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 
 export interface SideNavItem {
+	icon?: IconProp
 	title: string
 	routeName: string
 	activeRouteNames?: string[]
@@ -113,6 +120,12 @@ function isAliasActive(item: SideNavItem) {
 		background: var(--white);
 		border-color: var(--primary);
 	}
+}
+
+.navigation-icon {
+	inline-size: 1.125rem;
+	margin-inline-end: .625rem;
+	color: var(--text-light);
 }
 
 .view {

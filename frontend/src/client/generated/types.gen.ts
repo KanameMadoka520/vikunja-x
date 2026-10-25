@@ -47,9 +47,17 @@ export type Action = {
      */
     arguments?: string;
     /**
+     * Elapsed time for the real tool execution.
+     */
+    duration_ms?: number;
+    /**
      * Actual tool response, not a model claim.
      */
     result?: string;
+    /**
+     * Model round that requested this operation.
+     */
+    round?: number;
     /**
      * Whether the operation succeeded.
      */
@@ -477,6 +485,37 @@ export type Callback = {
     totp_passcode?: string;
 };
 
+export type ChatTurn = {
+    /**
+     * UTC completion timestamp when finished.
+     */
+    readonly finished?: string;
+    /**
+     * Server-generated identifier.
+     */
+    readonly id?: string;
+    /**
+     * Original user message.
+     */
+    readonly prompt?: string;
+    /**
+     * Retry key for the exact same request; does not authorize replay.
+     */
+    readonly request_id?: string;
+    /**
+     * Saved answer, actual tool results and request metadata.
+     */
+    readonly result?: RunResult;
+    /**
+     * UTC run start timestamp.
+     */
+    readonly started?: string;
+    /**
+     * Execution state. Interrupted runs are never replayed automatically.
+     */
+    readonly status?: 'running' | 'completed' | 'failed' | 'stopped' | 'interrupted';
+};
+
 export type ColumnMapping = {
     /**
      * The task attribute the column maps to. Use "ignore" to drop the column.
@@ -490,6 +529,33 @@ export type ColumnMapping = {
      * The header name of the CSV column, for display.
      */
     column_name?: string;
+};
+
+export type Compaction = {
+    /**
+     * UTC creation timestamp.
+     */
+    created?: string;
+    /**
+     * Elapsed wall-clock milliseconds.
+     */
+    duration_ms?: number;
+    /**
+     * Actual provider model ID, or the requested ID if omitted by the provider.
+     */
+    model?: string;
+    /**
+     * Model-generated context summary; original messages are retained.
+     */
+    summary?: string;
+    /**
+     * Number of original turns covered by this summary.
+     */
+    through?: number;
+    /**
+     * Provider-reported usage summed across model rounds.
+     */
+    usage?: Usage;
 };
 
 export type Connection = {
@@ -541,6 +607,72 @@ export type ConnectionSettings = {
             [key: string]: RouteDetail;
         };
     };
+};
+
+export type Conversation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Saved context summaries; only the most recent is sent on subsequent requests.
+     */
+    readonly compactions?: Array<Compaction> | null;
+    /**
+     * UTC creation timestamp.
+     */
+    readonly created?: string;
+    /**
+     * Server-generated identifier.
+     */
+    readonly id?: string;
+    /**
+     * Source conversation when created as a branch.
+     */
+    readonly parent_id?: string;
+    /**
+     * Last source turn included in this branch.
+     */
+    readonly parent_turn_id?: string;
+    /**
+     * User title or first-message title.
+     */
+    readonly title?: string;
+    /**
+     * Original messages with actual execution results.
+     */
+    readonly turns?: Array<ChatTurn> | null;
+    /**
+     * UTC last change timestamp.
+     */
+    readonly updated?: string;
+};
+
+export type ConversationSummary = {
+    /**
+     * Server-generated identifier.
+     */
+    id?: string;
+    /**
+     * Source conversation when created as a branch.
+     */
+    parent_id?: string;
+    /**
+     * Whether a model run is active.
+     */
+    running?: boolean;
+    /**
+     * User title or first-message title.
+     */
+    title?: string;
+    /**
+     * Number of saved conversation turns.
+     */
+    turn_count?: number;
+    /**
+     * UTC last change timestamp.
+     */
+    updated?: string;
 };
 
 export type CreateInviteLinkBody = {
@@ -1292,6 +1424,41 @@ export type ModelList = {
     truncated?: boolean;
 };
 
+export type ModelStep = {
+    /**
+     * Elapsed wall-clock milliseconds.
+     */
+    duration_ms?: number;
+    /**
+     * Time to first streamed visible answer text; absent if the provider did not stream text.
+     */
+    first_text_ms?: number | null;
+    /**
+     * Time from upstream request start to first streamed text or reasoning delta; absent without streaming evidence.
+     */
+    first_token_ms?: number | null;
+    /**
+     * Model name returned by the provider, falling back to the requested ID.
+     */
+    model?: string;
+    /**
+     * Only reasoning or reasoning summaries explicitly returned by the provider.
+     */
+    reasoning?: string;
+    /**
+     * One-based model round, including rounds that request tools.
+     */
+    round?: number;
+    /**
+     * Model text, distinct from its reasoning and actual tool execution.
+     */
+    text?: string;
+    /**
+     * Provider-reported usage for this model round.
+     */
+    usage?: Usage;
+};
+
 export type OpenIdAuthInfo = {
     enabled?: boolean;
     providers?: Array<Provider> | null;
@@ -1399,6 +1566,18 @@ export type PaginatedBucket = {
      */
     readonly $schema?: string;
     items?: Array<Bucket> | null;
+    page?: number;
+    per_page?: number;
+    total?: number;
+    total_pages?: number;
+};
+
+export type PaginatedConversationSummary = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    items?: Array<ConversationSummary> | null;
     page?: number;
     per_page?: number;
     total?: number;
@@ -2130,6 +2309,10 @@ export type RunInput = {
      */
     allow_delete?: boolean;
     /**
+     * Optional saved text connection. Empty uses the assigned assistant.
+     */
+    connection_id?: string;
+    /**
      * Recent conversation; no client-supplied tool results.
      */
     history?: Array<Turn> | null;
@@ -2161,9 +2344,53 @@ export type RunResult = {
      */
     actions?: Array<Action> | null;
     /**
+     * Elapsed wall-clock milliseconds.
+     */
+    duration_ms?: number;
+    /**
+     * Actual upstream URL without credentials. Gemini streaming uses streamGenerateContent.
+     */
+    endpoint?: string;
+    /**
+     * An execution error; partial actions may already have succeeded.
+     */
+    error?: string;
+    /**
+     * Milliseconds to first streamed answer text, excluding thinking; null without streaming evidence.
+     */
+    first_text_ms?: number | null;
+    /**
+     * Milliseconds to first streamed text or reasoning chunk; null without streaming evidence.
+     */
+    first_token_ms?: number | null;
+    /**
+     * Actual provider model ID, or the requested ID if omitted by the provider.
+     */
+    model?: string;
+    /**
+     * Wire protocol used for this request.
+     */
+    protocol?: string;
+    /**
      * Assistant response.
      */
     reply?: string;
+    /**
+     * Saved connection model ID requested by the user.
+     */
+    requested_model?: string;
+    /**
+     * Observed model rounds and provider-returned thinking.
+     */
+    steps?: Array<ModelStep> | null;
+    /**
+     * The exact system prompt used for this run.
+     */
+    system_prompt?: string;
+    /**
+     * Provider-reported usage summed across model rounds.
+     */
+    usage?: Usage;
 };
 
 export type SavedFilter = {
@@ -2946,6 +3173,50 @@ export type TcyAiCleanupRequest = {
     text?: string;
 };
 
+export type TcyAiConversationsCompactRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Saved text model connection. Empty uses the assigned assistant.
+     */
+    connection_id?: string;
+};
+
+export type TcyAiConversationsCreateRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Optional title. The first message supplies a title when blank.
+     */
+    title?: string;
+};
+
+export type TcyAiConversationsForkRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Copy context through this turn, inclusive. The source remains unchanged.
+     */
+    turn_id?: string;
+};
+
+export type TcyAiConversationsRenameRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * The new title.
+     */
+    title?: string;
+};
+
 export type TcyAiModelsRequest = {
     /**
      * A URL to the JSON Schema for this object.
@@ -2955,6 +3226,21 @@ export type TcyAiModelsRequest = {
     id?: string;
     kind?: 'chat' | 'transcription';
     protocol?: string;
+};
+
+export type TcyAiPromptResponse = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Current effective system prompt, including server time and permissions.
+     */
+    system_prompt?: string;
+    /**
+     * Readable JSON tool definitions; no credentials or private task data.
+     */
+    tool_schema?: string;
 };
 
 export type TcyAiTestRequest = {
@@ -3398,6 +3684,41 @@ export type Turn = {
      * Conversation role; system and tool messages are server-owned.
      */
     role?: 'user' | 'assistant';
+};
+
+export type Usage = {
+    /**
+     * Whether the provider supplied cache-hit token counts.
+     */
+    cache_reported?: boolean;
+    /**
+     * Cache-hit tokens, a subset of input tokens.
+     */
+    cached?: number;
+    /**
+     * Provider-reported input tokens, including cache tokens when reported separately.
+     */
+    input?: number;
+    /**
+     * Provider-reported output tokens; may include reasoning tokens.
+     */
+    output?: number;
+    /**
+     * Some model rounds did not report usage; totals cover only reported rounds.
+     */
+    partial?: boolean;
+    /**
+     * Reasoning tokens, a subset of output tokens when provided.
+     */
+    reasoning?: number;
+    /**
+     * Whether the provider supplied reasoning token counts.
+     */
+    reasoning_reported?: boolean;
+    /**
+     * False means the provider supplied no usage counts.
+     */
+    reported?: boolean;
 };
 
 export type User = {
@@ -4150,6 +4471,10 @@ export type CallbackWritable = {
     totp_passcode?: string;
 };
 
+export type ChatTurnWritable = {
+    [key: string]: never;
+};
+
 export type ConnectionWritable = {
     /**
      * Write-only key. Empty preserves the saved key when the endpoint is unchanged.
@@ -4195,6 +4520,10 @@ export type ConnectionSettingsWritable = {
             [key: string]: RouteDetail;
         };
     };
+};
+
+export type ConversationWritable = {
+    [key: string]: never;
 };
 
 export type CreateInviteLinkBodyWritable = {
@@ -4575,6 +4904,14 @@ export type PaginatedBotUserWritable = {
 
 export type PaginatedBucketWritable = {
     items?: Array<BucketWritable> | null;
+    page?: number;
+    per_page?: number;
+    total?: number;
+    total_pages?: number;
+};
+
+export type PaginatedConversationSummaryWritable = {
+    items?: Array<ConversationSummary> | null;
     page?: number;
     per_page?: number;
     total?: number;
@@ -4965,6 +5302,10 @@ export type RunInputWritable = {
      */
     allow_delete?: boolean;
     /**
+     * Optional saved text connection. Empty uses the assigned assistant.
+     */
+    connection_id?: string;
+    /**
      * Recent conversation; no client-supplied tool results.
      */
     history?: Array<Turn> | null;
@@ -4992,9 +5333,53 @@ export type RunResultWritable = {
      */
     actions?: Array<Action> | null;
     /**
+     * Elapsed wall-clock milliseconds.
+     */
+    duration_ms?: number;
+    /**
+     * Actual upstream URL without credentials. Gemini streaming uses streamGenerateContent.
+     */
+    endpoint?: string;
+    /**
+     * An execution error; partial actions may already have succeeded.
+     */
+    error?: string;
+    /**
+     * Milliseconds to first streamed answer text, excluding thinking; null without streaming evidence.
+     */
+    first_text_ms?: number | null;
+    /**
+     * Milliseconds to first streamed text or reasoning chunk; null without streaming evidence.
+     */
+    first_token_ms?: number | null;
+    /**
+     * Actual provider model ID, or the requested ID if omitted by the provider.
+     */
+    model?: string;
+    /**
+     * Wire protocol used for this request.
+     */
+    protocol?: string;
+    /**
      * Assistant response.
      */
     reply?: string;
+    /**
+     * Saved connection model ID requested by the user.
+     */
+    requested_model?: string;
+    /**
+     * Observed model rounds and provider-returned thinking.
+     */
+    steps?: Array<ModelStep> | null;
+    /**
+     * The exact system prompt used for this run.
+     */
+    system_prompt?: string;
+    /**
+     * Provider-reported usage summed across model rounds.
+     */
+    usage?: Usage;
 };
 
 export type SavedFilterWritable = {
@@ -5231,12 +5616,51 @@ export type TcyAiCleanupRequestWritable = {
     text?: string;
 };
 
+export type TcyAiConversationsCompactRequestWritable = {
+    /**
+     * Saved text model connection. Empty uses the assigned assistant.
+     */
+    connection_id?: string;
+};
+
+export type TcyAiConversationsCreateRequestWritable = {
+    /**
+     * Optional title. The first message supplies a title when blank.
+     */
+    title?: string;
+};
+
+export type TcyAiConversationsForkRequestWritable = {
+    /**
+     * Copy context through this turn, inclusive. The source remains unchanged.
+     */
+    turn_id?: string;
+};
+
+export type TcyAiConversationsRenameRequestWritable = {
+    /**
+     * The new title.
+     */
+    title?: string;
+};
+
 export type TcyAiModelsRequestWritable = {
     api_key?: string;
     base_url?: string;
     id?: string;
     kind?: 'chat' | 'transcription';
     protocol?: string;
+};
+
+export type TcyAiPromptResponseWritable = {
+    /**
+     * Current effective system prompt, including server time and permissions.
+     */
+    system_prompt?: string;
+    /**
+     * Readable JSON tool definitions; no credentials or private task data.
+     */
+    tool_schema?: string;
 };
 
 export type TcyAiTestRequestWritable = {
@@ -6225,6 +6649,277 @@ export type TcyAiCleanupResponses = {
 
 export type TcyAiCleanupResponse = TcyAiCleanupResponses[keyof TcyAiCleanupResponses];
 
+export type TcyAiConversationsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * 1-based page number.
+         */
+        page?: number;
+        /**
+         * Items per page. Defaults to the instance's configured maximum (service.maxitemsperpage, reported as max_items_per_page by /info) and is silently capped at it; asking for more is not an error.
+         */
+        per_page?: number;
+        /**
+         * Search query; filters the list to items matching this string.
+         */
+        q?: string;
+    };
+    url: '/ai/conversations';
+};
+
+export type TcyAiConversationsListErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsListError = TcyAiConversationsListErrors[keyof TcyAiConversationsListErrors];
+
+export type TcyAiConversationsListResponses = {
+    /**
+     * OK
+     */
+    200: PaginatedConversationSummary;
+};
+
+export type TcyAiConversationsListResponse = TcyAiConversationsListResponses[keyof TcyAiConversationsListResponses];
+
+export type TcyAiConversationsCreateData = {
+    body: TcyAiConversationsCreateRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/conversations';
+};
+
+export type TcyAiConversationsCreateErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsCreateError = TcyAiConversationsCreateErrors[keyof TcyAiConversationsCreateErrors];
+
+export type TcyAiConversationsCreateResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsCreateResponse = TcyAiConversationsCreateResponses[keyof TcyAiConversationsCreateResponses];
+
+export type TcyAiConversationsDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}';
+};
+
+export type TcyAiConversationsDeleteErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsDeleteError = TcyAiConversationsDeleteErrors[keyof TcyAiConversationsDeleteErrors];
+
+export type TcyAiConversationsDeleteResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type TcyAiConversationsDeleteResponse = TcyAiConversationsDeleteResponses[keyof TcyAiConversationsDeleteResponses];
+
+export type TcyAiConversationsReadData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}';
+};
+
+export type TcyAiConversationsReadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsReadError = TcyAiConversationsReadErrors[keyof TcyAiConversationsReadErrors];
+
+export type TcyAiConversationsReadResponses = {
+    /**
+     * OK
+     */
+    200: Conversation;
+};
+
+export type TcyAiConversationsReadResponse = TcyAiConversationsReadResponses[keyof TcyAiConversationsReadResponses];
+
+export type TcyAiConversationsCompactData = {
+    body: TcyAiConversationsCompactRequestWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/compact';
+};
+
+export type TcyAiConversationsCompactErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsCompactError = TcyAiConversationsCompactErrors[keyof TcyAiConversationsCompactErrors];
+
+export type TcyAiConversationsCompactResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsCompactResponse = TcyAiConversationsCompactResponses[keyof TcyAiConversationsCompactResponses];
+
+export type TcyAiConversationsForkData = {
+    body: TcyAiConversationsForkRequestWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/fork';
+};
+
+export type TcyAiConversationsForkErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsForkError = TcyAiConversationsForkErrors[keyof TcyAiConversationsForkErrors];
+
+export type TcyAiConversationsForkResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsForkResponse = TcyAiConversationsForkResponses[keyof TcyAiConversationsForkResponses];
+
+export type TcyAiConversationsSendData = {
+    body: RunInputWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/messages';
+};
+
+export type TcyAiConversationsSendErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsSendError = TcyAiConversationsSendErrors[keyof TcyAiConversationsSendErrors];
+
+export type TcyAiConversationsSendResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsSendResponse = TcyAiConversationsSendResponses[keyof TcyAiConversationsSendResponses];
+
+export type TcyAiConversationsStopData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/stop';
+};
+
+export type TcyAiConversationsStopErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsStopError = TcyAiConversationsStopErrors[keyof TcyAiConversationsStopErrors];
+
+export type TcyAiConversationsStopResponses = {
+    /**
+     * Created
+     */
+    201: unknown;
+};
+
+export type TcyAiConversationsRenameData = {
+    body: TcyAiConversationsRenameRequestWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/title';
+};
+
+export type TcyAiConversationsRenameErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsRenameError = TcyAiConversationsRenameErrors[keyof TcyAiConversationsRenameErrors];
+
+export type TcyAiConversationsRenameResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsRenameResponse = TcyAiConversationsRenameResponses[keyof TcyAiConversationsRenameResponses];
+
 export type TcyAiModelsData = {
     body: TcyAiModelsRequestWritable;
     path?: never;
@@ -6249,6 +6944,44 @@ export type TcyAiModelsResponses = {
 };
 
 export type TcyAiModelsResponse = TcyAiModelsResponses[keyof TcyAiModelsResponses];
+
+export type TcyAiPromptData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional project context.
+         */
+        project_id?: number;
+        /**
+         * read permits queries; write also allows task creation and updates.
+         */
+        mode?: 'read' | 'write';
+        /**
+         * Expose the deletion tool only when write mode is selected.
+         */
+        allow_delete?: boolean;
+    };
+    url: '/ai/prompt';
+};
+
+export type TcyAiPromptErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiPromptError = TcyAiPromptErrors[keyof TcyAiPromptErrors];
+
+export type TcyAiPromptResponses = {
+    /**
+     * OK
+     */
+    200: TcyAiPromptResponse;
+};
+
+export type TcyAiPromptResponse2 = TcyAiPromptResponses[keyof TcyAiPromptResponses];
 
 export type TcyAiRunData = {
     body: RunInputWritable;

@@ -245,13 +245,26 @@
             "e51": "The page number is invalid.",
             "e52": "This page is temporarily unavailable. Please try again later.",
             "e53": "This page has not been published or has been taken down.",
-            "e54": "The project visibility rules are invalid."
+            "e54": "The project visibility rules are invalid.",
+            "chatLimit": "Conversation limit reached. Use a new conversation, delete old conversations, or reduce its size.",
+            "chatCompactFirst": "This conversation is too long. Compact its context before continuing.",
+            "chatSaveFailed": "The answer could not be saved. Check server storage before continuing; some task changes may already have completed.",
+            "chatTooShort": "No additional older turns to compact. More than four turns are needed.",
+            "chatMissing": "Conversation or message not found.",
+            "chatBusy": "An operation is still running. Stop it or wait before continuing.",
+            "chatRequestChanged": "This request ID was already used for a different message. Start a new request.",
+            "chatStreamInterrupted": "The model provider interrupted its response stream. Check its service logs or retry.",
+            "chatStreamInvalid": "The model returned an invalid stream format. Check the selected protocol and provider compatibility.",
+            "chatStreamIncomplete": "The model stream ended before completion. Saved tool operations remain in effect.",
+            "chatUpstream": "Model service HTTP %d: %s"
         },
         "stopped": "Execution stopped: %s. Check the operation log for changes already made.",
         "cleanupFailed": "Text cleanup failed. The original transcript was kept: %s",
         "privateProject": "Private project",
         "busy": "Busy",
         "connectionTest": "Reply with only: Connection successful",
-        "resultTruncated": " [Result too long; narrow your search.]"
+        "resultTruncated": " [Result too long; narrow your search.]",
+        "toolTestPassed": "Text, tool schemas and tool-result continuation passed.",
+        "toolTestUnverified": "Text and tool schemas accepted. The model did not invoke the test tool, so tool-result continuation is unverified."
     }
 }

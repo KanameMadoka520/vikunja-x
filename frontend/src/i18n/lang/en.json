@@ -2028,5 +2028,187 @@
     "commandTuesday": "Tuesday",
     "commandFeb17": "Feb 17",
     "command17th": "17th"
-  }
+  },
+  "tour": {
+    "eyebrow": "VIKUNJA X · GETTING STARTED",
+    "welcomeTitle": "Make yourself at home",
+    "welcomeText": "Explore tasks, AI, voice and your public page.",
+    "open": "Help & guided tours",
+    "dismiss": "Dismiss this welcome message",
+    "close": "Close guide",
+    "title": "What would you like to explore?",
+    "description": "Choose a tour to visit its pages and highlight their controls. Tours explain the interface; you decide when to save, send or publish. Finish unsaved edits before starting.",
+    "stepCount": "{count} steps",
+    "completed": "Completed · replay anytime",
+    "remembered": "This browser remembers completed tours separately for each account. Open this menu anytime to replay them.",
+    "missing": "This area is unavailable or could not finish loading. Continue, or close the guide and try again later.",
+    "locating": "Opening the page and locating this area…",
+    "progress": "Step {current} of {total}",
+    "skip": "Skip tour",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "guides": {
+      "basics": {
+        "title": "Everyday tasks",
+        "description": "Navigate, add tasks, plan your time and collaborate."
+      },
+      "ai": {
+        "title": "AI & voice",
+        "description": "Connect models, assign their roles and use the assistant."
+      },
+      "showcase": {
+        "title": "Your public page",
+        "description": "Choose what to share, preview it and publish when ready."
+      }
+    },
+    "steps": {
+      "overview": {
+        "title": "Your starting point",
+        "text": "The overview brings your tasks and recently visited projects together. Use the sidebar to explore your workspace. On phones, the guide opens the sidebar when needed."
+      },
+      "projects": {
+        "title": "Organize work into projects",
+        "text": "Create a project here, then add its tasks. Projects support list, kanban, table and Gantt views so you can organize the same work in different ways."
+      },
+      "addTask": {
+        "title": "Add a task quickly",
+        "text": "Type a task here and choose its project when asked. Open a task to add details, priority, reminders, assignees and dates. The guide will not create a sample task."
+      },
+      "upcoming": {
+        "title": "Plan dates and time slots",
+        "text": "Upcoming shows tasks by date. Set a due date for a deadline, or start and end times for a time slot. Use a project’s Gantt view to see how scheduled tasks fit together."
+      },
+      "teams": {
+        "title": "Work with other accounts",
+        "text": "Create teams and add members here. Share projects with users or teams from project settings, with read, write or admin access. Shared tasks support assignees and comments."
+      },
+      "search": {
+        "title": "Find things quickly",
+        "text": "Use search to find tasks or projects and run quick actions. Press Ctrl+K on Windows/Linux or Command+K on macOS."
+      },
+      "assistant": {
+        "title": "Turn words into a plan",
+        "text": "The assistant accepts text and audio. First connect your models in Settings → AI & voice. It can look up accessible tasks or make changes according to your chosen mode."
+      },
+      "settings": {
+        "title": "Your account and preferences",
+        "text": "Open the avatar menu for settings. AI & voice connects your models; Public page shares selected schedules with aliases and privacy rules. Private projects are not automatically public."
+      },
+      "replay": {
+        "title": "Help is always here",
+        "text": "Click the question mark or choose Help & guided tours in the avatar menu to replay a tour. Use Back/Next or the left/right arrow keys to change steps. Escape closes the guide."
+      },
+      "connections": {
+        "title": "Connect your model provider",
+        "text": "Configure your provider’s API base URL, key, model ID and protocol here. Include its required version path. The form shows full request and model-list endpoints for troubleshooting."
+      },
+      "addConnection": {
+        "title": "Add and test a connection",
+        "text": "Add a connection here. Text supports OpenAI Chat/Responses, Anthropic and Gemini; speech supports OpenAI Transcriptions, OpenAI Chat Audio and Gemini. Fetch models or enter an ID manually, then save before testing."
+      },
+      "roles": {
+        "title": "Choose a model for each job",
+        "text": "Assign separate models to the task assistant, speech recognition and transcript cleanup. The assistant needs tool calling; speech needs audio input. Each role can use a different provider."
+      },
+      "saveModels": {
+        "title": "Save, then test",
+        "text": "Save connections and role assignments here. Leave an existing key blank to keep it. Use each connection’s test button after saving. This guide does not save settings or contact your provider."
+      },
+      "permissions": {
+        "title": "Choose what AI may do",
+        "text": "Choose a project and working mode. Read-only looks up tasks and suggests plans; Execute allows creation and changes. Deleting tasks requires separate permission for that request."
+      },
+      "voice": {
+        "title": "Speak, review, then send",
+        "text": "Record or upload audio after assigning a speech model. Optionally clean up the transcript, review and edit it, then send it yourself. Recording needs microphone permission; the guide never turns it on."
+      },
+      "send": {
+        "title": "Describe the result you want",
+        "text": "Write or review your request here, then send it yourself. Check the operation history and resulting tasks. If a request fails, some earlier operations may already have succeeded."
+      },
+      "publication": {
+        "title": "A separate page for visitors",
+        "text": "Check whether your page is published. After publishing, open the public webpage or JSON endpoint for bots here, or take both down. Visitors do not need an account."
+      },
+      "hours": {
+        "title": "Set the public time window",
+        "text": "Set your page address, title, days and available hours. Tasks with start and end times form busy slots; deadlines do not occupy the whole day. Public calculations use Asia/Shanghai time."
+      },
+      "privacy": {
+        "title": "Choose what others may see",
+        "text": "Only projects added here appear publicly. Show busy times without names, allow titles with aliases, or hide a project completely. Preview first to alias or hide individual tasks. Private names stay unchanged."
+      },
+      "customPage": {
+        "title": "Make the page your own",
+        "text": "Write Markdown or static HTML. Insert schedules, availability and projects using the template button. A custom body can replace the default panels. Hiding panels does not change the public JSON’s data scope."
+      },
+      "preview": {
+        "title": "Preview before publishing",
+        "text": "Preview shows the visitor-facing result without publishing it. Review names, hidden tasks and time slots. After editing, preview again before publishing. The guide does not preview or change your draft."
+      },
+      "publish": {
+        "title": "Publish only when ready",
+        "text": "Saving a draft keeps it private. Publish this preview updates the webpage and JSON. Published schedules follow live tasks using the last published rules. Hidden or unselected tasks do not count as busy, so public free time may differ from your full calendar."
+      }
+    }
+  },
+	"chat": {
+		"conversations": "Conversations",
+		"new": "New conversation",
+		"noConversations": "Your saved conversations will appear here.",
+		"untitled": "Untitled conversation",
+		"turnCount": "{count} turns",
+		"savedOnServer": "Private to your account. Conversations and model context are encrypted on this server.",
+		"loadFailed": "This conversation could not be loaded.",
+		"retry": "Try again",
+		"rename": "Rename conversation",
+		"compact": "Compact context",
+		"delete": "Delete conversation",
+		"compacted": "Context compacted through turn {count}",
+		"originalsPreserved": "Original messages remain available below. Future requests use this summary and the four most recent turns.",
+		"contextAndPermissions": "Model, project and permissions",
+		"model": "Model connection",
+		"defaultModel": "Assigned assistant",
+		"stop": "Stop execution",
+		"sending": "Sending…",
+		"enterHint": "Enter to send · Shift+Enter for a new line",
+		"systemPrompt": "Built-in prompt and tools",
+		"availableTools": "Available tool definitions",
+		"promptNote": "This is the current system prompt. Each message also includes saved conversation context and your request. Its actual prompt is saved with the response.",
+		"sendFailed": "The message could not be sent. Your draft has been kept.",
+		"deleteConfirm": "Delete this conversation and its saved model context? This does not delete tasks or projects.",
+		"forkConfirm": "Create a new conversation through this response? Existing task and project changes remain in place; branching does not undo or replay them.",
+		"compactConfirm": "Summarize older messages with the selected model? Original messages are kept. Future requests use the summary and four most recent turns. This consumes model tokens.",
+		"unavailable": "Not provided",
+		"seconds": "{value} s",
+		"running": "Running",
+		"thinkingAndSteps": "Thinking and execution",
+		"rounds": "{count} model rounds",
+		"operations": "{count} tool operations",
+		"round": "Round {count}",
+		"providerReasoning": "Thinking returned by the provider",
+		"noReasoning": "The provider did not return visible thinking for this round.",
+		"arguments": "Tool arguments",
+		"actualResult": "Actual tool result",
+		"waiting": "Waiting for the model…",
+		"interrupted": "The server restarted during this run. Operations will not be replayed automatically. Check the saved results before continuing.",
+		"stopped": "Execution stopped. Completed operations remain in place.",
+		"totalTime": "Total time",
+		"firstToken": "First token",
+		"firstText": "First answer text",
+		"inputTokens": "Input",
+		"outputTokens": "Output",
+		"totalTokens": "Total tokens",
+		"tokens": "Token usage",
+		"cacheTokens": "Cached input",
+		"reasoningTokens": "Reasoning tokens",
+		"requestDetails": "Request details and actual system prompt",
+		"requestedModel": "Requested model",
+		"metricNotes": "Usage is reported by the provider and summed across model rounds. Cached and reasoning tokens are included in input/output totals. First token measures the first streamed text or thinking chunk; first answer text excludes thinking. If no streaming evidence or usage is returned, the metric is not provided.",
+		"copy": "Copy answer",
+		"copied": "Copied",
+		"forkHere": "Branch from here",
+		"partialUsage": "Some rounds did not report usage; these totals are partial."
+	}
 }

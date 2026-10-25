@@ -20,13 +20,17 @@
 			</RouterLink>
 			<menu class="menu-list other-menu-items">
 				<li>
-					<RouterLink :to="{name: 'tcy-ai'}">
-						<span class="menu-item-icon icon"><Icon icon="comments" /></span>{{ t('tcymc.text.ai_task_assistant') }}
+					<RouterLink
+						data-tour="nav-ai"
+						:to="{name: 'tcy-ai'}"
+					>
+						<span class="menu-item-icon icon"><Icon icon="robot" /></span>{{ t('tcymc.text.ai_task_assistant') }}
 					</RouterLink>
 				</li>
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.overview"
+						data-tour="nav-overview"
 						:to="{ name: 'home'}"
 					>
 						<span class="menu-item-icon icon">
@@ -38,6 +42,7 @@
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.upcoming"
+						data-tour="nav-upcoming"
 						:to="{ name: 'tasks.range'}"
 					>
 						<span class="menu-item-icon icon">
@@ -49,6 +54,7 @@
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.projects"
+						data-tour="nav-projects"
 						:to="{ name: 'projects.index'}"
 					>
 						<span class="menu-item-icon icon">
@@ -71,6 +77,7 @@
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.teams"
+						data-tour="nav-teams"
 						:to="{ name: 'teams.index'}"
 					>
 						<span class="menu-item-icon icon">

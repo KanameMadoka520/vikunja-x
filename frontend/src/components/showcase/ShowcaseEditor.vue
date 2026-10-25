@@ -55,8 +55,11 @@ function insertTemplate() {
 
 <template>
 	<div class="showcase-editor">
-		<header><h2>{{ t('tcymc.text.public_page') }}</h2><p>{{ t('tcymc.text.share_a_separate_public_schedule_with_friends_and') }}</p></header>
-		<div class="publication">
+		<header><h2><Icon icon="globe" /> {{ t('tcymc.text.public_page') }}</h2><p>{{ t('tcymc.text.share_a_separate_public_schedule_with_friends_and') }}</p></header>
+		<div
+			class="publication"
+			data-tour="showcase-status"
+		>
 			<strong>{{ initial.published ? t('tcymc.text.published') : t('tcymc.text.not_published') }}</strong><template v-if="initial.published">
 				<a
 					:href="publicURL"
@@ -76,7 +79,9 @@ function insertTemplate() {
 			</template>
 		</div>
 		<section class="editor-panel">
-			<h3>{{ t('tcymc.text.page_and_available_hours') }}</h3><div class="fields">
+			<h3 data-tour="showcase-hours">
+				<Icon icon="calendar" /> {{ t('tcymc.text.page_and_available_hours') }}
+			</h3><div class="fields">
 				<label>{{ t('tcymc.text.page_address') }}<input
 					v-model="draft.slug"
 					class="input"
@@ -124,7 +129,9 @@ function insertTemplate() {
 			</p>
 		</section>
 		<section class="editor-panel">
-			<h3>{{ t('tcymc.text.projects_to_publish') }}</h3><p>{{ t('tcymc.text.projects_not_added_here_stay_private_by_default') }}</p><div class="actions">
+			<h3 data-tour="showcase-projects">
+				<Icon icon="eye" /> {{ t('tcymc.text.projects_to_publish') }}
+			</h3><p>{{ t('tcymc.text.projects_not_added_here_stay_private_by_default') }}</p><div class="actions">
 				<select
 					v-model.number="selectedProject"
 					class="input"
@@ -165,7 +172,9 @@ function insertTemplate() {
 			</div>
 		</section>
 		<section class="editor-panel">
-			<h3>{{ t('tcymc.text.custom_markdown_or_html') }}</h3><label><input
+			<h3 data-tour="showcase-content">
+				<Icon icon="code" /> {{ t('tcymc.text.custom_markdown_or_html') }}
+			</h3><label><input
 				v-model="draft.custom_layout"
 				type="checkbox"
 			>{{ t('tcymc.text.use_a_custom_page_body_and_hide_the') }}</label><div class="actions">
@@ -220,18 +229,23 @@ function insertTemplate() {
 			<XButton
 				variant="secondary"
 				:disabled="busy"
+				icon="save"
 				@click="saveDraft"
 			>
 				{{ t('tcymc.text.save_draft') }}
 			</XButton><XButton
 				variant="secondary"
 				:disabled="busy"
+				icon="eye"
+				data-tour="showcase-preview"
 				@click="showPreview"
 			>
 				{{ t('tcymc.text.preview_public_page') }}
 			</XButton><XButton
 				variant="primary"
 				:disabled="busy || !readyToPublish"
+				icon="globe"
+				data-tour="showcase-publish"
 				@click="publishDraft"
 			>
 				{{ t('tcymc.text.publish_this_preview') }}

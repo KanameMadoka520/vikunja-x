@@ -12,7 +12,7 @@ import {useTitle} from '@/composables/useTitle'
 import {useConfigStore} from '@/stores/config'
 import {useAuthStore} from '@/stores/auth'
 
-import SideNavShell from '@/components/misc/SideNavShell.vue'
+import SideNavShell, {type SideNavItem} from '@/components/misc/SideNavShell.vue'
 
 const {t} = useI18n({useScope: 'global'})
 useTitle(() => t('user.settings.title'))
@@ -24,74 +24,97 @@ const migratorsEnabled = computed(() => configStore.migratorsEnabled)
 const isLocalUser = computed(() => authStore.info?.is_local_user)
 
 const navigationItems = computed(() => {
-	const items = [
-		{title: t('tcymc.text.public_page'), routeName: 'user.settings.showcase'},
-		{title: t('tcymc.text.ai_and_voice'), routeName: 'user.settings.ai'},
+	const items: (SideNavItem & {condition?: boolean})[] = [
+		{
+			title: t('tcymc.text.public_page'),
+			icon: 'globe',
+			routeName: 'user.settings.showcase',
+		},
+		{
+			title: t('tcymc.text.ai_and_voice'),
+			icon: 'robot',
+			routeName: 'user.settings.ai',
+		},
 		{
 			title: t('user.settings.general.title'),
+			icon: 'cog',
 			routeName: 'user.settings.general',
 		},
 		{
 			title: t('user.settings.newPasswordTitle'),
+			icon: 'lock',
 			routeName: 'user.settings.password-update',
 			condition: isLocalUser.value,
 		},
 		{
 			title: t('user.settings.updateEmailTitle'),
+			icon: 'user-edit',
 			routeName: 'user.settings.email-update',
 			condition: isLocalUser.value,
 		},
 		{
 			title: t('user.settings.avatar.title'),
+			icon: 'image',
 			routeName: 'user.settings.avatar',
 		},
 		{
 			title: t('user.settings.totp.title'),
+			icon: 'lock',
 			routeName: 'user.settings.totp',
 			condition: configStore.totp_enabled && isLocalUser.value,
 		},
 		{
 			title: t('user.export.title'),
+			icon: 'download',
 			routeName: 'user.settings.data-export',
 		},
 		{
 			title: t('migrate.title'),
+			icon: 'cloud-upload-alt',
 			routeName: 'migrate.start',
 			activeRouteNames: ['migrate.service'],
 			condition: migratorsEnabled.value,
 		},
 		{
 			title: t('user.settings.caldav.title'),
+			icon: 'calendar',
 			routeName: 'user.settings.caldav',
 			condition: configStore.caldav_enabled,
 		},
 		{
 			title: 'MCP',
+			icon: 'code',
 			routeName: 'user.settings.mcp',
 		},
 		{
 			title: t('user.settings.feeds.title'),
+			icon: 'rss',
 			routeName: 'user.settings.feeds',
 		},
 		{
 			title: t('user.settings.apiTokens.title'),
+			icon: 'lock',
 			routeName: 'user.settings.apiTokens',
 		},
 		{
 			title: t('user.settings.sessions.title'),
+			icon: 'history',
 			routeName: 'user.settings.sessions',
 		},
 		{
 			title: t('user.settings.webhooks.title'),
+			icon: 'link',
 			routeName: 'user.settings.webhooks',
 			condition: configStore.webhooks_enabled,
 		},
 		{
 			title: t('user.settings.bots.title'),
+			icon: 'robot',
 			routeName: 'user.settings.bots',
 		},
 		{
 			title: t('user.deletion.title'),
+			icon: 'trash-alt',
 			routeName: 'user.settings.deletion',
 			condition: configStore.user_deletion_enabled,
 		},

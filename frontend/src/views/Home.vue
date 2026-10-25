@@ -20,6 +20,7 @@
 			</RouterLink>
 		</Message>
 		<AddTask
+			data-tour="home-add"
 			class="is-max-width-desktop"
 			@tasksAdded="updateTaskKey"
 		/>

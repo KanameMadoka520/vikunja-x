@@ -64,12 +64,22 @@
 
 		<div class="navbar-end">
 			<TimerBadge />
-			<OpenQuickActions />
+			<OpenQuickActions data-tour="quick-search" />
+			<BaseButton
+				class="trigger-button guide-help"
+				data-tour="guide-help"
+				:title="t('tour.open')"
+				:aria-label="t('tour.open')"
+				@click="tour.show()"
+			>
+				<Icon :icon="['far', 'circle-question']" />
+			</BaseButton>
 			<Notifications />
 			<Dropdown>
 				<template #trigger="{ toggleOpen, open }">
 					<BaseButton
 						class="username-dropdown-trigger"
+						data-tour="account-menu"
 						variant="secondary"
 						:shadow="false"
 						:aria-expanded="open"
@@ -92,34 +102,55 @@
 					</BaseButton>
 				</template>
 
-				<DropdownItem :to="{ name: 'user.settings' }">
+				<DropdownItem
+					icon="cog"
+					:to="{ name: 'user.settings' }"
+				>
 					{{ $t('user.settings.title') }}
 				</DropdownItem>
 				<DropdownItem
 					v-if="adminPanelEnabled && authStore.info?.is_admin"
+					icon="user-edit"
 					:to="{ name: 'admin.overview' }"
 				>
 					{{ $t('admin.title') }}
 				</DropdownItem>
 				<DropdownItem
 					v-if="imprintUrl"
+					icon="circle-info"
 					:href="imprintUrl"
 				>
 					{{ $t('navigation.imprint') }}
 				</DropdownItem>
 				<DropdownItem
 					v-if="privacyPolicyUrl"
+					icon="lock"
 					:href="privacyPolicyUrl"
 				>
 					{{ $t('navigation.privacy') }}
 				</DropdownItem>
-				<DropdownItem @click="baseStore.setKeyboardShortcutsActive(true)">
+				<DropdownItem
+					icon="compass"
+					@click="tour.show()"
+				>
+					{{ t('tour.open') }}
+				</DropdownItem>
+				<DropdownItem
+					icon="keyboard"
+					@click="baseStore.setKeyboardShortcutsActive(true)"
+				>
 					{{ $t('keyboardShortcuts.title') }}
 				</DropdownItem>
-				<DropdownItem :to="{ name: 'about' }">
+				<DropdownItem
+					icon="circle-info"
+					:to="{ name: 'about' }"
+				>
 					{{ $t('about.title') }}
 				</DropdownItem>
-				<DropdownItem @click="authStore.logout()">
+				<DropdownItem
+					icon="sign-out-alt"
+					@click="authStore.logout()"
+				>
 					{{ $t('user.auth.logout') }}
 				</DropdownItem>
 			</Dropdown>
@@ -150,11 +181,13 @@ import { getProjectTitle } from '@/helpers/getProjectTitle'
 import { isEditorContentEmpty } from '@/helpers/editorContentEmpty'
 
 import { useBaseStore } from '@/stores/base'
+import {useGuidedTourStore} from '@/stores/guidedTour'
 import { useConfigStore } from '@/stores/config'
 import { useAuthStore } from '@/stores/auth'
 import {useCurrentProject} from '@/composables/useCurrentProject'
 
 const baseStore = useBaseStore()
+const tour = useGuidedTourStore()
 const {currentProject} = useCurrentProject()
 const background = computed(() => baseStore.background)
 const canWriteCurrentProject = computed(() =>
@@ -294,6 +327,13 @@ $user-dropdown-width-mobile: 5rem;
 	>* {
 		min-inline-size: var(--navbar-button-min-width);
 	}
+}
+
+.guide-help {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-block-size: 44px;
 }
 
 .username-dropdown-trigger {

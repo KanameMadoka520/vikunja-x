@@ -245,13 +245,26 @@
 			"e51": "页码无效",
 			"e52": "页面暂时不可用，请稍后重试",
 			"e53": "页面未发布或已撤下",
-			"e54": "项目展示规则无效"
+			"e54": "项目展示规则无效",
+			"chatLimit": "会话已达到数量或大小限制，请新建会话、删除旧会话或减少内容。",
+			"chatCompactFirst": "会话上下文太长，请先压缩上下文再继续。",
+			"chatSaveFailed": "回答未能保存，请检查服务器存储后再继续；部分任务操作可能已经完成。",
+			"chatTooShort": "目前没有可继续压缩的旧消息。至少需要五轮对话，并保留最近四轮原文。",
+			"chatMissing": "找不到这条会话或消息。",
+			"chatBusy": "仍有操作正在运行，请先停止或等待完成。",
+			"chatRequestChanged": "此请求编号已用于另一条消息，请发起新请求。",
+			"chatStreamInterrupted": "模型服务中断了响应流，请检查服务商日志或重试。",
+			"chatStreamInvalid": "模型返回的流式格式不符合协议，请检查所选协议与服务商兼容性。",
+			"chatStreamIncomplete": "模型响应流提前结束，已完成的工具操作仍然有效。",
+			"chatUpstream": "模型服务返回 HTTP %d：%s"
 		},
 		"stopped": "执行已停止：%s。已完成的操作见下方记录。",
 		"cleanupFailed": "文字整理失败，已保留识别原文：%s",
 		"privateProject": "私人项目",
 		"busy": "忙碌",
 		"connectionTest": "请仅回复：连接成功",
-		"resultTruncated": " [结果过长，请缩小查询范围。]"
+		"resultTruncated": " [结果过长，请缩小查询范围。]",
+		"toolTestPassed": "文字响应、工具参数和工具结果续接测试通过。",
+		"toolTestUnverified": "文字和工具参数已被接受。模型未调用测试工具，因此尚未验证工具结果续接。"
 	}
 }
