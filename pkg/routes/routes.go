@@ -290,6 +290,7 @@ func RegisterRoutes(e *echo.Echo) {
 
 // unauthenticatedAPIPaths contains paths that don't require JWT authentication
 var unauthenticatedAPIPaths = map[string]bool{
+	"/api/v2/public/:slug":                   true,
 	"/api/v1/register":                       true,
 	"/api/v1/user/password/token":            true,
 	"/api/v1/user/password/reset":            true,

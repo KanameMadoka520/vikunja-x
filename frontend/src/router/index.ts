@@ -45,6 +45,8 @@ const router = createRouter({
 		}
 	},
 	routes: [
+		{path: '/p/:slug', name: 'tcy-public', component: () => import('@/views/TcyPublic.vue')},
+		{path: '/ai', name: 'tcy-ai', component: () => import('@/views/TcyAssistant.vue')},
 		{
 			path: '/',
 			name: 'home',
@@ -101,6 +103,8 @@ const router = createRouter({
 			component: () => import('@/views/user/Settings.vue'),
 			redirect: {name: 'user.settings.general'},
 			children: [
+				{path: '/user/settings/showcase', name: 'user.settings.showcase', component: () => import('@/views/user/settings/TcyShowcase.vue')},
+				{path: '/user/settings/ai', name: 'user.settings.ai', component: () => import('@/views/user/settings/TcyAI.vue')},
 				{
 					path: '/user/settings/avatar',
 					name: 'user.settings.avatar',
@@ -592,6 +596,7 @@ export async function getAuthForRoute(to: RouteLocation, authStore: {
 }
 
 router.beforeEach(async (to, from) => {
+	if (to.name === 'tcy-public') return
 	const authStore = useAuthStore()
 
 	await authStore.checkAuth()

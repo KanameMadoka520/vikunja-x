@@ -1,0 +1,65 @@
+import {queryOptions, useMutation} from '@tanstack/vue-query'
+import {
+	tcyShowcaseSettings, tcyShowcaseSave, tcyShowcasePreview, tcyShowcasePublish,
+	tcyShowcaseUnpublish, tcyShowcasePublic,
+	type DraftWritable,
+} from '@/client/generated'
+import {contextMutationOptions} from './contextMutation'
+import {canonicalApiBaseUrl} from '@/client/requestContext'
+import {publicClient} from '@/client/publicClient'
+import {getApiBaseUrl} from '@/helpers/apiUrl'
+
+export type ShowcaseDraft = {
+	custom_layout: boolean, slug: string, title: string, intro: string, content: string, format: 'markdown' | 'html',
+	days: number, start_hour: number, end_hour: number, weekdays: number[],
+	projects: {id: number, alias: string, mode: 'hidden' | 'busy' | 'titles'}[],
+	tasks: {id: number, alias: string, hidden: boolean}[],
+}
+
+export function normalizeDraft(d?: DraftWritable): ShowcaseDraft {
+	return {
+		custom_layout: d?.custom_layout ?? false, slug: d?.slug ?? '', title: d?.title ?? '我的日程', intro: d?.intro ?? '', content: d?.content ?? '', format: d?.format ?? 'markdown',
+		days: d?.days ?? 7, start_hour: d?.start_hour ?? 9, end_hour: d?.end_hour ?? 21, weekdays: d?.weekdays ?? [1, 2, 3, 4, 5],
+		projects: (d?.projects ?? []).map(p => ({id: p.id ?? 0, alias: p.alias ?? '', mode: p.mode ?? 'hidden'})),
+		tasks: (d?.tasks ?? []).map(t => ({id: t.id ?? 0, alias: t.alias ?? '', hidden: t.hidden ?? false})),
+	}
+}
+
+const showcaseKey = ['tcymc-showcase'] as const
+
+export function showcaseSettingsQuery() {
+	return queryOptions({queryKey: showcaseKey, queryFn: async ({signal}) => (await tcyShowcaseSettings({signal})).data})
+}
+
+export function publicShowcaseQuery(slug: string) {
+	return queryOptions({
+		queryKey: ['tcymc-public', slug],
+		queryFn: async ({signal}) => (await tcyShowcasePublic({client: publicClient, baseUrl: canonicalApiBaseUrl(getApiBaseUrl()), path: {slug}, signal, throwOnError: true})).data,
+		meta: {handlesError: true}, retry: false, refetchInterval: 60000,
+	})
+}
+
+export function useSaveShowcase() {
+	return useMutation(contextMutationOptions({
+		mutationFn: async (body: ShowcaseDraft) => (await tcyShowcaseSave({body})).data,
+		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
+		successMessage: () => '草稿已保存，公开内容未改变',
+	}))
+}
+export function usePreviewShowcase() {
+	return useMutation(contextMutationOptions({mutationFn: async (body: ShowcaseDraft) => (await tcyShowcasePreview({body})).data}))
+}
+export function usePublishShowcase() {
+	return useMutation(contextMutationOptions({
+		mutationFn: async (body: ShowcaseDraft) => (await tcyShowcasePublish({body})).data,
+		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
+		successMessage: () => '公开主页已发布，日程将按已发布规则实时更新',
+	}))
+}
+export function useUnpublishShowcase() {
+	return useMutation(contextMutationOptions({
+		mutationFn: async () => (await tcyShowcaseUnpublish()).data,
+		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
+		successMessage: () => '公开主页与 JSON 接口已撤下',
+	}))
+}

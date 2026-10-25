@@ -1,17 +1,17 @@
 {
-  "name": "vikunja-frontend",
-  "description": "The todo app to organize your life.",
+  "name": "vikunja-x-frontend",
+  "description": "Vikunja X · tcymc二次开发版，个人 AI、语音与公开日程",
   "private": true,
   "version": "2.7.1",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://code.vikunja.io/vikunja"
+    "url": "https://github.com/KanameMadoka520/vikunja-x"
   },
   "bugs": {
-    "url": "https://code.vikunja.io/vikunja/issues"
+    "url": "https://github.com/KanameMadoka520/vikunja-x/issues"
   },
-  "homepage": "https://vikunja.io/",
+  "homepage": "https://github.com/KanameMadoka520/vikunja-x",
   "funding": "https://opencollective.com/vikunja",
   "packageManager": "pnpm@11.27.0",
   "engines": {

@@ -2,7 +2,7 @@
 
 import { client } from './client.gen.js';
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client/index.js';
-import type { AdminInviteLinksCreateData, AdminInviteLinksCreateErrors, AdminInviteLinksCreateResponses, AdminInviteLinksDeleteData, AdminInviteLinksDeleteErrors, AdminInviteLinksDeleteResponses, AdminInviteLinksListData, AdminInviteLinksListErrors, AdminInviteLinksListResponses, AdminOverviewData, AdminOverviewErrors, AdminOverviewResponses, AdminProjectsListData, AdminProjectsListErrors, AdminProjectsListResponses, AdminProjectsPatchOwnerData, AdminProjectsPatchOwnerErrors, AdminProjectsPatchOwnerResponses, AdminTeamsListData, AdminTeamsListErrors, AdminTeamsListResponses, AdminUsersCreateData, AdminUsersCreateErrors, AdminUsersCreateResponses, AdminUsersDeleteData, AdminUsersDeleteErrors, AdminUsersDeleteResponses, AdminUsersListData, AdminUsersListErrors, AdminUsersListResponses, AdminUsersPasswordResetEmailData, AdminUsersPasswordResetEmailErrors, AdminUsersPasswordResetEmailResponses, AdminUsersPatchAdminData, AdminUsersPatchAdminErrors, AdminUsersPatchAdminResponses, AdminUsersPatchStatusData, AdminUsersPatchStatusErrors, AdminUsersPatchStatusResponses, AdminUsersSetPasswordData, AdminUsersSetPasswordErrors, AdminUsersSetPasswordResponses, AuthConfirmEmailData, AuthConfirmEmailErrors, AuthConfirmEmailResponses, AuthLinkShareData, AuthLinkShareErrors, AuthLinkShareResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthLogoutData, AuthLogoutErrors, AuthLogoutResponses, AuthOpenidCallbackData, AuthOpenidCallbackErrors, AuthOpenidCallbackResponses, AuthPasswordResetData, AuthPasswordResetErrors, AuthPasswordResetResponses, AuthPasswordTokenData, AuthPasswordTokenErrors, AuthPasswordTokenResponses, AuthRefreshTokenData, AuthRefreshTokenErrors, AuthRefreshTokenResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AvatarGetData, AvatarGetErrors, AvatarGetResponses, BackgroundsUnsplashImageData, BackgroundsUnsplashImageErrors, BackgroundsUnsplashImageResponses, BackgroundsUnsplashSearchData, BackgroundsUnsplashSearchErrors, BackgroundsUnsplashSearchResponses, BackgroundsUnsplashThumbData, BackgroundsUnsplashThumbErrors, BackgroundsUnsplashThumbResponses, BotsCreateData, BotsCreateErrors, BotsCreateResponses, BotsDeleteData, BotsDeleteErrors, BotsDeleteResponses, BotsListData, BotsListErrors, BotsListResponses, BotsReadData, BotsReadErrors, BotsReadResponses, BotsUpdateData, BotsUpdateErrors, BotsUpdateResponses, BucketsCreateData, BucketsCreateErrors, BucketsCreateResponses, BucketsDeleteData, BucketsDeleteErrors, BucketsDeleteResponses, BucketsListData, BucketsListErrors, BucketsListResponses, BucketsUpdateData, BucketsUpdateErrors, BucketsUpdateResponses, CaldavTokensCreateData, CaldavTokensCreateErrors, CaldavTokensCreateResponses, CaldavTokensDeleteData, CaldavTokensDeleteErrors, CaldavTokensDeleteResponses, CaldavTokensListData, CaldavTokensListErrors, CaldavTokensListResponses, FiltersCreateData, FiltersCreateErrors, FiltersCreateResponses, FiltersDeleteData, FiltersDeleteErrors, FiltersDeleteResponses, FiltersReadData, FiltersReadErrors, FiltersReadResponses, FiltersUpdateData, FiltersUpdateErrors, FiltersUpdateResponses, HealthData, HealthErrors, HealthResponses, InfoData, InfoErrors, InfoResponses, InviteLinksCheckData, InviteLinksCheckErrors, InviteLinksCheckResponses, LabelsCreateData, LabelsCreateErrors, LabelsCreateResponses, LabelsDeleteData, LabelsDeleteErrors, LabelsDeleteResponses, LabelsListData, LabelsListErrors, LabelsListResponses, LabelsReadData, LabelsReadErrors, LabelsReadResponses, LabelsUpdateData, LabelsUpdateErrors, LabelsUpdateResponses, McpInfoData, McpInfoErrors, McpInfoResponses, MigrationCsvDetectData, MigrationCsvDetectErrors, MigrationCsvDetectResponses, MigrationCsvMigrateData, MigrationCsvMigrateErrors, MigrationCsvMigrateResponses, MigrationCsvPreviewData, MigrationCsvPreviewErrors, MigrationCsvPreviewResponses, MigrationCsvStatusData, MigrationCsvStatusErrors, MigrationCsvStatusResponses, MigrationMicrosoftTodoAuthData, MigrationMicrosoftTodoAuthErrors, MigrationMicrosoftTodoAuthResponses, MigrationMicrosoftTodoMigrateData, MigrationMicrosoftTodoMigrateErrors, MigrationMicrosoftTodoMigrateResponses, MigrationMicrosoftTodoStatusData, MigrationMicrosoftTodoStatusErrors, MigrationMicrosoftTodoStatusResponses, MigrationPlankaMigrateData, MigrationPlankaMigrateErrors, MigrationPlankaMigrateResponses, MigrationPlankaStatusData, MigrationPlankaStatusErrors, MigrationPlankaStatusResponses, MigrationTicktickMigrateData, MigrationTicktickMigrateErrors, MigrationTicktickMigrateResponses, MigrationTicktickStatusData, MigrationTicktickStatusErrors, MigrationTicktickStatusResponses, MigrationTodoistAuthData, MigrationTodoistAuthErrors, MigrationTodoistAuthResponses, MigrationTodoistMigrateData, MigrationTodoistMigrateErrors, MigrationTodoistMigrateResponses, MigrationTodoistStatusData, MigrationTodoistStatusErrors, MigrationTodoistStatusResponses, MigrationTrelloAuthData, MigrationTrelloAuthErrors, MigrationTrelloAuthResponses, MigrationTrelloMigrateData, MigrationTrelloMigrateErrors, MigrationTrelloMigrateResponses, MigrationTrelloStatusData, MigrationTrelloStatusErrors, MigrationTrelloStatusResponses, MigrationVikunjaFileMigrateData, MigrationVikunjaFileMigrateErrors, MigrationVikunjaFileMigrateResponses, MigrationVikunjaFileStatusData, MigrationVikunjaFileStatusErrors, MigrationVikunjaFileStatusResponses, MigrationWekanMigrateData, MigrationWekanMigrateErrors, MigrationWekanMigrateResponses, MigrationWekanStatusData, MigrationWekanStatusErrors, MigrationWekanStatusResponses, NotificationsAtomFeedData, NotificationsAtomFeedErrors, NotificationsAtomFeedResponses, NotificationsDeleteAllData, NotificationsDeleteAllErrors, NotificationsDeleteAllResponses, NotificationsListData, NotificationsListErrors, NotificationsListResponses, NotificationsMarkAllReadData, NotificationsMarkAllReadErrors, NotificationsMarkAllReadResponses, NotificationsMarkReadData, NotificationsMarkReadErrors, NotificationsMarkReadResponses, OauthAuthorizeData, OauthAuthorizeErrors, OauthAuthorizeResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PatchBotsReadData, PatchBotsReadErrors, PatchBotsReadResponses, PatchFiltersReadData, PatchFiltersReadErrors, PatchFiltersReadResponses, PatchLabelsReadData, PatchLabelsReadErrors, PatchLabelsReadResponses, PatchProjectsReadData, PatchProjectsReadErrors, PatchProjectsReadResponses, PatchProjectViewsReadData, PatchProjectViewsReadErrors, PatchProjectViewsReadResponses, PatchTaskCommentsReadData, PatchTaskCommentsReadErrors, PatchTaskCommentsReadResponses, PatchTasksReadData, PatchTasksReadErrors, PatchTasksReadResponses, PatchTeamsReadData, PatchTeamsReadErrors, PatchTeamsReadResponses, PatchTimeEntriesReadData, PatchTimeEntriesReadErrors, PatchTimeEntriesReadResponses, PatchUserGetAvatarProviderData, PatchUserGetAvatarProviderErrors, PatchUserGetAvatarProviderResponses, PatchUserSettingsReadData, PatchUserSettingsReadErrors, PatchUserSettingsReadResponses, ProjectsBackgroundDeleteData, ProjectsBackgroundDeleteErrors, ProjectsBackgroundDeleteResponses, ProjectsBackgroundGetData, ProjectsBackgroundGetErrors, ProjectsBackgroundGetResponses, ProjectsBackgroundUnsplashSetData, ProjectsBackgroundUnsplashSetErrors, ProjectsBackgroundUnsplashSetResponses, ProjectsBackgroundUploadData, ProjectsBackgroundUploadErrors, ProjectsBackgroundUploadResponses, ProjectsCreateData, ProjectsCreateErrors, ProjectsCreateResponses, ProjectsDeleteData, ProjectsDeleteErrors, ProjectsDeleteResponses, ProjectsDuplicateData, ProjectsDuplicateErrors, ProjectsDuplicateResponses, ProjectsListData, ProjectsListErrors, ProjectsListResponses, ProjectsReadData, ProjectsReadErrors, ProjectsReadResponses, ProjectsUpdateData, ProjectsUpdateErrors, ProjectsUpdateResponses, ProjectsUsersSearchData, ProjectsUsersSearchErrors, ProjectsUsersSearchResponses, ProjectTasksListData, ProjectTasksListErrors, ProjectTasksListResponses, ProjectTeamsCreateData, ProjectTeamsCreateErrors, ProjectTeamsCreateResponses, ProjectTeamsDeleteData, ProjectTeamsDeleteErrors, ProjectTeamsDeleteResponses, ProjectTeamsListData, ProjectTeamsListErrors, ProjectTeamsListResponses, ProjectTeamsUpdateData, ProjectTeamsUpdateErrors, ProjectTeamsUpdateResponses, ProjectTimeEntriesListData, ProjectTimeEntriesListErrors, ProjectTimeEntriesListResponses, ProjectUsersCreateData, ProjectUsersCreateErrors, ProjectUsersCreateResponses, ProjectUsersDeleteData, ProjectUsersDeleteErrors, ProjectUsersDeleteResponses, ProjectUsersListData, ProjectUsersListErrors, ProjectUsersListResponses, ProjectUsersUpdateData, ProjectUsersUpdateErrors, ProjectUsersUpdateResponses, ProjectViewBucketsTasksListData, ProjectViewBucketsTasksListErrors, ProjectViewBucketsTasksListResponses, ProjectViewsCreateData, ProjectViewsCreateErrors, ProjectViewsCreateResponses, ProjectViewsDeleteData, ProjectViewsDeleteErrors, ProjectViewsDeleteResponses, ProjectViewsListData, ProjectViewsListErrors, ProjectViewsListResponses, ProjectViewsReadData, ProjectViewsReadErrors, ProjectViewsReadResponses, ProjectViewsUpdateData, ProjectViewsUpdateErrors, ProjectViewsUpdateResponses, ProjectViewTasksListData, ProjectViewTasksListErrors, ProjectViewTasksListResponses, ReactionsCreateData, ReactionsCreateErrors, ReactionsCreateResponses, ReactionsDeleteData, ReactionsDeleteErrors, ReactionsDeleteResponses, ReactionsListData, ReactionsListErrors, ReactionsListResponses, SessionsDeleteData, SessionsDeleteErrors, SessionsDeleteResponses, SessionsListData, SessionsListErrors, SessionsListResponses, SharesCreateData, SharesCreateErrors, SharesCreateResponses, SharesDeleteData, SharesDeleteErrors, SharesDeleteResponses, SharesListData, SharesListErrors, SharesListResponses, SharesReadData, SharesReadErrors, SharesReadResponses, SubscriptionsCreateData, SubscriptionsCreateErrors, SubscriptionsCreateResponses, SubscriptionsDeleteData, SubscriptionsDeleteErrors, SubscriptionsDeleteResponses, TaskAssigneesBulkData, TaskAssigneesBulkErrors, TaskAssigneesBulkResponses, TaskAssigneesCreateData, TaskAssigneesCreateErrors, TaskAssigneesCreateResponses, TaskAssigneesDeleteData, TaskAssigneesDeleteErrors, TaskAssigneesDeleteResponses, TaskAssigneesListData, TaskAssigneesListErrors, TaskAssigneesListResponses, TaskAttachmentsDeleteData, TaskAttachmentsDeleteErrors, TaskAttachmentsDeleteResponses, TaskAttachmentsDownloadData, TaskAttachmentsDownloadErrors, TaskAttachmentsDownloadResponses, TaskAttachmentsListData, TaskAttachmentsListErrors, TaskAttachmentsListResponses, TaskAttachmentsPreviewData, TaskAttachmentsPreviewErrors, TaskAttachmentsPreviewResponses, TaskAttachmentsUploadData, TaskAttachmentsUploadErrors, TaskAttachmentsUploadResponses, TaskBucketUpdateData, TaskBucketUpdateErrors, TaskBucketUpdateResponses, TaskCommentsCreateData, TaskCommentsCreateErrors, TaskCommentsCreateResponses, TaskCommentsDeleteData, TaskCommentsDeleteErrors, TaskCommentsDeleteResponses, TaskCommentsListData, TaskCommentsListErrors, TaskCommentsListResponses, TaskCommentsReadData, TaskCommentsReadErrors, TaskCommentsReadResponses, TaskCommentsUpdateData, TaskCommentsUpdateErrors, TaskCommentsUpdateResponses, TaskLabelsBulkReplaceData, TaskLabelsBulkReplaceErrors, TaskLabelsBulkReplaceResponses, TaskLabelsCreateData, TaskLabelsCreateErrors, TaskLabelsCreateResponses, TaskLabelsDeleteData, TaskLabelsDeleteErrors, TaskLabelsDeleteResponses, TaskLabelsListData, TaskLabelsListErrors, TaskLabelsListResponses, TasksBulkCreateData, TasksBulkCreateErrors, TasksBulkCreateResponses, TasksBulkUpdateData, TasksBulkUpdateErrors, TasksBulkUpdateResponses, TasksCreateData, TasksCreateErrors, TasksCreateResponses, TasksDeleteData, TasksDeleteErrors, TasksDeleteResponses, TasksDuplicateData, TasksDuplicateErrors, TasksDuplicateResponses, TasksListData, TasksListErrors, TasksListResponses, TasksMarkReadData, TasksMarkReadErrors, TasksMarkReadResponses, TasksPositionUpdateData, TasksPositionUpdateErrors, TasksPositionUpdateResponses, TasksReadByIndexData, TasksReadByIndexErrors, TasksReadByIndexResponses, TasksReadData, TasksReadErrors, TasksReadResponses, TasksRelationsCreateData, TasksRelationsCreateErrors, TasksRelationsCreateResponses, TasksRelationsDeleteData, TasksRelationsDeleteErrors, TasksRelationsDeleteResponses, TasksUpdateData, TasksUpdateErrors, TasksUpdateResponses, TaskTimeEntriesListData, TaskTimeEntriesListErrors, TaskTimeEntriesListResponses, TeamsCreateData, TeamsCreateErrors, TeamsCreateResponses, TeamsDeleteData, TeamsDeleteErrors, TeamsDeleteResponses, TeamsListData, TeamsListErrors, TeamsListResponses, TeamsMembersAddData, TeamsMembersAddErrors, TeamsMembersAddResponses, TeamsMembersRemoveData, TeamsMembersRemoveErrors, TeamsMembersRemoveResponses, TeamsMembersToggleAdminData, TeamsMembersToggleAdminErrors, TeamsMembersToggleAdminResponses, TeamsReadData, TeamsReadErrors, TeamsReadResponses, TeamsUpdateData, TeamsUpdateErrors, TeamsUpdateResponses, TimeEntriesCreateData, TimeEntriesCreateErrors, TimeEntriesCreateResponses, TimeEntriesDeleteData, TimeEntriesDeleteErrors, TimeEntriesDeleteResponses, TimeEntriesListData, TimeEntriesListErrors, TimeEntriesListResponses, TimeEntriesReadData, TimeEntriesReadErrors, TimeEntriesReadResponses, TimeEntriesTimerStopData, TimeEntriesTimerStopErrors, TimeEntriesTimerStopResponses, TimeEntriesUpdateData, TimeEntriesUpdateErrors, TimeEntriesUpdateResponses, TokenCheckData, TokenCheckErrors, TokenCheckResponses, TokenRenewData, TokenRenewErrors, TokenRenewResponses, TokenRoutesData, TokenRoutesErrors, TokenRoutesResponses, TokensCreateData, TokensCreateErrors, TokensCreateResponses, TokensDeleteData, TokensDeleteErrors, TokensDeleteResponses, TokensListData, TokensListErrors, TokensListResponses, TokenTestData, TokenTestErrors, TokenTestResponses, TotpDisableData, TotpDisableErrors, TotpDisableResponses, TotpEnableData, TotpEnableErrors, TotpEnableResponses, TotpEnrollData, TotpEnrollErrors, TotpEnrollResponses, TotpGetData, TotpGetErrors, TotpGetResponses, TotpQrcodeData, TotpQrcodeErrors, TotpQrcodeResponses, UserAvatarUploadData, UserAvatarUploadErrors, UserAvatarUploadResponses, UserCancelEmailUpdateData, UserCancelEmailUpdateErrors, UserCancelEmailUpdateResponses, UserChangePasswordData, UserChangePasswordErrors, UserChangePasswordResponses, UserDeletionCancelData, UserDeletionCancelErrors, UserDeletionCancelResponses, UserDeletionConfirmData, UserDeletionConfirmErrors, UserDeletionConfirmResponses, UserDeletionRequestData, UserDeletionRequestErrors, UserDeletionRequestResponses, UserExportDownloadData, UserExportDownloadErrors, UserExportDownloadResponses, UserExportRequestData, UserExportRequestErrors, UserExportRequestResponses, UserExportStatusData, UserExportStatusErrors, UserExportStatusResponses, UserGetAvatarProviderData, UserGetAvatarProviderErrors, UserGetAvatarProviderResponses, UserResendEmailConfirmationData, UserResendEmailConfirmationErrors, UserResendEmailConfirmationResponses, UserSetAvatarProviderData, UserSetAvatarProviderErrors, UserSetAvatarProviderResponses, UserSettingsReadData, UserSettingsReadErrors, UserSettingsReadResponses, UserShowData, UserShowErrors, UserShowResponses, UsersSearchData, UsersSearchErrors, UsersSearchResponses, UserTimezonesData, UserTimezonesErrors, UserTimezonesResponses, UserUpdateEmailData, UserUpdateEmailErrors, UserUpdateEmailResponses, UserUpdateSettingsData, UserUpdateSettingsErrors, UserUpdateSettingsResponses, UserWebhooksCreateData, UserWebhooksCreateErrors, UserWebhooksCreateResponses, UserWebhooksDeleteData, UserWebhooksDeleteErrors, UserWebhooksDeleteResponses, UserWebhooksEventsData, UserWebhooksEventsErrors, UserWebhooksEventsResponses, UserWebhooksListData, UserWebhooksListErrors, UserWebhooksListResponses, UserWebhooksUpdateData, UserWebhooksUpdateErrors, UserWebhooksUpdateResponses, WebhooksCreateData, WebhooksCreateErrors, WebhooksCreateResponses, WebhooksDeleteData, WebhooksDeleteErrors, WebhooksDeleteResponses, WebhooksEventsListData, WebhooksEventsListErrors, WebhooksEventsListResponses, WebhooksListData, WebhooksListErrors, WebhooksListResponses, WebhooksUpdateData, WebhooksUpdateErrors, WebhooksUpdateResponses } from './types.gen.js';
+import type { AdminInviteLinksCreateData, AdminInviteLinksCreateErrors, AdminInviteLinksCreateResponses, AdminInviteLinksDeleteData, AdminInviteLinksDeleteErrors, AdminInviteLinksDeleteResponses, AdminInviteLinksListData, AdminInviteLinksListErrors, AdminInviteLinksListResponses, AdminOverviewData, AdminOverviewErrors, AdminOverviewResponses, AdminProjectsListData, AdminProjectsListErrors, AdminProjectsListResponses, AdminProjectsPatchOwnerData, AdminProjectsPatchOwnerErrors, AdminProjectsPatchOwnerResponses, AdminTeamsListData, AdminTeamsListErrors, AdminTeamsListResponses, AdminUsersCreateData, AdminUsersCreateErrors, AdminUsersCreateResponses, AdminUsersDeleteData, AdminUsersDeleteErrors, AdminUsersDeleteResponses, AdminUsersListData, AdminUsersListErrors, AdminUsersListResponses, AdminUsersPasswordResetEmailData, AdminUsersPasswordResetEmailErrors, AdminUsersPasswordResetEmailResponses, AdminUsersPatchAdminData, AdminUsersPatchAdminErrors, AdminUsersPatchAdminResponses, AdminUsersPatchStatusData, AdminUsersPatchStatusErrors, AdminUsersPatchStatusResponses, AdminUsersSetPasswordData, AdminUsersSetPasswordErrors, AdminUsersSetPasswordResponses, AuthConfirmEmailData, AuthConfirmEmailErrors, AuthConfirmEmailResponses, AuthLinkShareData, AuthLinkShareErrors, AuthLinkShareResponses, AuthLoginData, AuthLoginErrors, AuthLoginResponses, AuthLogoutData, AuthLogoutErrors, AuthLogoutResponses, AuthOpenidCallbackData, AuthOpenidCallbackErrors, AuthOpenidCallbackResponses, AuthPasswordResetData, AuthPasswordResetErrors, AuthPasswordResetResponses, AuthPasswordTokenData, AuthPasswordTokenErrors, AuthPasswordTokenResponses, AuthRefreshTokenData, AuthRefreshTokenErrors, AuthRefreshTokenResponses, AuthRegisterData, AuthRegisterErrors, AuthRegisterResponses, AvatarGetData, AvatarGetErrors, AvatarGetResponses, BackgroundsUnsplashImageData, BackgroundsUnsplashImageErrors, BackgroundsUnsplashImageResponses, BackgroundsUnsplashSearchData, BackgroundsUnsplashSearchErrors, BackgroundsUnsplashSearchResponses, BackgroundsUnsplashThumbData, BackgroundsUnsplashThumbErrors, BackgroundsUnsplashThumbResponses, BotsCreateData, BotsCreateErrors, BotsCreateResponses, BotsDeleteData, BotsDeleteErrors, BotsDeleteResponses, BotsListData, BotsListErrors, BotsListResponses, BotsReadData, BotsReadErrors, BotsReadResponses, BotsUpdateData, BotsUpdateErrors, BotsUpdateResponses, BucketsCreateData, BucketsCreateErrors, BucketsCreateResponses, BucketsDeleteData, BucketsDeleteErrors, BucketsDeleteResponses, BucketsListData, BucketsListErrors, BucketsListResponses, BucketsUpdateData, BucketsUpdateErrors, BucketsUpdateResponses, CaldavTokensCreateData, CaldavTokensCreateErrors, CaldavTokensCreateResponses, CaldavTokensDeleteData, CaldavTokensDeleteErrors, CaldavTokensDeleteResponses, CaldavTokensListData, CaldavTokensListErrors, CaldavTokensListResponses, FiltersCreateData, FiltersCreateErrors, FiltersCreateResponses, FiltersDeleteData, FiltersDeleteErrors, FiltersDeleteResponses, FiltersReadData, FiltersReadErrors, FiltersReadResponses, FiltersUpdateData, FiltersUpdateErrors, FiltersUpdateResponses, HealthData, HealthErrors, HealthResponses, InfoData, InfoErrors, InfoResponses, InviteLinksCheckData, InviteLinksCheckErrors, InviteLinksCheckResponses, LabelsCreateData, LabelsCreateErrors, LabelsCreateResponses, LabelsDeleteData, LabelsDeleteErrors, LabelsDeleteResponses, LabelsListData, LabelsListErrors, LabelsListResponses, LabelsReadData, LabelsReadErrors, LabelsReadResponses, LabelsUpdateData, LabelsUpdateErrors, LabelsUpdateResponses, McpInfoData, McpInfoErrors, McpInfoResponses, MigrationCsvDetectData, MigrationCsvDetectErrors, MigrationCsvDetectResponses, MigrationCsvMigrateData, MigrationCsvMigrateErrors, MigrationCsvMigrateResponses, MigrationCsvPreviewData, MigrationCsvPreviewErrors, MigrationCsvPreviewResponses, MigrationCsvStatusData, MigrationCsvStatusErrors, MigrationCsvStatusResponses, MigrationMicrosoftTodoAuthData, MigrationMicrosoftTodoAuthErrors, MigrationMicrosoftTodoAuthResponses, MigrationMicrosoftTodoMigrateData, MigrationMicrosoftTodoMigrateErrors, MigrationMicrosoftTodoMigrateResponses, MigrationMicrosoftTodoStatusData, MigrationMicrosoftTodoStatusErrors, MigrationMicrosoftTodoStatusResponses, MigrationPlankaMigrateData, MigrationPlankaMigrateErrors, MigrationPlankaMigrateResponses, MigrationPlankaStatusData, MigrationPlankaStatusErrors, MigrationPlankaStatusResponses, MigrationTicktickMigrateData, MigrationTicktickMigrateErrors, MigrationTicktickMigrateResponses, MigrationTicktickStatusData, MigrationTicktickStatusErrors, MigrationTicktickStatusResponses, MigrationTodoistAuthData, MigrationTodoistAuthErrors, MigrationTodoistAuthResponses, MigrationTodoistMigrateData, MigrationTodoistMigrateErrors, MigrationTodoistMigrateResponses, MigrationTodoistStatusData, MigrationTodoistStatusErrors, MigrationTodoistStatusResponses, MigrationTrelloAuthData, MigrationTrelloAuthErrors, MigrationTrelloAuthResponses, MigrationTrelloMigrateData, MigrationTrelloMigrateErrors, MigrationTrelloMigrateResponses, MigrationTrelloStatusData, MigrationTrelloStatusErrors, MigrationTrelloStatusResponses, MigrationVikunjaFileMigrateData, MigrationVikunjaFileMigrateErrors, MigrationVikunjaFileMigrateResponses, MigrationVikunjaFileStatusData, MigrationVikunjaFileStatusErrors, MigrationVikunjaFileStatusResponses, MigrationWekanMigrateData, MigrationWekanMigrateErrors, MigrationWekanMigrateResponses, MigrationWekanStatusData, MigrationWekanStatusErrors, MigrationWekanStatusResponses, NotificationsAtomFeedData, NotificationsAtomFeedErrors, NotificationsAtomFeedResponses, NotificationsDeleteAllData, NotificationsDeleteAllErrors, NotificationsDeleteAllResponses, NotificationsListData, NotificationsListErrors, NotificationsListResponses, NotificationsMarkAllReadData, NotificationsMarkAllReadErrors, NotificationsMarkAllReadResponses, NotificationsMarkReadData, NotificationsMarkReadErrors, NotificationsMarkReadResponses, OauthAuthorizeData, OauthAuthorizeErrors, OauthAuthorizeResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PatchBotsReadData, PatchBotsReadErrors, PatchBotsReadResponses, PatchFiltersReadData, PatchFiltersReadErrors, PatchFiltersReadResponses, PatchLabelsReadData, PatchLabelsReadErrors, PatchLabelsReadResponses, PatchProjectsReadData, PatchProjectsReadErrors, PatchProjectsReadResponses, PatchProjectViewsReadData, PatchProjectViewsReadErrors, PatchProjectViewsReadResponses, PatchTaskCommentsReadData, PatchTaskCommentsReadErrors, PatchTaskCommentsReadResponses, PatchTasksReadData, PatchTasksReadErrors, PatchTasksReadResponses, PatchTeamsReadData, PatchTeamsReadErrors, PatchTeamsReadResponses, PatchTimeEntriesReadData, PatchTimeEntriesReadErrors, PatchTimeEntriesReadResponses, PatchUserGetAvatarProviderData, PatchUserGetAvatarProviderErrors, PatchUserGetAvatarProviderResponses, PatchUserSettingsReadData, PatchUserSettingsReadErrors, PatchUserSettingsReadResponses, ProjectsBackgroundDeleteData, ProjectsBackgroundDeleteErrors, ProjectsBackgroundDeleteResponses, ProjectsBackgroundGetData, ProjectsBackgroundGetErrors, ProjectsBackgroundGetResponses, ProjectsBackgroundUnsplashSetData, ProjectsBackgroundUnsplashSetErrors, ProjectsBackgroundUnsplashSetResponses, ProjectsBackgroundUploadData, ProjectsBackgroundUploadErrors, ProjectsBackgroundUploadResponses, ProjectsCreateData, ProjectsCreateErrors, ProjectsCreateResponses, ProjectsDeleteData, ProjectsDeleteErrors, ProjectsDeleteResponses, ProjectsDuplicateData, ProjectsDuplicateErrors, ProjectsDuplicateResponses, ProjectsListData, ProjectsListErrors, ProjectsListResponses, ProjectsReadData, ProjectsReadErrors, ProjectsReadResponses, ProjectsUpdateData, ProjectsUpdateErrors, ProjectsUpdateResponses, ProjectsUsersSearchData, ProjectsUsersSearchErrors, ProjectsUsersSearchResponses, ProjectTasksListData, ProjectTasksListErrors, ProjectTasksListResponses, ProjectTeamsCreateData, ProjectTeamsCreateErrors, ProjectTeamsCreateResponses, ProjectTeamsDeleteData, ProjectTeamsDeleteErrors, ProjectTeamsDeleteResponses, ProjectTeamsListData, ProjectTeamsListErrors, ProjectTeamsListResponses, ProjectTeamsUpdateData, ProjectTeamsUpdateErrors, ProjectTeamsUpdateResponses, ProjectTimeEntriesListData, ProjectTimeEntriesListErrors, ProjectTimeEntriesListResponses, ProjectUsersCreateData, ProjectUsersCreateErrors, ProjectUsersCreateResponses, ProjectUsersDeleteData, ProjectUsersDeleteErrors, ProjectUsersDeleteResponses, ProjectUsersListData, ProjectUsersListErrors, ProjectUsersListResponses, ProjectUsersUpdateData, ProjectUsersUpdateErrors, ProjectUsersUpdateResponses, ProjectViewBucketsTasksListData, ProjectViewBucketsTasksListErrors, ProjectViewBucketsTasksListResponses, ProjectViewsCreateData, ProjectViewsCreateErrors, ProjectViewsCreateResponses, ProjectViewsDeleteData, ProjectViewsDeleteErrors, ProjectViewsDeleteResponses, ProjectViewsListData, ProjectViewsListErrors, ProjectViewsListResponses, ProjectViewsReadData, ProjectViewsReadErrors, ProjectViewsReadResponses, ProjectViewsUpdateData, ProjectViewsUpdateErrors, ProjectViewsUpdateResponses, ProjectViewTasksListData, ProjectViewTasksListErrors, ProjectViewTasksListResponses, ReactionsCreateData, ReactionsCreateErrors, ReactionsCreateResponses, ReactionsDeleteData, ReactionsDeleteErrors, ReactionsDeleteResponses, ReactionsListData, ReactionsListErrors, ReactionsListResponses, SessionsDeleteData, SessionsDeleteErrors, SessionsDeleteResponses, SessionsListData, SessionsListErrors, SessionsListResponses, SharesCreateData, SharesCreateErrors, SharesCreateResponses, SharesDeleteData, SharesDeleteErrors, SharesDeleteResponses, SharesListData, SharesListErrors, SharesListResponses, SharesReadData, SharesReadErrors, SharesReadResponses, SubscriptionsCreateData, SubscriptionsCreateErrors, SubscriptionsCreateResponses, SubscriptionsDeleteData, SubscriptionsDeleteErrors, SubscriptionsDeleteResponses, TaskAssigneesBulkData, TaskAssigneesBulkErrors, TaskAssigneesBulkResponses, TaskAssigneesCreateData, TaskAssigneesCreateErrors, TaskAssigneesCreateResponses, TaskAssigneesDeleteData, TaskAssigneesDeleteErrors, TaskAssigneesDeleteResponses, TaskAssigneesListData, TaskAssigneesListErrors, TaskAssigneesListResponses, TaskAttachmentsDeleteData, TaskAttachmentsDeleteErrors, TaskAttachmentsDeleteResponses, TaskAttachmentsDownloadData, TaskAttachmentsDownloadErrors, TaskAttachmentsDownloadResponses, TaskAttachmentsListData, TaskAttachmentsListErrors, TaskAttachmentsListResponses, TaskAttachmentsPreviewData, TaskAttachmentsPreviewErrors, TaskAttachmentsPreviewResponses, TaskAttachmentsUploadData, TaskAttachmentsUploadErrors, TaskAttachmentsUploadResponses, TaskBucketUpdateData, TaskBucketUpdateErrors, TaskBucketUpdateResponses, TaskCommentsCreateData, TaskCommentsCreateErrors, TaskCommentsCreateResponses, TaskCommentsDeleteData, TaskCommentsDeleteErrors, TaskCommentsDeleteResponses, TaskCommentsListData, TaskCommentsListErrors, TaskCommentsListResponses, TaskCommentsReadData, TaskCommentsReadErrors, TaskCommentsReadResponses, TaskCommentsUpdateData, TaskCommentsUpdateErrors, TaskCommentsUpdateResponses, TaskLabelsBulkReplaceData, TaskLabelsBulkReplaceErrors, TaskLabelsBulkReplaceResponses, TaskLabelsCreateData, TaskLabelsCreateErrors, TaskLabelsCreateResponses, TaskLabelsDeleteData, TaskLabelsDeleteErrors, TaskLabelsDeleteResponses, TaskLabelsListData, TaskLabelsListErrors, TaskLabelsListResponses, TasksBulkCreateData, TasksBulkCreateErrors, TasksBulkCreateResponses, TasksBulkUpdateData, TasksBulkUpdateErrors, TasksBulkUpdateResponses, TasksCreateData, TasksCreateErrors, TasksCreateResponses, TasksDeleteData, TasksDeleteErrors, TasksDeleteResponses, TasksDuplicateData, TasksDuplicateErrors, TasksDuplicateResponses, TasksListData, TasksListErrors, TasksListResponses, TasksMarkReadData, TasksMarkReadErrors, TasksMarkReadResponses, TasksPositionUpdateData, TasksPositionUpdateErrors, TasksPositionUpdateResponses, TasksReadByIndexData, TasksReadByIndexErrors, TasksReadByIndexResponses, TasksReadData, TasksReadErrors, TasksReadResponses, TasksRelationsCreateData, TasksRelationsCreateErrors, TasksRelationsCreateResponses, TasksRelationsDeleteData, TasksRelationsDeleteErrors, TasksRelationsDeleteResponses, TasksUpdateData, TasksUpdateErrors, TasksUpdateResponses, TaskTimeEntriesListData, TaskTimeEntriesListErrors, TaskTimeEntriesListResponses, TcyAiCleanupData, TcyAiCleanupErrors, TcyAiCleanupResponses, TcyAiRunData, TcyAiRunErrors, TcyAiRunResponses, TcyAiSaveSettingsData, TcyAiSaveSettingsErrors, TcyAiSaveSettingsResponses, TcyAiSettingsData, TcyAiSettingsErrors, TcyAiSettingsResponses, TcyAiTestData, TcyAiTestErrors, TcyAiTestResponses, TcyAiTranscribeData, TcyAiTranscribeErrors, TcyAiTranscribeResponses, TcyShowcasePreviewData, TcyShowcasePreviewErrors, TcyShowcasePreviewResponses, TcyShowcasePublicData, TcyShowcasePublicErrors, TcyShowcasePublicResponses, TcyShowcasePublishData, TcyShowcasePublishErrors, TcyShowcasePublishResponses, TcyShowcaseSaveData, TcyShowcaseSaveErrors, TcyShowcaseSaveResponses, TcyShowcaseSettingsData, TcyShowcaseSettingsErrors, TcyShowcaseSettingsResponses, TcyShowcaseUnpublishData, TcyShowcaseUnpublishErrors, TcyShowcaseUnpublishResponses, TeamsCreateData, TeamsCreateErrors, TeamsCreateResponses, TeamsDeleteData, TeamsDeleteErrors, TeamsDeleteResponses, TeamsListData, TeamsListErrors, TeamsListResponses, TeamsMembersAddData, TeamsMembersAddErrors, TeamsMembersAddResponses, TeamsMembersRemoveData, TeamsMembersRemoveErrors, TeamsMembersRemoveResponses, TeamsMembersToggleAdminData, TeamsMembersToggleAdminErrors, TeamsMembersToggleAdminResponses, TeamsReadData, TeamsReadErrors, TeamsReadResponses, TeamsUpdateData, TeamsUpdateErrors, TeamsUpdateResponses, TimeEntriesCreateData, TimeEntriesCreateErrors, TimeEntriesCreateResponses, TimeEntriesDeleteData, TimeEntriesDeleteErrors, TimeEntriesDeleteResponses, TimeEntriesListData, TimeEntriesListErrors, TimeEntriesListResponses, TimeEntriesReadData, TimeEntriesReadErrors, TimeEntriesReadResponses, TimeEntriesTimerStopData, TimeEntriesTimerStopErrors, TimeEntriesTimerStopResponses, TimeEntriesUpdateData, TimeEntriesUpdateErrors, TimeEntriesUpdateResponses, TokenCheckData, TokenCheckErrors, TokenCheckResponses, TokenRenewData, TokenRenewErrors, TokenRenewResponses, TokenRoutesData, TokenRoutesErrors, TokenRoutesResponses, TokensCreateData, TokensCreateErrors, TokensCreateResponses, TokensDeleteData, TokensDeleteErrors, TokensDeleteResponses, TokensListData, TokensListErrors, TokensListResponses, TokenTestData, TokenTestErrors, TokenTestResponses, TotpDisableData, TotpDisableErrors, TotpDisableResponses, TotpEnableData, TotpEnableErrors, TotpEnableResponses, TotpEnrollData, TotpEnrollErrors, TotpEnrollResponses, TotpGetData, TotpGetErrors, TotpGetResponses, TotpQrcodeData, TotpQrcodeErrors, TotpQrcodeResponses, UserAvatarUploadData, UserAvatarUploadErrors, UserAvatarUploadResponses, UserCancelEmailUpdateData, UserCancelEmailUpdateErrors, UserCancelEmailUpdateResponses, UserChangePasswordData, UserChangePasswordErrors, UserChangePasswordResponses, UserDeletionCancelData, UserDeletionCancelErrors, UserDeletionCancelResponses, UserDeletionConfirmData, UserDeletionConfirmErrors, UserDeletionConfirmResponses, UserDeletionRequestData, UserDeletionRequestErrors, UserDeletionRequestResponses, UserExportDownloadData, UserExportDownloadErrors, UserExportDownloadResponses, UserExportRequestData, UserExportRequestErrors, UserExportRequestResponses, UserExportStatusData, UserExportStatusErrors, UserExportStatusResponses, UserGetAvatarProviderData, UserGetAvatarProviderErrors, UserGetAvatarProviderResponses, UserResendEmailConfirmationData, UserResendEmailConfirmationErrors, UserResendEmailConfirmationResponses, UserSetAvatarProviderData, UserSetAvatarProviderErrors, UserSetAvatarProviderResponses, UserSettingsReadData, UserSettingsReadErrors, UserSettingsReadResponses, UserShowData, UserShowErrors, UserShowResponses, UsersSearchData, UsersSearchErrors, UsersSearchResponses, UserTimezonesData, UserTimezonesErrors, UserTimezonesResponses, UserUpdateEmailData, UserUpdateEmailErrors, UserUpdateEmailResponses, UserUpdateSettingsData, UserUpdateSettingsErrors, UserUpdateSettingsResponses, UserWebhooksCreateData, UserWebhooksCreateErrors, UserWebhooksCreateResponses, UserWebhooksDeleteData, UserWebhooksDeleteErrors, UserWebhooksDeleteResponses, UserWebhooksEventsData, UserWebhooksEventsErrors, UserWebhooksEventsResponses, UserWebhooksListData, UserWebhooksListErrors, UserWebhooksListResponses, UserWebhooksUpdateData, UserWebhooksUpdateErrors, UserWebhooksUpdateResponses, WebhooksCreateData, WebhooksCreateErrors, WebhooksCreateResponses, WebhooksDeleteData, WebhooksDeleteErrors, WebhooksDeleteResponses, WebhooksEventsListData, WebhooksEventsListErrors, WebhooksEventsListResponses, WebhooksListData, WebhooksListErrors, WebhooksListResponses, WebhooksUpdateData, WebhooksUpdateErrors, WebhooksUpdateResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -301,6 +301,140 @@ export const adminUsersPatchStatus = <ThrowOnError extends boolean = true>(optio
             type: 'http'
         }],
     url: '/admin/users/{id}/status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 使用文字整理模型保留原意地整理口语记录
+ *
+ * 使用文字整理模型保留原意地整理口语记录。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiCleanup = <ThrowOnError extends boolean = true>(options: Options<TcyAiCleanupData, ThrowOnError>): RequestResult<TcyAiCleanupResponses, TcyAiCleanupErrors, ThrowOnError> => (options.client ?? client).post<TcyAiCleanupResponses, TcyAiCleanupErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/cleanup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 运行具有明确读写模式的任务助手，返回实际工具调用记录
+ *
+ * 运行具有明确读写模式的任务助手，返回实际工具调用记录。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiRun = <ThrowOnError extends boolean = true>(options: Options<TcyAiRunData, ThrowOnError>): RequestResult<TcyAiRunResponses, TcyAiRunErrors, ThrowOnError> => (options.client ?? client).post<TcyAiRunResponses, TcyAiRunErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/run',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 读取脱敏的个人模型连接与功能分配
+ *
+ * 读取脱敏的个人模型连接与功能分配。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiSettings = <ThrowOnError extends boolean = true>(options?: Options<TcyAiSettingsData, ThrowOnError>): RequestResult<TcyAiSettingsResponses, TcyAiSettingsErrors, ThrowOnError> => (options?.client ?? client).get<TcyAiSettingsResponses, TcyAiSettingsErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/settings',
+    ...options
+});
+
+/**
+ * 保存个人模型连接，密钥加密存储且不返回
+ *
+ * 保存个人模型连接，密钥加密存储且不返回。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiSaveSettings = <ThrowOnError extends boolean = true>(options: Options<TcyAiSaveSettingsData, ThrowOnError>): RequestResult<TcyAiSaveSettingsResponses, TcyAiSaveSettingsErrors, ThrowOnError> => (options.client ?? client).post<TcyAiSaveSettingsResponses, TcyAiSaveSettingsErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 测试已保存模型的文字响应或语音转写能力
+ *
+ * 测试已保存模型的文字响应或语音转写能力。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiTest = <ThrowOnError extends boolean = true>(options: Options<TcyAiTestData, ThrowOnError>): RequestResult<TcyAiTestResponses, TcyAiTestErrors, ThrowOnError> => (options.client ?? client).post<TcyAiTestResponses, TcyAiTestErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/test',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 识别上传音频，可选使用独立模型整理文字
+ *
+ * 识别上传音频，可选使用独立模型整理文字。仅供当前登录用户使用，不向 MCP 暴露。
+ */
+export const tcyAiTranscribe = <ThrowOnError extends boolean = true>(options: Options<TcyAiTranscribeData, ThrowOnError>): RequestResult<TcyAiTranscribeResponses, TcyAiTranscribeErrors, ThrowOnError> => (options.client ?? client).post<TcyAiTranscribeResponses, TcyAiTranscribeErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/ai/transcribe',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -2245,6 +2379,13 @@ export const webhooksUpdate = <ThrowOnError extends boolean = true>(options: Opt
 });
 
 /**
+ * 公开的日程与忙闲 JSON，仅返回已发布且脱敏的字段
+ *
+ * 公开的日程与忙闲 JSON，仅返回已发布且脱敏的字段。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcasePublic = <ThrowOnError extends boolean = true>(options: Options<TcyShowcasePublicData, ThrowOnError>): RequestResult<TcyShowcasePublicResponses, TcyShowcasePublicErrors, ThrowOnError> => (options.client ?? client).get<TcyShowcasePublicResponses, TcyShowcasePublicErrors, ThrowOnError>({ url: '/public/{slug}', ...options });
+
+/**
  * Register
  *
  * Creates a local account. An invite_token allows signup when public registration is disabled and joins the invited teams atomically.
@@ -2289,6 +2430,113 @@ export const authLinkShare = <ThrowOnError extends boolean = true>(options: Opti
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * 使用当前草稿预览脱敏页面及可用时间段
+ *
+ * 使用当前草稿预览脱敏页面及可用时间段。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcasePreview = <ThrowOnError extends boolean = true>(options: Options<TcyShowcasePreviewData, ThrowOnError>): RequestResult<TcyShowcasePreviewResponses, TcyShowcasePreviewErrors, ThrowOnError> => (options.client ?? client).post<TcyShowcasePreviewResponses, TcyShowcasePreviewErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/showcase/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 发布当前草稿规则，日程按这些规则实时生成
+ *
+ * 发布当前草稿规则，日程按这些规则实时生成。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcasePublish = <ThrowOnError extends boolean = true>(options: Options<TcyShowcasePublishData, ThrowOnError>): RequestResult<TcyShowcasePublishResponses, TcyShowcasePublishErrors, ThrowOnError> => (options.client ?? client).post<TcyShowcasePublishResponses, TcyShowcasePublishErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/showcase/publish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 读取个人公开主页草稿和发布状态
+ *
+ * 读取个人公开主页草稿和发布状态。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcaseSettings = <ThrowOnError extends boolean = true>(options?: Options<TcyShowcaseSettingsData, ThrowOnError>): RequestResult<TcyShowcaseSettingsResponses, TcyShowcaseSettingsErrors, ThrowOnError> => (options?.client ?? client).get<TcyShowcaseSettingsResponses, TcyShowcaseSettingsErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/showcase/settings',
+    ...options
+});
+
+/**
+ * 保存公开主页草稿
+ *
+ * 保存公开主页草稿。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcaseSave = <ThrowOnError extends boolean = true>(options: Options<TcyShowcaseSaveData, ThrowOnError>): RequestResult<TcyShowcaseSaveResponses, TcyShowcaseSaveErrors, ThrowOnError> => (options.client ?? client).post<TcyShowcaseSaveResponses, TcyShowcaseSaveErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/showcase/settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * 立即撤下个人公开主页和 JSON 接口
+ *
+ * 立即撤下个人公开主页和 JSON 接口。草稿修改不会改变已发布规则。
+ */
+export const tcyShowcaseUnpublish = <ThrowOnError extends boolean = true>(options?: Options<TcyShowcaseUnpublishData, ThrowOnError>): RequestResult<TcyShowcaseUnpublishResponses, TcyShowcaseUnpublishErrors, ThrowOnError> => (options?.client ?? client).post<TcyShowcaseUnpublishResponses, TcyShowcaseUnpublishErrors, ThrowOnError>({
+    security: [{
+            key: 'JWTKeyAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }, {
+            key: 'APITokenAuth',
+            scheme: 'bearer',
+            type: 'http'
+        }],
+    url: '/showcase/unpublish',
+    ...options
 });
 
 /**

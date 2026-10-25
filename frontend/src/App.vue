@@ -1,6 +1,7 @@
 <template>
 	<Ready>
-		<template v-if="isQuickAddMode && authStore.authUser">
+		<RouterView v-if="route.name === 'tcy-public'" />
+		<template v-else-if="isQuickAddMode && authStore.authUser">
 			<QuickAddOverlay />
 		</template>
 		<template v-else-if="isQuickAddMode">

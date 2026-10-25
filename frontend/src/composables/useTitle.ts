@@ -13,8 +13,8 @@ export function useTitle(
 
 	const completeTitle = computed(() =>
 		(typeof pageTitle.value === 'undefined' || pageTitle.value === '')
-			? 'Vikunja'
-			: `${pageTitle.value} | Vikunja`,
+			? 'Vikunja X · tcymc二次开发版'
+			: `${pageTitle.value} | Vikunja X · tcymc二次开发版`,
 	)
 
 	return useTitleVueUse(completeTitle, options)

@@ -20,6 +20,11 @@
 			</RouterLink>
 			<menu class="menu-list other-menu-items">
 				<li>
+					<RouterLink :to="{name: 'tcy-ai'}">
+						<span class="menu-item-icon icon"><Icon icon="comments" /></span>AI 任务助手
+					</RouterLink>
+				</li>
+				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.overview"
 						:to="{ name: 'home'}"
@@ -126,6 +131,7 @@
 			</nav>
 		</template>
 
+		<TcyBrand />
 		<PoweredByLink
 			class="mbs-auto"
 			utm-medium="navigation"
@@ -142,6 +148,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import TcyBrand from '@/components/home/TcyBrand.vue'
 
 import {SHORTCUTS} from '@/constants/shortcuts'
 import PoweredByLink from '@/components/home/PoweredByLink.vue'

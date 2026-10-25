@@ -11,6 +11,7 @@
 			@close="goBack()"
 		>
 			<div class="p-4">
+				<TcyBrand />
 				<p v-if="versionsEqual">
 					{{ $t('about.version', {version: apiVersion}) }}
 				</p>
@@ -36,6 +37,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import TcyBrand from '@/components/home/TcyBrand.vue'
 
 import {VERSION as frontendVersion} from '@/version.json'
 

@@ -1,5 +1,6 @@
 <template>
 	<div class="legal-links">
+		<TcyBrand />
 		<BaseButton
 			v-if="imprintUrl"
 			:href="imprintUrl"
@@ -18,6 +19,7 @@
 
 <script lang="ts" setup>
 import {computed} from 'vue'
+import TcyBrand from '@/components/home/TcyBrand.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {useConfigStore} from '@/stores/config'
 

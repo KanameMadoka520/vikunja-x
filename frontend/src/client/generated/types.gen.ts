@@ -41,6 +41,25 @@ export type ApiToken = {
     readonly token?: string;
 };
 
+export type Action = {
+    /**
+     * Validated operation arguments as JSON.
+     */
+    arguments?: string;
+    /**
+     * Actual tool response, not a model claim.
+     */
+    result?: string;
+    /**
+     * Whether the operation succeeded.
+     */
+    success?: boolean;
+    /**
+     * Invoked tool name.
+     */
+    tool?: string;
+};
+
 export type AdminIsAdminPatchBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -138,6 +157,25 @@ export type AdminUser = {
      * The username of the user. Is always unique. For bot users it must start with the 'bot-' prefix.
      */
     username?: string;
+};
+
+export type AiTextResponseBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Original transcription, before optional cleanup.
+     */
+    original?: string;
+    /**
+     * Processed text.
+     */
+    text?: string;
+    /**
+     * Non-fatal cleanup failure, if any.
+     */
+    warning?: string;
 };
 
 export type AttachmentUploadError = {
@@ -450,6 +488,33 @@ export type ColumnMapping = {
     column_name?: string;
 };
 
+export type Connection = {
+    /**
+     * OpenAI-compatible API base, including /v1 when required.
+     */
+    base_url?: string;
+    /**
+     * Whether a key is saved; the key itself is never returned.
+     */
+    readonly has_key?: boolean;
+    /**
+     * Stable connection identifier.
+     */
+    id?: string;
+    /**
+     * chat uses chat/completions; transcription uses audio/transcriptions.
+     */
+    kind?: 'chat' | 'transcription';
+    /**
+     * Provider model identifier.
+     */
+    model?: string;
+    /**
+     * Display name.
+     */
+    name?: string;
+};
+
 export type ConnectionSettings = {
     /**
      * A URL to the JSON Schema for this object.
@@ -608,6 +673,61 @@ export type DetectionResult = {
     suggested_mapping?: Array<ColumnMapping> | null;
 };
 
+export type Draft = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Custom Markdown or static HTML; rendered in an isolated sandbox.
+     */
+    content?: string;
+    /**
+     * Use only custom content for the page body; public JSON disclosure rules still apply.
+     */
+    custom_layout?: boolean;
+    /**
+     * Rolling schedule horizon in days.
+     */
+    days?: number;
+    /**
+     * Daily availability window end, Asia/Shanghai.
+     */
+    end_hour?: number;
+    /**
+     * Custom page format.
+     */
+    format?: 'markdown' | 'html';
+    /**
+     * Public introduction.
+     */
+    intro?: string;
+    /**
+     * Explicit per-project disclosure rules.
+     */
+    projects?: Array<ProjectRule> | null;
+    /**
+     * Public URL slug, 3 to 48 lowercase letters, digits or hyphens.
+     */
+    slug?: string;
+    /**
+     * Daily availability window start, Asia/Shanghai.
+     */
+    start_hour?: number;
+    /**
+     * Optional task aliases and exclusions.
+     */
+    tasks?: Array<TaskRule> | null;
+    /**
+     * Public page heading.
+     */
+    title?: string;
+    /**
+     * Available weekdays, Sunday=0 through Saturday=6.
+     */
+    weekdays?: Array<number> | null;
+};
+
 export type EmailConfirm = {
     /**
      * A URL to the JSON Schema for this object.
@@ -629,6 +749,29 @@ export type ErrorDetail = {
      * The value at the given location
      */
     value?: unknown;
+};
+
+export type Event = {
+    /**
+     * End in RFC3339; equals start for a deadline.
+     */
+    end?: string;
+    /**
+     * Only busy blocks reduce computed availability.
+     */
+    kind?: 'busy' | 'deadline';
+    /**
+     * Public project alias.
+     */
+    project?: string;
+    /**
+     * Start or deadline in RFC3339.
+     */
+    start?: string;
+    /**
+     * Public title after applying aliases and concealment.
+     */
+    title?: string;
 };
 
 export type File = {
@@ -704,6 +847,11 @@ export type Info = {
     licensed?: boolean;
     max_users?: number;
     validated_at?: string;
+};
+
+export type Interval = {
+    end?: string;
+    start?: string;
 };
 
 export type InviteLinkCheckBody = {
@@ -1162,6 +1310,35 @@ export type Overview = {
     readonly users?: number;
 };
 
+export type Page = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content?: string;
+    custom_layout?: boolean;
+    /**
+     * Allowlisted schedule fields only; no internal IDs, descriptions or participants.
+     */
+    events?: Array<Event> | null;
+    format?: string;
+    /**
+     * Unoccupied periods within the configured availability windows; not a booking guarantee.
+     */
+    free?: Array<Interval> | null;
+    generated_at?: string;
+    intro?: string;
+    /**
+     * Public aliases only.
+     */
+    projects?: Array<string> | null;
+    published_at?: string;
+    slug?: string;
+    timezone?: string;
+    title?: string;
+    until?: string;
+};
+
 export type PaginatedApiToken = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1455,6 +1632,18 @@ export type PasswordTokenRequest = {
     email?: string;
 };
 
+export type Preview = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    page?: Page;
+    /**
+     * Private editing hints. Never returned by the public endpoint.
+     */
+    sources?: Array<Source> | null;
+};
+
 export type PreviewResult = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1649,6 +1838,21 @@ export type ProjectReadBody = {
      * The views configured for this project. Managed through the project view endpoints.
      */
     readonly views?: Array<ProjectView> | null;
+};
+
+export type ProjectRule = {
+    /**
+     * Public name. Empty uses a generic name, never the internal name.
+     */
+    alias?: string;
+    /**
+     * Internal project ID, never included in the public projection.
+     */
+    id?: number;
+    /**
+     * hidden excludes the project; busy conceals task names; titles opts into task title disclosure.
+     */
+    mode?: 'hidden' | 'busy' | 'titles';
 };
 
 export type ProjectUser = {
@@ -1898,6 +2102,52 @@ export type RouteDetail = {
     path?: string;
 };
 
+export type RunInput = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Allow task deletion for this request, only in write mode.
+     */
+    allow_delete?: boolean;
+    /**
+     * Recent conversation; no client-supplied tool results.
+     */
+    history?: Array<Turn> | null;
+    /**
+     * Instruction from the user.
+     */
+    message?: string;
+    /**
+     * read only queries; write also permits creation and updates.
+     */
+    mode?: 'read' | 'write';
+    /**
+     * Optional current project context.
+     */
+    project_id?: number;
+    /**
+     * Unique request key; reuse only when retrying the exact same request.
+     */
+    request_id?: string;
+};
+
+export type RunResult = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Operations attempted during this run.
+     */
+    actions?: Array<Action> | null;
+    /**
+     * Assistant response.
+     */
+    reply?: string;
+};
+
 export type SavedFilter = {
     /**
      * A URL to the JSON Schema for this object.
@@ -2007,6 +2257,29 @@ export type Session = {
     readonly refresh_token?: string;
 };
 
+export type Settings = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Connection used by the task agent.
+     */
+    assistant?: string;
+    /**
+     * Optional chat connection for cleaning up transcripts. Empty disables cleanup.
+     */
+    cleanup?: string;
+    /**
+     * Connections owned by the current user.
+     */
+    connections?: Array<Connection> | null;
+    /**
+     * Connection used for speech recognition.
+     */
+    transcription?: string;
+};
+
 export type ShareCounts = {
     /**
      * Number of link shares across all projects.
@@ -2020,6 +2293,31 @@ export type ShareCounts = {
      * Number of user-project shares.
      */
     readonly user_shares?: number;
+};
+
+export type Source = {
+    id?: number;
+    project_id?: number;
+    title?: string;
+};
+
+export type State = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Private editable draft.
+     */
+    draft?: Draft;
+    /**
+     * Last published rules, null when disabled.
+     */
+    published?: Draft;
+    /**
+     * Last publication time.
+     */
+    published_at?: string;
 };
 
 export type Status = {
@@ -2607,6 +2905,49 @@ export type TaskReminder = {
     reminder?: string;
 };
 
+export type TaskRule = {
+    /**
+     * Public task title override, does not modify the original task.
+     */
+    alias?: string;
+    /**
+     * Exclude this task entirely from the public schedule.
+     */
+    hidden?: boolean;
+    /**
+     * Internal task ID.
+     */
+    id?: number;
+};
+
+export type TcyAiCleanupRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    text?: string;
+};
+
+export type TcyAiTestRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    audio?: string;
+    connection_id?: string;
+    filename?: string;
+};
+
+export type TcyAiTranscribeRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    audio?: string;
+    cleanup?: boolean;
+    filename?: string;
+};
+
 export type Team = {
     /**
      * A URL to the JSON Schema for this object.
@@ -3017,6 +3358,17 @@ export type TotpEnrollBodyBody = {
      * The current user's password, required to enroll into totp.
      */
     password?: string;
+};
+
+export type Turn = {
+    /**
+     * Plain conversation text.
+     */
+    content?: string;
+    /**
+     * Conversation role; system and tool messages are server-owned.
+     */
+    role?: 'user' | 'assistant';
 };
 
 export type User = {
@@ -3603,6 +3955,21 @@ export type AdminUserWritable = {
     username?: string;
 };
 
+export type AiTextResponseBodyWritable = {
+    /**
+     * Original transcription, before optional cleanup.
+     */
+    original?: string;
+    /**
+     * Processed text.
+     */
+    text?: string;
+    /**
+     * Non-fatal cleanup failure, if any.
+     */
+    warning?: string;
+};
+
 export type AttachmentUploadResultWritable = {
     /**
      * Per-file failures. A file that fails here does not fail the whole request; the others still upload.
@@ -3750,6 +4117,33 @@ export type CallbackWritable = {
     totp_passcode?: string;
 };
 
+export type ConnectionWritable = {
+    /**
+     * Write-only key. Empty preserves the saved key when the endpoint is unchanged.
+     */
+    api_key?: string;
+    /**
+     * OpenAI-compatible API base, including /v1 when required.
+     */
+    base_url?: string;
+    /**
+     * Stable connection identifier.
+     */
+    id?: string;
+    /**
+     * chat uses chat/completions; transcription uses audio/transcriptions.
+     */
+    kind?: 'chat' | 'transcription';
+    /**
+     * Provider model identifier.
+     */
+    model?: string;
+    /**
+     * Display name.
+     */
+    name?: string;
+};
+
 export type ConnectionSettingsWritable = {
     /**
      * Absolute URL of the streamable HTTP endpoint.
@@ -3843,6 +4237,57 @@ export type DetectionResultWritable = {
      * A best-guess column-to-attribute mapping; the client may edit it before previewing or migrating.
      */
     suggested_mapping?: Array<ColumnMapping> | null;
+};
+
+export type DraftWritable = {
+    /**
+     * Custom Markdown or static HTML; rendered in an isolated sandbox.
+     */
+    content?: string;
+    /**
+     * Use only custom content for the page body; public JSON disclosure rules still apply.
+     */
+    custom_layout?: boolean;
+    /**
+     * Rolling schedule horizon in days.
+     */
+    days?: number;
+    /**
+     * Daily availability window end, Asia/Shanghai.
+     */
+    end_hour?: number;
+    /**
+     * Custom page format.
+     */
+    format?: 'markdown' | 'html';
+    /**
+     * Public introduction.
+     */
+    intro?: string;
+    /**
+     * Explicit per-project disclosure rules.
+     */
+    projects?: Array<ProjectRule> | null;
+    /**
+     * Public URL slug, 3 to 48 lowercase letters, digits or hyphens.
+     */
+    slug?: string;
+    /**
+     * Daily availability window start, Asia/Shanghai.
+     */
+    start_hour?: number;
+    /**
+     * Optional task aliases and exclusions.
+     */
+    tasks?: Array<TaskRule> | null;
+    /**
+     * Public page heading.
+     */
+    title?: string;
+    /**
+     * Available weekdays, Sunday=0 through Saturday=6.
+     */
+    weekdays?: Array<number> | null;
 };
 
 export type EmailConfirmWritable = {
@@ -4036,6 +4481,31 @@ export type OverviewWritable = {
     [key: string]: never;
 };
 
+export type PageWritable = {
+    content?: string;
+    custom_layout?: boolean;
+    /**
+     * Allowlisted schedule fields only; no internal IDs, descriptions or participants.
+     */
+    events?: Array<Event> | null;
+    format?: string;
+    /**
+     * Unoccupied periods within the configured availability windows; not a booking guarantee.
+     */
+    free?: Array<Interval> | null;
+    generated_at?: string;
+    intro?: string;
+    /**
+     * Public aliases only.
+     */
+    projects?: Array<string> | null;
+    published_at?: string;
+    slug?: string;
+    timezone?: string;
+    title?: string;
+    until?: string;
+};
+
 export type PaginatedApiTokenWritable = {
     items?: Array<ApiTokenWritable> | null;
     page?: number;
@@ -4227,6 +4697,14 @@ export type PasswordResetWritable = {
 
 export type PasswordTokenRequestWritable = {
     email?: string;
+};
+
+export type PreviewWritable = {
+    page?: PageWritable;
+    /**
+     * Private editing hints. Never returned by the public endpoint.
+     */
+    sources?: Array<Source> | null;
 };
 
 export type PreviewResultWritable = {
@@ -4438,6 +4916,44 @@ export type RegisterUserRequestWritable = {
     username?: string;
 };
 
+export type RunInputWritable = {
+    /**
+     * Allow task deletion for this request, only in write mode.
+     */
+    allow_delete?: boolean;
+    /**
+     * Recent conversation; no client-supplied tool results.
+     */
+    history?: Array<Turn> | null;
+    /**
+     * Instruction from the user.
+     */
+    message?: string;
+    /**
+     * read only queries; write also permits creation and updates.
+     */
+    mode?: 'read' | 'write';
+    /**
+     * Optional current project context.
+     */
+    project_id?: number;
+    /**
+     * Unique request key; reuse only when retrying the exact same request.
+     */
+    request_id?: string;
+};
+
+export type RunResultWritable = {
+    /**
+     * Operations attempted during this run.
+     */
+    actions?: Array<Action> | null;
+    /**
+     * Assistant response.
+     */
+    reply?: string;
+};
+
 export type SavedFilterWritable = {
     /**
      * The description of the filter.
@@ -4474,6 +4990,40 @@ export type SavedFilterReadBodyWritable = {
      * The title of the filter.
      */
     title?: string;
+};
+
+export type SettingsWritable = {
+    /**
+     * Connection used by the task agent.
+     */
+    assistant?: string;
+    /**
+     * Optional chat connection for cleaning up transcripts. Empty disables cleanup.
+     */
+    cleanup?: string;
+    /**
+     * Connections owned by the current user.
+     */
+    connections?: Array<ConnectionWritable> | null;
+    /**
+     * Connection used for speech recognition.
+     */
+    transcription?: string;
+};
+
+export type StateWritable = {
+    /**
+     * Private editable draft.
+     */
+    draft?: DraftWritable;
+    /**
+     * Last published rules, null when disabled.
+     */
+    published?: DraftWritable;
+    /**
+     * Last publication time.
+     */
+    published_at?: string;
 };
 
 export type TaskWritable = {
@@ -4632,6 +5182,22 @@ export type TaskRelationWritable = {
      * The kind of relation, describing the direction from the base task to the other task (e.g. subtask, blocking, related). The inverse relation is created automatically.
      */
     relation_kind?: 'subtask' | 'parenttask' | 'related' | 'duplicateof' | 'duplicates' | 'blocking' | 'blocked' | 'precedes' | 'follows' | 'copiedfrom' | 'copiedto';
+};
+
+export type TcyAiCleanupRequestWritable = {
+    text?: string;
+};
+
+export type TcyAiTestRequestWritable = {
+    audio?: string;
+    connection_id?: string;
+    filename?: string;
+};
+
+export type TcyAiTranscribeRequestWritable = {
+    audio?: string;
+    cleanup?: boolean;
+    filename?: string;
 };
 
 export type TeamWritable = {
@@ -5582,6 +6148,156 @@ export type AdminUsersPatchStatusResponses = {
 };
 
 export type AdminUsersPatchStatusResponse = AdminUsersPatchStatusResponses[keyof AdminUsersPatchStatusResponses];
+
+export type TcyAiCleanupData = {
+    body: TcyAiCleanupRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/cleanup';
+};
+
+export type TcyAiCleanupErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiCleanupError = TcyAiCleanupErrors[keyof TcyAiCleanupErrors];
+
+export type TcyAiCleanupResponses = {
+    /**
+     * OK
+     */
+    200: AiTextResponseBody;
+};
+
+export type TcyAiCleanupResponse = TcyAiCleanupResponses[keyof TcyAiCleanupResponses];
+
+export type TcyAiRunData = {
+    body: RunInputWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/run';
+};
+
+export type TcyAiRunErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiRunError = TcyAiRunErrors[keyof TcyAiRunErrors];
+
+export type TcyAiRunResponses = {
+    /**
+     * OK
+     */
+    200: RunResult;
+};
+
+export type TcyAiRunResponse = TcyAiRunResponses[keyof TcyAiRunResponses];
+
+export type TcyAiSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/ai/settings';
+};
+
+export type TcyAiSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiSettingsError = TcyAiSettingsErrors[keyof TcyAiSettingsErrors];
+
+export type TcyAiSettingsResponses = {
+    /**
+     * OK
+     */
+    200: Settings;
+};
+
+export type TcyAiSettingsResponse = TcyAiSettingsResponses[keyof TcyAiSettingsResponses];
+
+export type TcyAiSaveSettingsData = {
+    body: SettingsWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/settings';
+};
+
+export type TcyAiSaveSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiSaveSettingsError = TcyAiSaveSettingsErrors[keyof TcyAiSaveSettingsErrors];
+
+export type TcyAiSaveSettingsResponses = {
+    /**
+     * OK
+     */
+    200: Settings;
+};
+
+export type TcyAiSaveSettingsResponse = TcyAiSaveSettingsResponses[keyof TcyAiSaveSettingsResponses];
+
+export type TcyAiTestData = {
+    body: TcyAiTestRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/test';
+};
+
+export type TcyAiTestErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiTestError = TcyAiTestErrors[keyof TcyAiTestErrors];
+
+export type TcyAiTestResponses = {
+    /**
+     * OK
+     */
+    200: AiTextResponseBody;
+};
+
+export type TcyAiTestResponse = TcyAiTestResponses[keyof TcyAiTestResponses];
+
+export type TcyAiTranscribeData = {
+    body: TcyAiTranscribeRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/transcribe';
+};
+
+export type TcyAiTranscribeErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiTranscribeError = TcyAiTranscribeErrors[keyof TcyAiTranscribeErrors];
+
+export type TcyAiTranscribeResponses = {
+    /**
+     * OK
+     */
+    200: AiTextResponseBody;
+};
+
+export type TcyAiTranscribeResponse = TcyAiTranscribeResponses[keyof TcyAiTranscribeResponses];
 
 export type AuthOpenidCallbackData = {
     /**
@@ -8656,6 +9372,33 @@ export type WebhooksUpdateResponses = {
 
 export type WebhooksUpdateResponse = WebhooksUpdateResponses[keyof WebhooksUpdateResponses];
 
+export type TcyShowcasePublicData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/public/{slug}';
+};
+
+export type TcyShowcasePublicErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcasePublicError = TcyShowcasePublicErrors[keyof TcyShowcasePublicErrors];
+
+export type TcyShowcasePublicResponses = {
+    /**
+     * OK
+     */
+    200: Page;
+};
+
+export type TcyShowcasePublicResponse = TcyShowcasePublicResponses[keyof TcyShowcasePublicResponses];
+
 export type AuthRegisterData = {
     body: RegisterUserRequestWritable;
     path?: never;
@@ -8739,6 +9482,131 @@ export type AuthLinkShareResponses = {
 };
 
 export type AuthLinkShareResponse = AuthLinkShareResponses[keyof AuthLinkShareResponses];
+
+export type TcyShowcasePreviewData = {
+    body: DraftWritable;
+    path?: never;
+    query?: never;
+    url: '/showcase/preview';
+};
+
+export type TcyShowcasePreviewErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcasePreviewError = TcyShowcasePreviewErrors[keyof TcyShowcasePreviewErrors];
+
+export type TcyShowcasePreviewResponses = {
+    /**
+     * OK
+     */
+    200: Preview;
+};
+
+export type TcyShowcasePreviewResponse = TcyShowcasePreviewResponses[keyof TcyShowcasePreviewResponses];
+
+export type TcyShowcasePublishData = {
+    body: DraftWritable;
+    path?: never;
+    query?: never;
+    url: '/showcase/publish';
+};
+
+export type TcyShowcasePublishErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcasePublishError = TcyShowcasePublishErrors[keyof TcyShowcasePublishErrors];
+
+export type TcyShowcasePublishResponses = {
+    /**
+     * OK
+     */
+    200: State;
+};
+
+export type TcyShowcasePublishResponse = TcyShowcasePublishResponses[keyof TcyShowcasePublishResponses];
+
+export type TcyShowcaseSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/showcase/settings';
+};
+
+export type TcyShowcaseSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcaseSettingsError = TcyShowcaseSettingsErrors[keyof TcyShowcaseSettingsErrors];
+
+export type TcyShowcaseSettingsResponses = {
+    /**
+     * OK
+     */
+    200: State;
+};
+
+export type TcyShowcaseSettingsResponse = TcyShowcaseSettingsResponses[keyof TcyShowcaseSettingsResponses];
+
+export type TcyShowcaseSaveData = {
+    body: DraftWritable;
+    path?: never;
+    query?: never;
+    url: '/showcase/settings';
+};
+
+export type TcyShowcaseSaveErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcaseSaveError = TcyShowcaseSaveErrors[keyof TcyShowcaseSaveErrors];
+
+export type TcyShowcaseSaveResponses = {
+    /**
+     * OK
+     */
+    200: State;
+};
+
+export type TcyShowcaseSaveResponse = TcyShowcaseSaveResponses[keyof TcyShowcaseSaveResponses];
+
+export type TcyShowcaseUnpublishData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/showcase/unpublish';
+};
+
+export type TcyShowcaseUnpublishErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyShowcaseUnpublishError = TcyShowcaseUnpublishErrors[keyof TcyShowcaseUnpublishErrors];
+
+export type TcyShowcaseUnpublishResponses = {
+    /**
+     * OK
+     */
+    200: State;
+};
+
+export type TcyShowcaseUnpublishResponse = TcyShowcaseUnpublishResponses[keyof TcyShowcaseUnpublishResponses];
 
 export type SubscriptionsDeleteData = {
     body?: never;
