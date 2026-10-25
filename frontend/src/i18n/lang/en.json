@@ -2117,7 +2117,7 @@
       },
       "permissions": {
         "title": "Choose what AI may do",
-        "text": "Choose a project and working mode. Read-only looks up tasks and suggests plans; Execute allows creation and changes. Deleting tasks requires separate permission for that request."
+        "text": "Expand model, project and permissions to choose a project. Start in read-only mode to check results, then allow changes only when needed. Deletion requires a separate switch."
       },
       "voice": {
         "title": "Speak, review, then send",

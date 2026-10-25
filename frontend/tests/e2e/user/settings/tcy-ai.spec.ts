@@ -27,6 +27,7 @@ test('saves model roles without disclosing keys and opens the branded assistant'
 	await page.getByRole('link', {name: '打开 AI 助手'}).click()
 	await expect(page.getByRole('heading', {name: 'AI 任务助手'})).toBeVisible()
 	await expect(page.getByRole('link', {name: 'tcymc二次开发版'})).toHaveAttribute('href', 'https://github.com/KanameMadoka520/vikunja-x')
+	await page.locator('.context-options > summary').click()
 	await page.getByLabel('工作方式').selectOption('read')
 	await expect(page.getByLabel('本次允许删除任务')).toBeDisabled()
 	await page.getByRole('button', {name: '今天先做什么'}).click()

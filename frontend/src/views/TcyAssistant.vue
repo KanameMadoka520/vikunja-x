@@ -442,11 +442,10 @@ onBeforeUnmount(() => {
 				</div>
 				<details
 					class="context-options"
-					open
+					data-tour="ai-permissions"
 				>
 					<summary>{{ t('chat.contextAndPermissions') }}</summary><section
 						class="assistant-options"
-						data-tour="ai-permissions"
 						:aria-label="t('tcymc.text.assistant_permissions')"
 					>
 						<label>{{ t('chat.model') }}<select
@@ -866,27 +865,60 @@ summary {
 }
 @media (width >= 1100px) {.heading-actions > .button:first-child {
 	display: none;
-} }
+}
+}
 @media (width < 1100px) {.chat-shell {
 	grid-template-columns: minmax(0, 1fr);
 }.chat-sidebar {
 	display: none;
 }.chat-sidebar.is-open {
 	display: block;
-} }
+}
+}
 @media (width <= 600px) {.tcy-assistant {
 	padding: 0;
 }h1 {
 	font-size: 1.3rem;
-}.chat-main {
+}
+.chat-main {
 	padding: .75rem;
-}.assistant-options {
+}
+.assistant-options {
 	grid-template-columns: minmax(0, 1fr);
-}.conversation-toolbar {
+}
+.conversation-toolbar {
 	flex-wrap: wrap;
-}.conversation-title {
+}
+.conversation-title {
 	inline-size: 100%;
-}.conversation {
+}
+.conversation {
 	padding-inline: 0;
-} }
+}
+}
+@media (width >= 1100px) {
+ .chat-main {
+  display: flex;
+  flex-direction: column;
+  block-size: calc(100dvh - 13rem);
+  min-block-size: 34rem;
+  overflow-y: auto;
+ }
+ .conversation {
+  flex: 1 1 0;
+  min-block-size: 0;
+  max-block-size: none;
+ }
+ .conversation-toolbar, .composer, .context-options, .system-prompt, .summary-banner, .chat-error, .setup-note {
+  flex-shrink: 0;
+ }
+ .system-prompt[open], .summary-banner[open] {
+  max-block-size: 12rem;
+  overflow-y: auto;
+ }
+ .composer .textarea {
+  min-block-size: 3.5rem;
+  max-block-size: 10rem;
+ }
+}
 </style>

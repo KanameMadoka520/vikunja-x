@@ -51,10 +51,13 @@ async function chatServer(page: Page) {
 test('chat persists, exposes real run details, compacts and branches without replay', async ({authenticatedPage: page}) => {
 	const server = await chatServer(page)
 	await page.goto('/ai')
+	await page.setViewportSize({width: 1440, height: 900})
 	await expect(page.getByLabel('Working mode')).toHaveValue('read')
 	await page.getByLabel('Your request').fill('First message')
 	await page.getByLabel('Your request').press('Enter')
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
+	await page.evaluate(() => scrollTo(0, 0))
+	expect((await page.locator('.composer').boundingBox())!.y + (await page.locator('.composer').boundingBox())!.height).toBeLessThanOrEqual(900)
 	await expect(page.locator('.run-metrics')).toContainText('0.13 s')
 	await expect(page.locator('.run-metrics')).toContainText('0.50 s')
 	await expect(page.locator('.run-metrics')).toContainText('Total tokens: 50')
@@ -102,6 +105,7 @@ test('send keeps the clicked permissions and preserves a new draft while creatio
  const creating = page.waitForRequest(r => r.url().endsWith('/ai/conversations') && r.method() === 'POST')
  await page.getByRole('button', {name: 'Send request', exact: true}).click()
  await creating
+ await page.locator('.context-options > summary').click()
  await page.getByLabel('Working mode').selectOption('write')
  await page.getByLabel('Allow task deletion for this request').check()
  await page.getByLabel('Your request').fill('New draft for later')
