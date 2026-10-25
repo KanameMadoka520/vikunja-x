@@ -5,6 +5,7 @@ on:
 
 jobs:
   build-mage:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     name: prepare-build-mage
     steps:
@@ -39,6 +40,7 @@ jobs:
           path: ./build/build-mage-static
 
   docker:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: namespace-profile-default
     permissions:
       contents: read
@@ -119,6 +121,7 @@ jobs:
           push-to-registry: true
 
   binaries:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: blacksmith-8vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -138,6 +141,7 @@ jobs:
           s3-region: ${{ secrets.S3_REGION }}
 
   veans-binaries:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: blacksmith-8vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -157,6 +161,7 @@ jobs:
           s3-region: ${{ secrets.S3_REGION }}
 
   os-package:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     needs:
       - binaries
@@ -196,6 +201,7 @@ jobs:
           s3-region: ${{ secrets.S3_REGION }}
 
   veans-os-package:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     needs:
       - veans-binaries
@@ -235,6 +241,7 @@ jobs:
           s3-region: ${{ secrets.S3_REGION }}
 
   publish-repos:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     needs:
       - build-mage
@@ -424,6 +431,7 @@ jobs:
           strip-path-prefix: dist/repo-output/
 
   config-yaml:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -450,6 +458,7 @@ jobs:
           files: "config.yml.sample"
 
   desktop:
+    if: github.repository == 'go-vikunja/vikunja'
     strategy:
       matrix:
         os:
@@ -509,6 +518,7 @@ jobs:
             !./desktop/dist/*.blockmap
 
   generate-swagger-and-yaegi:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     # The push below authenticates with the SSH deploy key, not GITHUB_TOKEN.
     permissions:
@@ -571,7 +581,7 @@ jobs:
       - veans-os-package
       - desktop
       - publish-repos
-    if: ${{ github.ref_type == 'tag' }}
+    if: github.repository == 'go-vikunja/vikunja' && (github.ref_type == 'tag')
     permissions:
       contents: write
     steps:

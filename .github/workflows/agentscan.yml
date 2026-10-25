@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   analyze:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     steps:
       - uses: MatteoGabriele/agentscan-text-action@main

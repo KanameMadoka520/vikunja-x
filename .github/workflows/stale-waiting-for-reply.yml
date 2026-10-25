@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   stale:
-    if: github.event_name != 'pull_request_target'
+    if: github.repository == 'go-vikunja/vikunja' && (github.event_name != 'pull_request_target')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
@@ -42,6 +42,7 @@ jobs:
   # keeps the label and gets auto-closed.
   unlabel-on-push:
     if: >
+      github.repository == 'go-vikunja/vikunja' &&
       github.event_name == 'pull_request_target' &&
       contains(github.event.pull_request.labels.*.name, 'waiting for reply')
     runs-on: ubuntu-latest

@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   diff_dependencies:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,6 +29,7 @@ jobs:
           duplicate-threshold: 9999
 
   check-provenance:
+    if: github.repository == 'go-vikunja/vikunja'
     runs-on: ubuntu-latest
     strategy:
       matrix:

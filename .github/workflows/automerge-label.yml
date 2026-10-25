@@ -14,7 +14,7 @@ env:
 jobs:
   # Event-driven sync for a single PR. Never checks out PR head code.
   sync:
-    if: github.event_name == 'pull_request_target'
+    if: github.repository == 'go-vikunja/vikunja' && (github.event_name == 'pull_request_target')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,7 +36,7 @@ jobs:
   # Hourly reconciliation: backfills old PRs and catches implicit auto-merge
   # disables (e.g. unauthorized push to the head branch) that fire no event.
   reconcile:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'go-vikunja/vikunja' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read

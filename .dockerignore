@@ -16,3 +16,10 @@ docker-manifest-unstable.tmpl
 /frontend/node_modules/
 /frontend/.direnv
 /frontend/dist
+
+.git/
+/vikunja
+frontend/dist-dev/
+frontend/test-results/
+frontend/playwright-report/
+.env
