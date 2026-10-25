@@ -40,6 +40,7 @@
 				/>
 
 				<QuickActions />
+				<AddToHomeScreen />
 
 				<RouterView
 					v-slot="{ Component }"
@@ -77,6 +78,7 @@
 </template>
 
 <script lang="ts" setup>
+import AddToHomeScreen from './AddToHomeScreen.vue'
 import {watch, computed, onBeforeUnmount} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 
@@ -196,6 +198,7 @@ onBeforeUnmount(() => {
 	--sidebar-width: #{$navbar-width};
 
 	display: flow-root;
+	overflow-wrap: anywhere;
 	z-index: 10;
 	position: relative;
 	padding: 1.5rem 0.5rem 0;
@@ -217,6 +220,8 @@ onBeforeUnmount(() => {
 			margin-inline-start: var(--sidebar-width);
 		}
 	}
+
+	padding-block-end: calc(var(--app-update-banner-height, 0px) + 2rem + env(safe-area-inset-bottom, 0px));
 
 	// Used to make sure the spinner is always in the middle while loading
 	> .loader-container {

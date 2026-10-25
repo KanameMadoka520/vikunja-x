@@ -1,3 +1,5 @@
+import {i18n} from '@/i18n'
+const {t} = i18n.global
 import {queryOptions, useMutation} from '@tanstack/vue-query'
 import {
 	tcyShowcaseSettings, tcyShowcaseSave, tcyShowcasePreview, tcyShowcasePublish,
@@ -18,7 +20,7 @@ export type ShowcaseDraft = {
 
 export function normalizeDraft(d?: DraftWritable): ShowcaseDraft {
 	return {
-		custom_layout: d?.custom_layout ?? false, slug: d?.slug ?? '', title: d?.title ?? '我的日程', intro: d?.intro ?? '', content: d?.content ?? '', format: d?.format ?? 'markdown',
+		custom_layout: d?.custom_layout ?? false, slug: d?.slug ?? '', title: d?.title || t('tcymc.text.my_schedule'), intro: d?.intro ?? '', content: d?.content ?? '', format: d?.format ?? 'markdown',
 		days: d?.days ?? 7, start_hour: d?.start_hour ?? 9, end_hour: d?.end_hour ?? 21, weekdays: d?.weekdays ?? [1, 2, 3, 4, 5],
 		projects: (d?.projects ?? []).map(p => ({id: p.id ?? 0, alias: p.alias ?? '', mode: p.mode ?? 'hidden'})),
 		tasks: (d?.tasks ?? []).map(t => ({id: t.id ?? 0, alias: t.alias ?? '', hidden: t.hidden ?? false})),
@@ -33,8 +35,8 @@ export function showcaseSettingsQuery() {
 
 export function publicShowcaseQuery(slug: string) {
 	return queryOptions({
-		queryKey: ['tcymc-public', slug],
-		queryFn: async ({signal}) => (await tcyShowcasePublic({client: publicClient, baseUrl: canonicalApiBaseUrl(getApiBaseUrl()), path: {slug}, signal, throwOnError: true})).data,
+		queryKey: ['tcymc-public', slug, i18n.global.locale.value],
+		queryFn: async ({signal}) => (await tcyShowcasePublic({client: publicClient, baseUrl: canonicalApiBaseUrl(getApiBaseUrl()), path: {slug}, headers: {'Accept-Language': i18n.global.locale.value}, signal, throwOnError: true})).data,
 		meta: {handlesError: true}, retry: false, refetchInterval: 60000,
 	})
 }
@@ -43,7 +45,7 @@ export function useSaveShowcase() {
 	return useMutation(contextMutationOptions({
 		mutationFn: async (body: ShowcaseDraft) => (await tcyShowcaseSave({body})).data,
 		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
-		successMessage: () => '草稿已保存，公开内容未改变',
+		successMessage: () => t('tcymc.text.draft_saved_published_content_has_not_changed'),
 	}))
 }
 export function usePreviewShowcase() {
@@ -53,13 +55,13 @@ export function usePublishShowcase() {
 	return useMutation(contextMutationOptions({
 		mutationFn: async (body: ShowcaseDraft) => (await tcyShowcasePublish({body})).data,
 		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
-		successMessage: () => '公开主页已发布，日程将按已发布规则实时更新',
+		successMessage: () => t('tcymc.text.your_page_is_published_the_schedule_will_update'),
 	}))
 }
 export function useUnpublishShowcase() {
 	return useMutation(contextMutationOptions({
 		mutationFn: async () => (await tcyShowcaseUnpublish()).data,
 		onSettled: (_input, client) => client.invalidateQueries({queryKey: showcaseKey}),
-		successMessage: () => '公开主页与 JSON 接口已撤下',
+		successMessage: () => t('tcymc.text.your_public_page_and_json_endpoint_have_been'),
 	}))
 }

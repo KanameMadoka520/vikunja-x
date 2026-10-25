@@ -21,6 +21,8 @@ import (
 	"context"
 	"net/http"
 
+	"code.vikunja.io/api/pkg/modules/tcylocale"
+
 	"code.vikunja.io/api/pkg/modules/tcyshowcase"
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -38,7 +40,7 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 		}
 		s, err := tcyshowcase.Load(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &singleBody[tcyshowcase.State]{Body: &s}, nil
 	})
@@ -49,7 +51,7 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 		}
 		s, err := tcyshowcase.Save(uid, in.Body, false)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &singleBody[tcyshowcase.State]{Body: &s}, nil
 	})
@@ -60,7 +62,7 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 		}
 		p, err := tcyshowcase.Build(ctx, uid, in.Body)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &singleBody[tcyshowcase.Preview]{Body: &p}, nil
 	})
@@ -70,11 +72,11 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 			return nil, err
 		}
 		if _, err = tcyshowcase.Build(ctx, uid, in.Body); err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		s, err := tcyshowcase.Save(uid, in.Body, true)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &singleBody[tcyshowcase.State]{Body: &s}, nil
 	})
@@ -85,7 +87,7 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 		}
 		s, err := tcyshowcase.Unpublish(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &singleBody[tcyshowcase.State]{Body: &s}, nil
 	})
@@ -96,11 +98,11 @@ func RegisterTCYShowcaseRoutes(api huma.API) {
 	}) (*singleBody[tcyshowcase.Page], error) {
 		uid, state, err := tcyshowcase.Public(in.Slug)
 		if err != nil {
-			return nil, huma.Error404NotFound("页面未发布或已撤下")
+			return nil, huma.Error404NotFound(tcylocale.Render(ctx, tcylocale.Error("e53")))
 		}
 		p, err := tcyshowcase.Build(ctx, uid, *state.Published)
 		if err != nil {
-			return nil, huma.Error503ServiceUnavailable("页面暂时不可用，请稍后重试")
+			return nil, huma.Error503ServiceUnavailable(tcylocale.Render(ctx, tcylocale.Error("e52")))
 		}
 		p.Page.PublishedAt = state.PublishedAt
 		return &singleBody[tcyshowcase.Page]{Body: &p.Page}, nil

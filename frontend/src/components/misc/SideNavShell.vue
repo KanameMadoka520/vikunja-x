@@ -84,6 +84,7 @@ function isAliasActive(item: SideNavItem) {
 <style lang="scss" scoped>
 .side-nav-shell {
 	display: flex;
+	min-inline-size: 0;
 
 	@media screen and (max-width: $tablet) {
 		flex-direction: column;
@@ -116,11 +117,39 @@ function isAliasActive(item: SideNavItem) {
 
 .view {
 	inline-size: 75%;
+	min-inline-size: 0;
 
 	@media screen and (max-width: $tablet) {
 		inline-size: 100%;
 		padding-inline-start: 0;
 		padding-block-start: 1rem;
+	}
+}
+
+@media screen and (max-width: $tablet) {
+	.navigation {
+		padding-inline: 0;
+		min-inline-size: 0;
+
+		ul {
+			display: flex;
+			gap: .25rem;
+			max-inline-size: 100%;
+			overflow-x: auto;
+			padding-block-end: .5rem;
+			overscroll-behavior-inline: contain;
+		}
+
+		li {
+			flex: 0 0 auto;
+		}
+	}
+
+	.navigation-link {
+		min-block-size: 44px;
+		border-inline-start: 0;
+		border-block-end: 3px solid transparent;
+		white-space: nowrap;
 	}
 }
 </style>

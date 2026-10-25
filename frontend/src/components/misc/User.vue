@@ -16,7 +16,7 @@
 				v-if="isBot"
 				v-tooltip="t('user.settings.bots.badge')"
 				class="bot-badge"
-				aria-label="Bot"
+				:aria-label="$t('tcymc.bot')"
 			>B</span>
 		</span>
 		<span

@@ -3,22 +3,31 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.1`
+- 版本：`v2.7.1-tcymc.2`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 ## AI 与语音
 
-登录后进入 **设置 → AI 与语音**，添加连接名称、HTTPS API 基础地址、API Key、模型 ID 与类型。API 地址填写到 `/v1` 或服务商要求的基础路径，不要填写具体的 `/chat/completions`。
+登录后进入 **设置 → AI 与语音**，添加连接名称、HTTPS API 基础地址、API 密钥、模型 ID、用途与协议。基础地址包含服务商要求的版本路径，不要填写具体请求端点。例如 OpenAI/Anthropic 通常使用 `/v1`，Gemini 通常使用 `/v1beta`；代理服务以其文档为准。页面会展示完整的模型调用端点和模型列表端点，连接测试成功后也返回服务器实际使用的端点。
 
-三个功能分别选择连接，可以使用同一服务商的不同模型，也可以跨服务商：
+三个功能独立分配模型：**语音识别 → 识别文字整理 → 任务 AI 助手**。支持的协议如下：
 
-| 功能 | 协议与要求 |
-| --- | --- |
-| 语音识别 | OpenAI 兼容 `POST /audio/transcriptions`，multipart 音频上传，JSON `text` 响应 |
-| 识别文字整理 | OpenAI 兼容 `POST /chat/completions`，可选；只整理口语，失败保留原文 |
-| 任务 AI 助手 | OpenAI 兼容 `POST /chat/completions`，需要模型支持 `tools` 工具调用 |
+| 协议 | 可用功能 | 在基础地址后追加的路径 |
+| --- | --- | --- |
+| OpenAI Chat Completions | 文字整理、任务助手 | `/chat/completions` |
+| OpenAI Responses | 文字整理、任务助手 | `/responses` |
+| Anthropic Messages | 文字整理、任务助手 | `/messages` |
+| Gemini generateContent | 文字整理、任务助手、语音识别 | `/models/{model}:generateContent` |
+| OpenAI Audio Transcriptions | 语音识别 | `/audio/transcriptions` |
+| OpenAI Chat Audio | 语音识别 | `/chat/completions` |
 
-点击保存后可以测试连接。语音模型测试需上传一段音频。AI 助手支持浏览器录音（最长 3 分钟）或上传音频（最大 16 MiB），识别后可修改文字，再明确发送执行。浏览器需要 HTTPS 和麦克风权限。
+**获取模型列表**会使用对应协议的鉴权访问上游 `/models`，支持 Anthropic/Gemini 分页（最多 10 页），并按名称去重排序。可以在保存前获取，已保存的同一地址可复用密钥。模型 ID 始终允许手动输入；上游未提供列表或列表获取失败，也能继续配置。列表只表示上游列出的模型，使用语音或任务工具仍需选择支持相应能力的模型。Anthropic Messages 不提供原始音频输入，不能作为语音识别连接；可以处理识别后的文字。
+
+点击保存后可以测试连接。语音测试需上传音频。AI 助手支持浏览器录音（最长 3 分钟）或上传音频（最大 16 MiB），识别后可修改文字，再明确发送执行。OpenAI Chat Audio 需要支持音频输入的模型；WAV/MP3 直接发送，浏览器录音等格式在本机转为 16 kHz 单声道 WAV（转换最长 3 分钟）。Gemini 内嵌音频限 14 MiB，以控制 Base64 后的请求体积。浏览器需要 HTTPS 和麦克风权限。
+
+协议参考：[OpenAI 音频对话](https://developers.openai.com/api/docs/guides/audio-chat-completions)、[Anthropic Messages](https://platform.claude.com/docs/en/api/messages/create)、[Gemini 音频输入](https://ai.google.dev/gemini-api/docs/audio)。
+
+Responses 的工具调用与推理上下文、Anthropic 的工具结果、Gemini 的函数调用和 thought signature 都按各自原生结构处理。历史版本的连接会自动按原来的 OpenAI 兼容协议读取。
 
 助手可查询项目与任务、读取任务、创建项目和任务、修改标题/描述/开始时间/结束时间/截止时间/优先级/完成状态。工作方式可选“直接执行”或“只读”，删除任务需另外勾选当次允许。每次最多 8 轮推理、20 次工具操作，并显示真实执行记录。所有工具操作继续经过 Vikunja 原有权限校验。内置助手不管理账户、密钥、分享权限或任意外部请求。
 
@@ -48,12 +57,20 @@ AI 收到的是本次对话及工具查询到的任务数据，使用前应选�
 
 忙闲计算使用 **Asia/Shanghai**：有完整开始/结束时间的未完成任务形成忙碌时间段；仅有截止时间的任务作为截止事项展示，不占用整天。重叠时间段合并后从可联系窗口中扣除。隐藏或未选择的项目/任务不参与计算，因此这里的“可联系时间”仅代表已公开安排，不是完整私人日历或预约保证。用户可把敏感安排设为“忙碌”保留占用时间，避免暴露原名。
 
+## 中英文、移动端与更新提示
+
+简体中文与英文的前后端翻译键保持一致；新增页面、错误提示、无障碍标签与更新通知均可随界面语言切换。CI 检查缺失条目和占位参数。快速添加帮助保留可识别的英文日期指令，并提供中文解释，不会把不支持的中文指令当成示例。
+
+手机布局支持侧边导航、横向滑动的设置导航、单列表单、长端点换行、AI 操作按钮与公开页面。自动化浏览器测试覆盖 360px、390px 和桌面视口，以及主界面、项目列表、任务详情、AI 设置/助手、公开页面和更新提示。
+
+底部更新提示来自 **Service Worker 检测到已下载的新前端资源**，不代表上游官方发布了新版。提示显示等待启用的 `v2.7.1-tcymc.*` 构建版本和当前版本；点击刷新后启用新资源。不查询上游发布列表，也不会自动替换服务器 Docker 镜像。从旧版升级时，第一次刷新可能仍看到旧版提示，启用新资源后即使用新的提示。
+
 ## 构建与 Docker 部署
 
 ```sh
 git clone https://github.com/KanameMadoka520/vikunja-x.git
 cd vikunja-x
-docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.1 -t vikunja-x:v2.7.1-tcymc.1 .
+docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.2 -t vikunja-x:v2.7.1-tcymc.2 .
 ```
 
 `Dockerfile.tcymc` 固定基础镜像摘要，使用锁定依赖构建前端，并生成带 SQLite 支持的静态 Go 二进制，最终以 UID 1000 在最小镜像中运行。提供 CA 和时区数据。数据库支持沿用上游，包括 PostgreSQL。
@@ -71,12 +88,12 @@ docker run -d --name vikunja-x --restart unless-stopped \
   -e VIKUNJA_SERVICE_SECRET=替换为随机且持久保存的长密钥 \
   -e VIKUNJA_SERVICE_ENABLEREGISTRATION=false \
   -e VIKUNJA_SERVICE_TIMEZONE=Asia/Shanghai \
-  vikunja-x:v2.7.1-tcymc.1
+  vikunja-x:v2.7.1-tcymc.2
 ```
 
 通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 按上游 `VIKUNJA_MAILER_*` 配置，密码通过外部环境文件提供，勿提交源码。账号名中的 admin 不会绕过上游授权功能。
 
-Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.1-linux-amd64.docker.tar.gz` 导入镜像。
+Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.2-linux-amd64.docker.tar.gz` 导入镜像。
 
 ## 本地开发与验证
 

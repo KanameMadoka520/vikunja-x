@@ -1,7 +1,7 @@
 <template>
 	<nav
 		v-if="totalPages > 1"
-		aria-label="pagination"
+		:aria-label="$t('tcymc.pagination')"
 		class="pagination is-centered p-4"
 		role="navigation"
 	>

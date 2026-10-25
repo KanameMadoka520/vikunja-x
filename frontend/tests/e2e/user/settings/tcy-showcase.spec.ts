@@ -1,6 +1,13 @@
 import {test, expect} from '../../../support/fixtures'
 import {setupApiUrl} from '../../../support/authenticateUser'
 
+import {UserFactory} from '../../../factories/user'
+
+test.use({currentUser: async ({apiContext}, use) => {
+	const [user] = await UserFactory.create(1, {language: 'zh-CN'})
+	await use(user)
+}})
+
 test('tcymc public page requires preview, keeps drafts private and can be withdrawn', async ({authenticatedPage: page, browser}) => {
 	await page.goto('/user/settings/showcase')
 	await expect(page.getByRole('heading', {name: '公开主页', exact: true})).toBeVisible()
@@ -15,7 +22,7 @@ test('tcymc public page requires preview, keeps drafts private and can be withdr
 	const publicLink = page.getByRole('link', {name: '查看公开页面 ↗'})
 	await expect(publicLink).toBeVisible()
 	const href = await publicLink.getAttribute('href')
-	const guest = await browser.newContext()
+	const guest = await browser.newContext({locale: 'zh-CN'})
 	try {
 		const visitor = await guest.newPage()
 		await setupApiUrl(visitor)

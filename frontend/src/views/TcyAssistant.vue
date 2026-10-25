@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
+const {t} = useI18n({useScope: 'global'})
+import {audioChatFile} from '@/helpers/tcyAudio'
 import {computed, onBeforeUnmount, ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {useQuery} from '@tanstack/vue-query'
@@ -8,7 +11,7 @@ import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
 import {isRequestContextAbort} from '@/client/requestContext'
 
-useTitle('AI 任务助手')
+useTitle(() => t('tcymc.text.ai_task_assistant'))
 const route = useRoute()
 const projectID = ref(Number(route.query.project) || 0)
 const {projectsArray} = useProjects()
@@ -34,7 +37,7 @@ let stream: MediaStream | undefined
 let timer: ReturnType<typeof setInterval> | undefined
 let disposed = false
 
-const labels: Record<string, string> = {list_projects: '查询项目', list_tasks: '查询任务', get_task: '读取任务', create_project: '创建项目', create_task: '创建任务', update_task: '更新任务', delete_task: '删除任务'}
+const labels = computed<Record<string, string>>(() => ({list_projects: t('tcymc.text.find_projects'), list_tasks: t('tcymc.text.find_tasks'), get_task: t('tcymc.text.read_task'), create_project: t('tcymc.text.create_project'), create_task: t('tcymc.text.create_task'), update_task: t('tcymc.text.update_task'), delete_task: t('tcymc.text.delete_task')}))
 
 async function submit() {
 	if (!prompt.value.trim() || busy.value || recording.value) return
@@ -44,13 +47,18 @@ async function submit() {
 		const result = await run.mutateAsync({message, history, project_id: projectID.value, mode: mode.value, allow_delete: allowDelete.value && mode.value === 'write', request_id: crypto.randomUUID()})
 		conversation.value.push({prompt: message, result})
 		prompt.value = ''
-	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = '请求未完成。若已开始修改，请先检查任务状态，再决定是否重新执行。' }
+	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = t('tcymc.text.the_request_did_not_finish_some_changes_may') }
 }
 
 async function processAudio(file: Blob, filename: string) {
-	if (file.size > 16 * 1024 * 1024) { notice.value = '音频不能超过 16 MiB。'; return }
-	if (!file.size) { notice.value = '录音为空，请重试。'; return }
+	if (file.size > 16 * 1024 * 1024) { notice.value = t('tcymc.text.audio_must_not_exceed_16_mib'); return }
+	if (!file.size) { notice.value = t('tcymc.text.the_recording_is_empty_please_try_again'); return }
 	notice.value = ''
+	const connection = settings.data.value?.connections.find(c => c.id === settings.data.value?.transcription)
+	if (connection?.protocol === 'openai-audio') {
+		try { const converted = await audioChatFile(file, filename); file = converted.file; filename = converted.filename }
+		catch { notice.value = t('tcymc.audioConversionFailed'); return }
+	}
 	try {
 		const audio = await new Promise<string>((resolve, reject) => {
 			const reader = new FileReader()
@@ -62,8 +70,8 @@ async function processAudio(file: Blob, filename: string) {
 		if (disposed) return
 		original.value = result.original ?? ''
 		prompt.value = [prompt.value, result.text].filter(Boolean).join('\n')
-		notice.value = result.warning || '识别完成。可以编辑文字，然后发送给助手。'
-	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = '识别失败，请检查语音模型配置或更换音频格式。' }
+		notice.value = result.warning || t('tcymc.text.transcription_complete_edit_the_text_if_needed_then')
+	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = t('tcymc.text.speech_recognition_failed_check_the_model_settings_or') }
 }
 
 function stopTracks() {
@@ -74,7 +82,7 @@ function stopTracks() {
 async function toggleRecording() {
 	if (recording.value) { recorder?.stop(); return }
 	if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-		notice.value = '当前浏览器不支持录音，请上传音频文件。'; return
+		notice.value = t('tcymc.text.this_browser_cannot_record_audio_please_upload_an'); return
 	}
 	try {
 		stream = await navigator.mediaDevices.getUserMedia({audio: true})
@@ -88,12 +96,12 @@ async function toggleRecording() {
 			stopTracks()
 			if (!disposed) void processAudio(new Blob(chunks, {type: recorder?.mimeType}), mimeType?.includes('mp4') ? 'recording.m4a' : 'recording.webm')
 		}
-		recorder.onerror = () => { recording.value = false; stopTracks(); notice.value = '录音中断，请重试。' }
+		recorder.onerror = () => { recording.value = false; stopTracks(); notice.value = t('tcymc.text.recording_was_interrupted_please_try_again') }
 		recorder.start(1000)
 		recording.value = true
 		elapsed.value = 0
 		timer = setInterval(() => { elapsed.value++; if (elapsed.value >= 180 && recorder?.state === 'recording') recorder.stop() }, 1000)
-	} catch { stopTracks(); notice.value = '无法使用麦克风，请检查浏览器录音权限。' }
+	} catch { stopTracks(); notice.value = t('tcymc.text.cannot_access_the_microphone_check_your_browser_s') }
 }
 
 async function upload(event: Event) {
@@ -123,66 +131,66 @@ onBeforeUnmount(() => {
 		<header class="assistant-heading">
 			<div>
 				<p class="eyebrow">
-					VIKUNJA X · YOUR WORK, YOUR MODELS
-				</p><h1>AI 任务助手</h1><p>说出计划，让任务开始行动。</p>
+					{{ t('tcymc.assistantEyebrow') }}
+				</p><h1>{{ t('tcymc.text.ai_task_assistant') }}</h1><p>{{ t('tcymc.text.describe_your_plan_and_turn_it_into_tasks') }}</p>
 			</div>
 			<XButton
 				variant="secondary"
 				:to="{name: 'user.settings.ai'}"
 			>
-				AI 与语音设置
+				{{ t('tcymc.text.ai_and_voice_settings') }}
 			</XButton>
 		</header>
 		<div
 			v-if="!hasAssistant && !settings.isPending.value"
 			class="setup-note"
 		>
-			先在「AI 与语音设置」中添加模型，并为任务助手选择支持工具调用的模型。
+			{{ t('tcymc.text.add_a_connection_in_ai_and_voice_settings') }}
 		</div>
 		<section
 			class="assistant-options"
-			aria-label="助手操作范围"
+			:aria-label="t('tcymc.text.assistant_permissions')"
 		>
-			<label>当前项目<select
+			<label>{{ t('tcymc.text.current_project') }}<select
 				v-model.number="projectID"
 				class="input"
-			><option :value="0">全部可访问项目</option><option
+			><option :value="0">{{ t('tcymc.text.all_accessible_projects') }}</option><option
 				v-for="project in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
 				:key="project.id"
 				:value="project.id"
 			>{{ project.title }}</option></select></label>
-			<label>工作方式<select
+			<label>{{ t('tcymc.text.working_mode') }}<select
 				v-model="mode"
 				class="input"
-			><option value="write">直接执行：允许创建和修改</option><option value="read">只读：查询与建议</option></select></label>
+			><option value="write">{{ t('tcymc.text.execute_allow_creation_and_changes') }}</option><option value="read">{{ t('tcymc.text.read_only_look_up_tasks_and_suggest_changes') }}</option></select></label>
 			<label class="checkbox"><input
 				v-model="allowDelete"
 				type="checkbox"
 				:disabled="mode === 'read'"
-			> 本次允许删除任务</label>
+			>{{ t('tcymc.text.allow_task_deletion_for_this_request') }}</label>
 		</section>
 		<section
 			class="conversation"
-			aria-label="助手对话"
+			:aria-label="t('tcymc.text.assistant_conversation')"
 			aria-live="polite"
 		>
 			<div
 				v-if="!conversation.length"
 				class="welcome"
 			>
-				<h2>从一句话开始</h2>
-				<p>查询进度、拆分计划，或把口头想法变成具体任务。</p>
+				<h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2>
+				<p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p>
 				<div class="suggestions">
 					<XButton
 						variant="secondary"
-						@click="prompt = '列出我还未完成的任务，按优先级给我一个今天的安排建议。'"
+						@click="prompt = t('tcymc.text.list_my_unfinished_tasks_and_suggest_a_plan')"
 					>
-						今天先做什么
+						{{ t('tcymc.text.what_should_i_do_today') }}
 					</XButton><XButton
 						variant="secondary"
-						@click="prompt = '在当前项目中新建一个任务：整理本周工作总结，截止时间是本周五下午六点。'"
+						@click="prompt = t('tcymc.text.create_a_task_in_this_project_to_write')"
 					>
-						一句话创建任务
+						{{ t('tcymc.text.create_a_task_with_one_sentence') }}
 					</XButton>
 				</div>
 			</div>
@@ -192,16 +200,16 @@ onBeforeUnmount(() => {
 				class="turn"
 			>
 				<div class="user-message">
-					<strong>你</strong><p>{{ turn.prompt }}</p>
+					<strong>{{ t('tcymc.text.you') }}</strong><p>{{ turn.prompt }}</p>
 				</div>
 				<div class="assistant-message">
-					<strong>任务助手</strong><p>{{ turn.result.reply }}</p>
+					<strong>{{ t('tcymc.text.task_assistant') }}</strong><p>{{ turn.result.reply }}</p>
 					<details
 						v-for="(action, actionIndex) in turn.result.actions"
 						:key="actionIndex"
 						class="operation"
 					>
-						<summary>{{ action.success ? '✓' : '×' }} {{ labels[action.tool] || action.tool }} · {{ action.success ? '成功' : '失败' }}</summary><pre>{{ action.arguments }}</pre><pre>{{ action.result }}</pre>
+						<summary>{{ action.success ? '✓' : '×' }} {{ labels[action.tool] || action.tool }} · {{ action.success ? t('tcymc.text.succeeded') : t('tcymc.text.failed') }}</summary><pre>{{ action.arguments }}</pre><pre>{{ action.result }}</pre>
 					</details>
 				</div>
 			</article>
@@ -210,7 +218,7 @@ onBeforeUnmount(() => {
 				class="working"
 				role="status"
 			>
-				正在读取任务并处理指令…
+				{{ t('tcymc.text.reading_tasks_and_processing_your_request') }}
 			</p>
 		</section>
 		<form
@@ -220,14 +228,14 @@ onBeforeUnmount(() => {
 			<label
 				for="ai-prompt"
 				class="composer-label"
-			>你的指令</label>
+			>{{ t('tcymc.text.your_request') }}</label>
 			<textarea
 				id="ai-prompt"
 				v-model="prompt"
 				class="textarea"
 				rows="4"
 				maxlength="12000"
-				placeholder="例如：把当前项目里还没完成的文档任务，截止日期改到下周五。"
+				:placeholder="t('tcymc.text.for_example_move_the_due_dates_of_unfinished')"
 				:disabled="run.isPending.value"
 			/>
 			<div class="composer-tools">
@@ -237,14 +245,14 @@ onBeforeUnmount(() => {
 					:disabled="busy || !hasSpeech"
 					@click="toggleRecording"
 				>
-					{{ recording ? `停止录音 · ${elapsed}s` : '语音输入' }}
+					{{ recording ? t('tcymc.stopRecording', {seconds: elapsed}) : t('tcymc.text.record_audio') }}
 				</XButton>
 				<XButton
 					variant="secondary"
 					:disabled="busy || !hasSpeech || recording"
 					@click="audioInput?.click()"
 				>
-					上传音频
+					{{ t('tcymc.text.upload_audio') }}
 				</XButton>
 				<input
 					ref="audioInput"
@@ -257,14 +265,14 @@ onBeforeUnmount(() => {
 				<label class="checkbox"><input
 					v-model="tidy"
 					type="checkbox"
-				> 识别后整理文字</label>
+				>{{ t('tcymc.text.clean_up_the_transcript') }}</label>
 				<XButton
 					variant="secondary"
 					type="button"
 					:disabled="busy || !prompt.trim() || !settings.data.value?.cleanup"
 					@click="tidyText"
 				>
-					仅整理文字
+					{{ t('tcymc.text.clean_up_text') }}
 				</XButton>
 				<XButton
 					variant="primary"
@@ -272,7 +280,7 @@ onBeforeUnmount(() => {
 					type="submit"
 					:disabled="busy || recording || !hasAssistant || !prompt.trim()"
 				>
-					{{ busy ? '处理中…' : '发送指令' }}
+					{{ busy ? t('tcymc.text.working') : t('tcymc.text.send_request') }}
 				</XButton>
 			</div>
 			<p
@@ -283,12 +291,12 @@ onBeforeUnmount(() => {
 				{{ notice }}
 			</p>
 			<details v-if="original">
-				<summary>查看识别 / 整理前原文</summary><p class="original">
+				<summary>{{ t('tcymc.text.view_original_transcript_or_text') }}</summary><p class="original">
 					{{ original }}
 				</p>
 			</details>
 			<p class="hint">
-				录音最长 3 分钟，上传最大 16 MiB。语音先转成可编辑文字，发送后才会操作任务。
+				{{ t('tcymc.text.record_up_to_3_minutes_or_upload_up') }}
 			</p>
 		</form>
 	</main>
@@ -299,7 +307,7 @@ onBeforeUnmount(() => {
 	max-inline-size: 1050px;
 	margin-inline: auto;
 	padding: 1rem;
-	}
+}
 .assistant-heading {
 	display: flex;
 	align-items: center;
@@ -307,22 +315,22 @@ onBeforeUnmount(() => {
 	flex-wrap: wrap;
 	gap: 1rem;
 	margin-block-end: 1.5rem;
-	}
+}
 .eyebrow {
 	color: var(--primary);
 	font-size: .7rem;
 	letter-spacing: .13em;
-	}
+}
 h1 {
 	margin-block: .5rem;
 	font-size: 2rem;
-	}
+}
 .setup-note {
 	margin-block-end: 1rem;
 	padding: 1rem;
 	border-inline-start: 3px solid var(--primary);
 	background: var(--grey-100);
-	}
+}
 .assistant-options {
 	display: flex;
 	align-items: end;
@@ -331,100 +339,130 @@ h1 {
 	padding: 1rem;
 	border: 1px solid var(--grey-200);
 	border-radius: .75rem;
-	}
+}
 .assistant-options > label {
 	display: grid;
 	gap: .4rem;
 	font-size: .85rem;
-	}
+}
 .conversation {
 	min-block-size: 260px;
 	padding-block: 1.5rem;
-	}
+}
 .welcome {
 	padding: 2.5rem 1rem;
 	text-align: center;
 	color: var(--grey-600);
-	}
+}
 .welcome h2 {
 	margin-block-end: .75rem;
 	font-size: 1.5rem;
 	color: var(--grey-800);
-	}
+}
 .suggestions {
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: center;
 	gap: .75rem;
 	margin-block-start: 1.5rem;
-	}
+}
 .turn {
 	margin-block-end: 1.5rem;
-	}
+}
 .user-message, .assistant-message {
 	padding: 1rem 1.25rem;
 	border-radius: .75rem;
-	}
+}
 .user-message {
 	margin-inline-start: 8%;
 	background: var(--grey-100);
-	}
+}
 .assistant-message {
 	margin-block-start: .5rem;
 	border: 1px solid var(--grey-200);
-	}
+}
 .turn p, .original {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 	margin-block-start: .5rem;
-	}
+}
 .operation {
 	margin-block-start: .75rem;
 	font-size: .85rem;
-	}
+}
 .operation pre {
 	max-block-size: 240px;
 	overflow: auto;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 	margin-block-start: .5rem;
-	}
+}
 .composer {
 	padding: 1rem;
 	border: 1px solid var(--grey-300);
 	border-radius: .75rem;
 	background: var(--white);
-	}
+}
 .composer-label {
 	display: block;
 	margin-block-end: .5rem;
 	font-weight: 600;
-	}
+}
 .composer-tools {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
 	gap: .75rem;
 	margin-block-start: 1rem;
-	}
+}
 .send {
 	margin-inline-start: auto;
-	}
+}
 .audio-upload {
 	display: none;
-	}
+}
 .checkbox, .hint {
 	font-size: .8rem;
-	}
+}
 .hint, .notice {
 	margin-block-start: .75rem;
 	color: var(--grey-600);
-	}
+}
 .working {
 	padding: 1rem;
 	color: var(--primary);
-	}
+}
 .is-disabled {
 	opacity: .5;
+}
+@media (width <= 600px) {
+	.assistant-heading {
+		flex-direction: column;
+		align-items: stretch;
 	}
+	.assistant-options {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.assistant-options select {
+		inline-size: 100%;
+		min-inline-size: 0;
+		max-inline-size: 100%;
+	}
+	.composer-tools > .button {
+		flex: 1 1 auto;
+	}
+	.send {
+		margin-inline-start: 0;
+	}
+	.welcome {
+		padding: 1rem .25rem;
+	}
+	.user-message {
+		margin-inline-start: 0;
+	}
+	.tcy-assistant {
+		min-inline-size: 0;
+	}
+}
 </style>

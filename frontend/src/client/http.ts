@@ -1,3 +1,4 @@
+import {i18n} from '@/i18n'
 import {client} from '@/client/generated/client.gen'
 import type {ResolvedRequestOptions} from '@/client/generated/client/types.gen'
 import {
@@ -74,6 +75,7 @@ export function configureApiClient(): void {
 	client.interceptors.error.clear()
 
 	client.interceptors.request.use((request, options: ResolvedRequestOptions) => {
+		request.headers.set('Accept-Language', i18n.global.locale.value)
 		const context = captureClientRequestContext()
 		assertClientRequestMatchesContext(request, context, options.baseUrl)
 

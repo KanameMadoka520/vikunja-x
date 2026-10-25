@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
+const {t} = useI18n({useScope: 'global'})
 import {useQuery} from '@tanstack/vue-query'
 import {showcaseSettingsQuery} from '@/client/queries/tcyShowcase'
 import ShowcaseEditor from '@/components/showcase/ShowcaseEditor.vue'
 import {useTitle} from '@/composables/useTitle'
 
-useTitle('公开主页')
+useTitle(() => t('tcymc.text.public_page'))
 const settings = useQuery(showcaseSettingsQuery())
 </script>
 
@@ -15,6 +17,6 @@ const settings = useQuery(showcaseSettingsQuery())
 		:initial="settings.data.value"
 	/>
 	<p v-else>
-		正在加载公开主页设置…
+		{{ t('tcymc.text.loading_public_page_settings') }}
 	</p>
 </template>

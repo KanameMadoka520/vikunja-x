@@ -2,7 +2,6 @@
 	<div
 		v-if="shouldShowMessage"
 		class="add-to-home-screen"
-		:class="{'has-update-available': hasUpdateAvailable}"
 	>
 		<Icon
 			icon="arrow-up-from-bracket"
@@ -25,14 +24,11 @@
 import BaseButton from '@/components/base/BaseButton.vue'
 import {useLocalStorage} from '@vueuse/core'
 import {computed} from 'vue'
-import {useBaseStore} from '@/stores/base'
 import {useAuthStore} from '@/stores/auth'
 
-const baseStore = useBaseStore()
 const authStore = useAuthStore()
 
 const hideMessage = useLocalStorage('hideAddToHomeScreenMessage', false)
-const hasUpdateAvailable = computed(() => baseStore.updateAvailable)
 
 const shouldShowMessage = computed(() => {
 	if (!authStore.authenticated) {
@@ -53,15 +49,7 @@ const shouldShowMessage = computed(() => {
 
 <style lang="scss" scoped>
 .add-to-home-screen {
-	position: fixed;
-	// FIXME: We should prevent usage of z-index or
-	// at least define it centrally
-	// the highest z-index of a modal is .hint-modal with 4500
-	z-index: 5000;
-	inset-block-end: 1rem;
-	inset-inline: 1rem;
-	max-inline-size: max-content;
-	margin-inline: auto;
+	margin-block-end: 1rem;
 
 	display: flex;
 	align-items: center;
@@ -81,9 +69,6 @@ const shouldShowMessage = computed(() => {
 		display: none;
 	}
 	
-	&.has-update-available {
-		inset-block-end: 5rem;
-	}
 }
 
 .add-icon {
@@ -91,6 +76,9 @@ const shouldShowMessage = computed(() => {
 }
 
 .hide-button {
+	min-inline-size: 44px;
+	min-block-size: 44px;
+	flex-shrink: 0;
 	padding: .25rem .5rem;
 	cursor: pointer;
 }

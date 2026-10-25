@@ -29,7 +29,7 @@
 			/>
 			<nav
 				v-if="project?.id"
-				aria-label="Breadcrumb"
+				:aria-label="$t('tcymc.breadcrumb')"
 				class="subtitle"
 			>
 				<template

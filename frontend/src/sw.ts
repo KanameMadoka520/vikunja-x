@@ -1,3 +1,4 @@
+import {VERSION} from './version.json'
 import {getFullBaseUrl} from './helpers/getFullBaseUrl'
 
 declare let self: ServiceWorkerGlobalScope & {
@@ -31,7 +32,7 @@ workbox.routing.registerRoute(
 )
 
 // Construct pattern with full base URL
-const apiRoutePattern = new RegExp(`${fullBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}api\\/v1\\/.*$`)
+const apiRoutePattern = new RegExp(`${fullBaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}api\\/v[12]\\/.*$`)
 // Always send api requests through the network and bypass the browser's HTTP cache
 workbox.routing.registerRoute(
 	apiRoutePattern,
@@ -49,6 +50,9 @@ self.addEventListener('message', (e) => {
 	}
 
 	switch (e.data) {
+		case 'getVersion':
+			e.ports[0]?.postMessage({version: VERSION})
+			break
 		case 'skipWaiting':
 			self.skipWaiting()
 			break

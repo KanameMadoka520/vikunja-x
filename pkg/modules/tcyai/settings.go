@@ -31,17 +31,20 @@ import (
 	"strings"
 	"sync"
 
+	"code.vikunja.io/api/pkg/modules/tcylocale"
+
 	"code.vikunja.io/api/pkg/config"
 )
 
 type Connection struct {
-	ID      string `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
-	Name    string `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
-	BaseURL string `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
-	Model   string `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
-	Kind    string `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
-	APIKey  string `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
-	HasKey  bool   `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
+	Protocol string `json:"protocol,omitempty" enum:"openai-chat,openai-responses,anthropic,gemini,openai-transcription,openai-audio" doc:"Wire protocol. Omitted legacy values are inferred from kind."`
+	ID       string `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
+	Name     string `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
+	BaseURL  string `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
+	Model    string `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
+	Kind     string `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
+	APIKey   string `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
+	HasKey   bool   `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
 }
 
 type Settings struct {
@@ -80,11 +83,11 @@ func read(uid int64) (s Settings, err error) {
 		return s, err
 	}
 	if len(data) < a.NonceSize() {
-		return s, errors.New("invalid encrypted AI settings")
+		return s, tcylocale.Error("e14")
 	}
 	plain, err := a.Open(nil, data[:a.NonceSize()], data[a.NonceSize():], []byte(fmt.Sprint(uid)))
 	if err != nil {
-		return s, errors.New("cannot decrypt AI settings; check service secret")
+		return s, tcylocale.Error("e13")
 	}
 	err = json.Unmarshal(plain, &s)
 	return s, err
@@ -99,6 +102,7 @@ func Load(uid int64) (Settings, error) {
 func Redact(s Settings) Settings {
 	s.Connections = append([]Connection{}, s.Connections...)
 	for i := range s.Connections {
+		s.Connections[i].Protocol = s.Connections[i].EffectiveProtocol()
 		s.Connections[i].HasKey = s.Connections[i].APIKey != ""
 		s.Connections[i].APIKey = ""
 	}
@@ -111,7 +115,7 @@ func (s Settings) Find(id, kind string) (Connection, error) {
 			return c, nil
 		}
 	}
-	return Connection{}, errors.New("请先在 AI 与语音设置中选择对应模型")
+	return Connection{}, tcylocale.Error("e46")
 }
 
 func Save(uid int64, s Settings) (Settings, error) {
@@ -122,7 +126,7 @@ func Save(uid int64, s Settings) (Settings, error) {
 		return s, err
 	}
 	if len(s.Connections) > 20 {
-		return s, errors.New("最多保存 20 个模型连接")
+		return s, tcylocale.Error("e30")
 	}
 	ids := map[string]bool{}
 	for i := range s.Connections {
@@ -134,7 +138,7 @@ func Save(uid int64, s Settings) (Settings, error) {
 			for _, prev := range old.Connections {
 				if prev.ID == c.ID {
 					if prev.BaseURL != c.BaseURL && prev.APIKey != "" {
-						return s, errors.New("更换 API 地址时请重新填写密钥")
+						return s, tcylocale.Error("e29")
 					}
 					c.APIKey = prev.APIKey
 				}
@@ -188,11 +192,56 @@ func validateConnection(c *Connection, ids map[string]bool) error {
 	c.BaseURL = strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
 	u, e := url.Parse(c.BaseURL)
 	if e != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Scheme != "https" {
-		return errors.New("模型 API 地址必须是 HTTPS 基础地址，不能包含密码、查询参数或片段")
+		return tcylocale.Error("e35")
 	}
 	if c.ID == "" || ids[c.ID] || c.Name == "" || c.Model == "" || (c.Kind != "chat" && c.Kind != "transcription") {
-		return errors.New("连接名称、模型和类型不能为空，连接 ID 不能重复")
+		return tcylocale.Error("e49")
 	}
+	if err := c.ValidateProtocol(); err != nil {
+		return err
+	}
+	c.Protocol = c.EffectiveProtocol()
 	ids[c.ID] = true
 	return nil
+}
+
+func (c Connection) EffectiveProtocol() string {
+	if c.Protocol != "" {
+		return c.Protocol
+	}
+	if c.Kind == "transcription" {
+		return "openai-transcription"
+	}
+	return "openai-chat"
+}
+func (c Connection) ValidateProtocol() error {
+	p := c.EffectiveProtocol()
+	if c.Kind == "chat" && (p == "openai-chat" || p == "openai-responses" || p == "anthropic" || p == "gemini") {
+		return nil
+	}
+	if c.Kind == "transcription" && (p == "openai-transcription" || p == "openai-audio" || p == "gemini") {
+		return nil
+	}
+	return tcylocale.Error("e11")
+}
+
+// ResolveConnection accepts draft metadata but only reuses this user's saved key at the same endpoint.
+func ResolveConnection(uid int64, c Connection) (Connection, error) {
+	if err := validateConnection(&c, map[string]bool{}); err != nil {
+		return c, err
+	}
+	if c.APIKey != "" {
+		return c, nil
+	}
+	s, err := Load(uid)
+	if err != nil {
+		return c, err
+	}
+	for _, saved := range s.Connections {
+		if saved.ID == c.ID && saved.BaseURL == c.BaseURL {
+			c.APIKey = saved.APIKey
+			break
+		}
+	}
+	return c, nil
 }

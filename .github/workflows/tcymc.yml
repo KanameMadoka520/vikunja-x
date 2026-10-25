@@ -20,3 +20,5 @@ jobs:
         working-directory: frontend
       - run: pnpm typecheck && pnpm lint && pnpm lint:styles
         working-directory: frontend
+      - run: pnpm vitest run src/i18n/coverage.test.ts src/helpers/tcyAudio.test.ts
+        working-directory: frontend

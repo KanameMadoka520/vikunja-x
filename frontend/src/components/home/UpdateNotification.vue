@@ -1,62 +1,83 @@
 <template>
 	<div
 		v-if="updateAvailable"
+		ref="banner"
 		class="update-notification"
 	>
 		<p class="update-notification__message">
-			{{ $t('update.available') }}
+			{{ t('tcymc.updateAvailable', {version: targetVersion}) }}
+			<small>{{ t('tcymc.currentVersion', {version: VERSION}) }}</small>
 		</p>
 		<XButton
 			:shadow="false"
 			:wrap="false"
 			@click="refreshApp()"
 		>
-			{{ $t('update.do') }}
+			{{ t('tcymc.updateRefresh') }}
 		</XButton>
 	</div>
 </template>
 
 <script lang="ts" setup>
-import {computed, ref} from 'vue'
+import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
+import {useElementSize} from '@vueuse/core'
 import {useBaseStore} from '@/stores/base'
 import {useAuthStore} from '@/stores/auth'
+import {useConfigStore} from '@/stores/config'
+import {VERSION} from '@/version.json'
 
+const {t} = useI18n({useScope: 'global'})
 const baseStore = useBaseStore()
 const authStore = useAuthStore()
-
+const configStore = useConfigStore()
 const updateAvailable = computed(() => baseStore.updateAvailable && authStore.authenticated)
+const banner = ref<HTMLElement>()
+const {height: bannerHeight} = useElementSize(banner)
+watch(bannerHeight, height => document.documentElement.style.setProperty('--app-update-banner-height', `${height}px`))
 const registration = ref<ServiceWorkerRegistration | null>(null)
 const refreshing = ref(false)
+const targetVersion = ref('')
+let disposed = false
 
-document.addEventListener('swUpdated', showRefreshUI, {once: true})
-
-navigator?.serviceWorker?.addEventListener(
-	'controllerchange', () => {
-		// clientsClaim() also fires this on first install — only reload after
-		// the user opted into an update, or unsaved state (e.g. login form
-		// input) gets wiped.
-		if (!refreshing.value) return
-		refreshing.value = false
-		window.location.reload()
-	},
-)
-
-function showRefreshUI(e: Event) {
-	console.log('recieved refresh event', e)
-	const customEvent = e as CustomEvent<ServiceWorkerRegistration>
-	registration.value = customEvent.detail
+async function showRefreshUI(e?: Event) {
+	if (!('serviceWorker' in navigator)) return
+	const reg = (e as CustomEvent<ServiceWorkerRegistration> | undefined)?.detail ?? await navigator.serviceWorker.getRegistration()
+	if (disposed || !reg?.waiting) return
+	registration.value = reg
+	const channel = new MessageChannel()
+	const version = await new Promise<string>(resolve => {
+		const timer = setTimeout(() => resolve(''), 1000)
+		channel.port1.onmessage = e => { clearTimeout(timer); resolve(typeof e.data?.version === 'string' ? e.data.version : '') }
+		reg.waiting?.postMessage('getVersion', [channel.port2])
+	})
+	channel.port1.close()
+	if (disposed || !reg.waiting) return
+	targetVersion.value = version || configStore.version || t('tcymc.updateUnknown')
 	baseStore.setUpdateAvailable(true)
 }
-
+function controllerChanged() {
+	if (!refreshing.value) return
+	refreshing.value = false
+	window.location.reload()
+}
 function refreshApp() {
 	baseStore.setUpdateAvailable(false)
-	if (!registration.value || !registration.value.waiting) {
-		return
-	}
+	if (!registration.value?.waiting) { window.location.reload(); return }
 	refreshing.value = true
-	// Notify the service worker to actually do the update
 	registration.value.waiting.postMessage('skipWaiting')
 }
+onMounted(() => {
+	document.addEventListener('swUpdated', showRefreshUI)
+	navigator.serviceWorker?.addEventListener('controllerchange', controllerChanged)
+	void showRefreshUI().catch(() => {})
+})
+onBeforeUnmount(() => {
+	disposed = true
+	document.documentElement.style.removeProperty('--app-update-banner-height')
+	document.removeEventListener('swUpdated', showRefreshUI)
+	navigator.serviceWorker?.removeEventListener('controllerchange', controllerChanged)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -79,11 +100,23 @@ function refreshApp() {
 	background: $warning;
 	border-radius: $radius;
 	font-size: .9rem;
-	color: hsl(220.9, 39.3%, 11%); // color copied to avoid it changing in dark mode
+	color: hsl(220.9, 39.3%, 11%);
+	// color copied to avoid it changing in dark mode
 }
 
 .update-notification__message {
 	inline-size: 100%;
 	text-align: center;
+}
+.update-notification__message small {
+	display: block;
+	margin-block-start: .25rem;
+}
+@media (width <= 600px) {
+	.update-notification {
+		flex-direction: column;
+		max-inline-size: calc(100% - 2rem);
+		padding: .75rem;
+	}
 }
 </style>

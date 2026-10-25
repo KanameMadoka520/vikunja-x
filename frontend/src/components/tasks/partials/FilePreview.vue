@@ -3,7 +3,7 @@
 	<img
 		v-if="blobUrl"
 		:src="blobUrl"
-		alt="Attachment preview"
+		:alt="$t('tcymc.attachmentPreview')"
 	>
 
 	<!-- PDF icon -->

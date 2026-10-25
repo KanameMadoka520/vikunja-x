@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
+const {t} = useI18n({useScope: 'global'})
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
 import {useQuery} from '@tanstack/vue-query'
@@ -8,7 +10,7 @@ import {useTitle} from '@/composables/useTitle'
 
 const route = useRoute()
 const query = useQuery(computed(() => publicShowcaseQuery(String(route.params.slug))))
-useTitle(() => query.data.value?.title ?? '公开日程')
+useTitle(() => query.data.value?.title ?? t('tcymc.text.public_schedule'))
 </script>
 
 <template>
@@ -20,8 +22,8 @@ useTitle(() => query.data.value?.title ?? '公开日程')
 		v-else
 		class="public-message"
 	>
-		<h1>{{ query.isPending.value ? '正在加载日程…' : '页面未发布或暂时不可用' }}</h1><p v-if="query.isError.value">
-			请确认链接，或稍后再试。
+		<h1>{{ query.isPending.value ? t('tcymc.text.loading_schedule') : t('tcymc.text.page_not_published_or_temporarily_unavailable') }}</h1><p v-if="query.isError.value">
+			{{ t('tcymc.text.check_the_link_or_try_again_later') }}
 		</p>
 	</div>
 </template>

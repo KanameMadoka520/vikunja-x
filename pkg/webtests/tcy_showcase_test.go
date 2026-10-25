@@ -24,12 +24,14 @@ import (
 	"time"
 
 	"code.vikunja.io/api/pkg/config"
+	"code.vikunja.io/api/pkg/i18n"
 	"code.vikunja.io/api/pkg/modules/tcyshowcase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTCYShowcaseIntegration(t *testing.T) {
+	i18n.Init()
 	e, err := setupTestEnv()
 	require.NoError(t, err)
 	token := humaTokenFor(t, &testuser1)
@@ -66,7 +68,7 @@ func TestTCYShowcaseIntegration(t *testing.T) {
 	var p tcyshowcase.Preview
 	require.NoError(t, json.Unmarshal(preview.Body.Bytes(), &p))
 	require.Len(t, p.Page.Events, 1)
-	assert.Equal(t, "忙碌", p.Page.Events[0].Title)
+	assert.Equal(t, "Busy", p.Page.Events[0].Title)
 	assert.Equal(t, "SECRET TASK", p.Sources[0].Title)
 	assert.NotEmpty(t, p.Page.Free)
 	denied := humaRequest(t, e, "POST", "/api/v2/showcase/publish", body(), other, "")
@@ -79,7 +81,7 @@ func TestTCYShowcaseIntegration(t *testing.T) {
 		assert.NotContains(t, public.Body.String(), secret)
 	}
 	assert.Contains(t, public.Body.String(), "公开别名")
-	assert.Contains(t, public.Body.String(), "忙碌")
+	assert.Contains(t, public.Body.String(), "Busy")
 	// A private draft must not change an already published page.
 	d.Projects[0].Mode = "titles"
 	saved := humaRequest(t, e, "POST", "/api/v2/showcase/settings", body(), token, "")

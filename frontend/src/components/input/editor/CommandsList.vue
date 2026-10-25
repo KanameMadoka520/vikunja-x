@@ -19,7 +19,7 @@
 			v-else
 			class="item"
 		>
-			No result
+			{{ $t('tcymc.noResult') }}
 		</div>
 	</div>
 </template>

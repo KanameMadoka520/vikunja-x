@@ -33,7 +33,6 @@
 		<KeyboardShortcuts v-if="keyboardShortcutsActive && !isQuickAddMode" />
 
 		<Teleport to="body">
-			<AddToHomeScreen v-if="!isQuickAddMode" />
 			<UpdateNotification v-if="!isQuickAddMode" />
 			<Notification />
 			<DemoMode v-if="!isQuickAddMode" />
@@ -65,7 +64,6 @@ import {useColorScheme} from '@/composables/useColorScheme'
 import {useTimeTrackingFavicon} from '@/composables/useTimeTrackingFavicon'
 import {useBodyClass} from '@/composables/useBodyClass'
 import QuickAddOverlay from '@/components/quick-actions/QuickAddOverlay.vue'
-import AddToHomeScreen from '@/components/home/AddToHomeScreen.vue'
 import DemoMode from '@/components/home/DemoMode.vue'
 import {AUTH_ROUTE_NAMES} from '@/constants/authRouteNames'
 import {AUTH_TYPES} from '@/constants/auth'

@@ -30,6 +30,8 @@ import (
 	"sync"
 	"time"
 
+	"code.vikunja.io/api/pkg/modules/tcylocale"
+
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/models"
@@ -106,7 +108,7 @@ var lock sync.Mutex
 var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{2,47}$`)
 
 func Default() Draft {
-	return Draft{Title: "我的日程", Format: "markdown", Days: 7, StartHour: 9, EndHour: 21, Weekdays: []int{1, 2, 3, 4, 5}, Projects: []ProjectRule{}, Tasks: []TaskRule{}}
+	return Draft{Title: "", Format: "markdown", Days: 7, StartHour: 9, EndHour: 21, Weekdays: []int{1, 2, 3, 4, 5}, Projects: []ProjectRule{}, Tasks: []TaskRule{}}
 }
 func path() string {
 	return filepath.Join(config.FilesBasePath.GetString(), ".tcymc-public", "pages.json")
@@ -160,21 +162,21 @@ func Load(uid int64) (State, error) {
 }
 func Validate(d Draft) error {
 	if !slugPattern.MatchString(d.Slug) || d.Days < 1 || d.Days > 31 || d.StartHour < 0 || d.EndHour > 24 || d.EndHour <= d.StartHour || len(d.Content) > 80000 || len(d.Projects) > 20 || len(d.Tasks) > 500 || len(d.Weekdays) > 7 {
-		return errors.New("请检查页面地址、时间窗口及内容长度")
+		return tcylocale.Error("e48")
 	}
 	if d.Format != "markdown" && d.Format != "html" {
-		return errors.New("不支持的页面格式")
+		return tcylocale.Error("e19")
 	}
 	ids := map[int64]bool{}
 	for _, p := range d.Projects {
 		if p.ID < 1 || ids[p.ID] || (p.Mode != "hidden" && p.Mode != "busy" && p.Mode != "titles") {
-			return errors.New("项目展示规则无效")
+			return tcylocale.Error("e54")
 		}
 		ids[p.ID] = true
 	}
 	for _, day := range d.Weekdays {
 		if day < 0 || day > 6 {
-			return errors.New("星期设置无效")
+			return tcylocale.Error("e28")
 		}
 	}
 	return nil
@@ -195,7 +197,7 @@ func Save(uid int64, d Draft, publish bool) (State, error) {
 	if publish {
 		for other, state := range states {
 			if other != key && state.Published != nil && state.Published.Slug == d.Slug {
-				return State{}, errors.New("该公开页面地址已被使用")
+				return State{}, tcylocale.Error("e44")
 			}
 		}
 		s.Published = &d
@@ -261,11 +263,11 @@ func Build(ctx context.Context, uid int64, d Draft) (Preview, error) {
 		}
 		project := &models.Project{ID: rule.ID}
 		if _, err = handler.DoReadOne(ctx, project, u); err != nil {
-			return Preview{}, errors.New("有项目已不存在或不再允许访问，请重新检查发布规则")
+			return Preview{}, tcylocale.Error("e31")
 		}
 		alias := rule.Alias
 		if alias == "" {
-			alias = "私人项目"
+			alias = tcylocale.Text(ctx, "privateProject")
 		}
 		preview.Page.Projects = append(preview.Page.Projects, alias)
 		filter := fmt.Sprintf(`done = false && ((start_date < '%s' && end_date > '%s') || (due_date >= '%s' && due_date < '%s'))`, until.Format(time.RFC3339), from.Format(time.RFC3339), from.Format(time.RFC3339), until.Format(time.RFC3339))
@@ -278,7 +280,7 @@ func Build(ctx context.Context, uid int64, d Draft) (Preview, error) {
 			}
 			tasks, ok := result.([]*models.Task)
 			if !ok {
-				return Preview{}, errors.New("unexpected task collection")
+				return Preview{}, tcylocale.Error("e16")
 			}
 			for _, task := range tasks {
 				preview.Sources = append(preview.Sources, Source{ID: task.ID, ProjectID: task.ProjectID, Title: task.Title})
@@ -286,7 +288,7 @@ func Build(ctx context.Context, uid int64, d Draft) (Preview, error) {
 				if override.Hidden {
 					continue
 				}
-				title := "忙碌"
+				title := tcylocale.Text(ctx, "busy")
 				if rule.Mode == "titles" {
 					title = task.Title
 				}
@@ -312,7 +314,7 @@ func Build(ctx context.Context, uid int64, d Draft) (Preview, error) {
 				break
 			}
 			if page == 40 {
-				return Preview{}, errors.New("日程数量过多，请缩短展示天数")
+				return Preview{}, tcylocale.Error("e27")
 			}
 		}
 	}

@@ -165,6 +165,10 @@ export type AiTextResponseBody = {
      */
     readonly $schema?: string;
     /**
+     * Actual upstream request URL, without credentials.
+     */
+    endpoint?: string;
+    /**
      * Original transcription, before optional cleanup.
      */
     original?: string;
@@ -513,6 +517,10 @@ export type Connection = {
      * Display name.
      */
     name?: string;
+    /**
+     * Wire protocol. Omitted legacy values are inferred from kind.
+     */
+    protocol?: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio';
 };
 
 export type ConnectionSettings = {
@@ -1272,6 +1280,16 @@ export type MigrationStartedBodyBody = {
      * A confirmation message.
      */
     readonly message?: string;
+};
+
+export type ModelList = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    endpoint?: string;
+    models?: Array<string> | null;
+    truncated?: boolean;
 };
 
 export type OpenIdAuthInfo = {
@@ -2928,6 +2946,17 @@ export type TcyAiCleanupRequest = {
     text?: string;
 };
 
+export type TcyAiModelsRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    base_url?: string;
+    id?: string;
+    kind?: 'chat' | 'transcription';
+    protocol?: string;
+};
+
 export type TcyAiTestRequest = {
     /**
      * A URL to the JSON Schema for this object.
@@ -3957,6 +3986,10 @@ export type AdminUserWritable = {
 
 export type AiTextResponseBodyWritable = {
     /**
+     * Actual upstream request URL, without credentials.
+     */
+    endpoint?: string;
+    /**
      * Original transcription, before optional cleanup.
      */
     original?: string;
@@ -4142,6 +4175,10 @@ export type ConnectionWritable = {
      * Display name.
      */
     name?: string;
+    /**
+     * Wire protocol. Omitted legacy values are inferred from kind.
+     */
+    protocol?: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio';
 };
 
 export type ConnectionSettingsWritable = {
@@ -4475,6 +4512,12 @@ export type MigrationMigrateBodyWritable = {
      * The state the service handed back to the callback. It is single-use, expires after 10 minutes and only works for the user who requested the auth url.
      */
     state?: string;
+};
+
+export type ModelListWritable = {
+    endpoint?: string;
+    models?: Array<string> | null;
+    truncated?: boolean;
 };
 
 export type OverviewWritable = {
@@ -5186,6 +5229,14 @@ export type TaskRelationWritable = {
 
 export type TcyAiCleanupRequestWritable = {
     text?: string;
+};
+
+export type TcyAiModelsRequestWritable = {
+    api_key?: string;
+    base_url?: string;
+    id?: string;
+    kind?: 'chat' | 'transcription';
+    protocol?: string;
 };
 
 export type TcyAiTestRequestWritable = {
@@ -6173,6 +6224,31 @@ export type TcyAiCleanupResponses = {
 };
 
 export type TcyAiCleanupResponse = TcyAiCleanupResponses[keyof TcyAiCleanupResponses];
+
+export type TcyAiModelsData = {
+    body: TcyAiModelsRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/models';
+};
+
+export type TcyAiModelsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiModelsError = TcyAiModelsErrors[keyof TcyAiModelsErrors];
+
+export type TcyAiModelsResponses = {
+    /**
+     * OK
+     */
+    200: ModelList;
+};
+
+export type TcyAiModelsResponse = TcyAiModelsResponses[keyof TcyAiModelsResponses];
 
 export type TcyAiRunData = {
     body: RunInputWritable;

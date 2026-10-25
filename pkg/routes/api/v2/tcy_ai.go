@@ -23,7 +23,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"code.vikunja.io/api/pkg/modules/tcylocale"
 
 	"code.vikunja.io/api/pkg/modules/humabridge"
 	"code.vikunja.io/api/pkg/modules/tcyai"
@@ -47,6 +48,7 @@ type aiSettingsResponse struct {
 }
 type aiTextResponse struct {
 	Body struct {
+		Endpoint string `json:"endpoint" doc:"Actual upstream request URL, without credentials."`
 		Text     string `json:"text" doc:"Processed text."`
 		Original string `json:"original" doc:"Original transcription, before optional cleanup."`
 		Warning  string `json:"warning" doc:"Non-fatal cleanup failure, if any."`
@@ -57,7 +59,7 @@ type aiTextResponse struct {
 func aiUser(ctx context.Context) (int64, error) {
 	ec := humabridge.EchoContextFrom(ctx)
 	if ec == nil || (*ec).Get("api_token") != nil {
-		return 0, huma.Error403Forbidden("AI 设置和调用需要用户登录会话")
+		return 0, huma.Error403Forbidden(tcylocale.Render(ctx, tcylocale.Error("e2")))
 	}
 	a, err := authFromCtx(ctx)
 	if err != nil {
@@ -70,7 +72,9 @@ func aiUser(ctx context.Context) (int64, error) {
 	return u.ID, nil
 }
 
-func aiError(err error) error { return huma.Error400BadRequest(err.Error()) }
+func aiError(ctx context.Context, err error) error {
+	return huma.Error400BadRequest(tcylocale.Render(ctx, err))
+}
 
 func RegisterTCYAIRoutes(api huma.API) {
 	op := func(id, method, path, description string) huma.Operation {
@@ -83,7 +87,7 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		s, err := tcyai.Load(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &aiSettingsResponse{CacheControl: "no-store", Body: tcyai.Redact(s)}, nil
 	})
@@ -94,10 +98,36 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		s, err := tcyai.Save(uid, in.Body)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		return &aiSettingsResponse{CacheControl: "no-store", Body: s}, nil
 	})
+	Register(api, op("tcy-ai-models", "POST", "/ai/models", "List models for a draft connection without saving its credentials"), func(ctx context.Context, in *struct {
+		Body struct {
+			ID       string `json:"id" minLength:"1" maxLength:"80"`
+			BaseURL  string `json:"base_url"`
+			Protocol string `json:"protocol"`
+			Kind     string `json:"kind" enum:"chat,transcription"`
+			APIKey   string `json:"api_key,omitempty" writeOnly:"true"`
+		}
+	}) (*singleBody[tcyai.ModelList], error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		c, err := tcyai.ResolveConnection(uid, tcyai.Connection{ID: in.Body.ID, Name: "model discovery", Model: "discovery", BaseURL: in.Body.BaseURL, Kind: in.Body.Kind, Protocol: in.Body.Protocol, APIKey: in.Body.APIKey})
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		models, err := tcyai.ListModels(ctx, c)
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		return &singleBody[tcyai.ModelList]{Body: &models}, nil
+	})
+
 	Register(api, op("tcy-ai-test", "POST", "/ai/test", "测试已保存模型的文字响应或语音转写能力"), func(ctx context.Context, in *struct {
 		Body struct {
 			ConnectionID string `json:"connection_id"`
@@ -111,29 +141,30 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		s, err := tcyai.Load(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		for _, c := range s.Connections {
 			if c.ID == in.Body.ConnectionID {
 				out := &aiTextResponse{}
+				out.Body.Endpoint = tcyai.Endpoint(c)
 				if c.Kind == "chat" {
-					m, e := tcyai.Chat(ctx, c, []tcyai.Message{{Role: "user", Content: "请仅回复：连接成功"}}, nil)
+					m, e := tcyai.Chat(ctx, c, []tcyai.Message{{Role: "user", Content: tcylocale.Text(ctx, "connectionTest")}}, nil)
 					out.Body.Text = m.Content
 					err = e
 				} else {
 					data, e := decodeAIAudio(in.Body.Audio)
 					if e != nil {
-						return nil, aiError(e)
+						return nil, aiError(ctx, e)
 					}
 					out.Body.Text, err = tcyai.Transcribe(ctx, c, in.Body.Filename, data)
 				}
 				if err != nil {
-					return nil, aiError(err)
+					return nil, aiError(ctx, err)
 				}
 				return out, nil
 			}
 		}
-		return nil, huma.Error404NotFound("模型连接不存在")
+		return nil, huma.Error404NotFound(tcylocale.Render(ctx, tcylocale.Error("e43")))
 	})
 	Register(api, op("tcy-ai-transcribe", "POST", "/ai/transcribe", "识别上传音频，可选使用独立模型整理文字"), func(ctx context.Context, in *struct {
 		Body struct {
@@ -148,19 +179,19 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		s, err := tcyai.Load(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		c, err := s.Find(s.Transcription, "transcription")
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		data, err := decodeAIAudio(in.Body.Audio)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		text, err := tcyai.Transcribe(ctx, c, in.Body.Filename, data)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		out := &aiTextResponse{}
 		out.Body.Text = text
@@ -172,7 +203,7 @@ func RegisterTCYAIRoutes(api huma.API) {
 			}
 			if err != nil {
 				out.Body.Text = text
-				out.Body.Warning = "文字整理失败，已保留识别原文：" + err.Error()
+				out.Body.Warning = tcylocale.Text(ctx, "cleanupFailed", tcylocale.Render(ctx, err))
 			}
 		}
 		return out, nil
@@ -188,15 +219,15 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		s, err := tcyai.Load(uid)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		c, err := s.Find(s.Cleanup, "chat")
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		text, err := tcyai.Cleanup(ctx, c, in.Body.Text)
 		if err != nil {
-			return nil, aiError(err)
+			return nil, aiError(ctx, err)
 		}
 		out := &aiTextResponse{}
 		out.Body.Text = text
@@ -214,11 +245,11 @@ func RegisterTCYAIRoutes(api huma.API) {
 
 func decodeAIAudio(encoded string) ([]byte, error) {
 	if len(encoded) > 22*1024*1024 {
-		return nil, errors.New("音频不能超过 16 MiB")
+		return nil, tcylocale.Error("e50")
 	}
 	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil || len(data) == 0 || len(data) > 16*1024*1024 {
-		return nil, errors.New("请提供不超过 16 MiB 的有效音频")
+		return nil, tcylocale.Error("e47")
 	}
 	return data, nil
 }
@@ -240,7 +271,7 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 	key := fmt.Sprintf("%d:%s", uid, in.RequestID)
 	raw, err := json.Marshal(in)
 	if err != nil {
-		return nil, aiError(err)
+		return nil, aiError(ctx, err)
 	}
 	hash := sha256.Sum256(raw)
 	aiRuns.Lock()
@@ -252,16 +283,16 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 	if v, ok := aiRuns.entries[key]; ok {
 		aiRuns.Unlock()
 		if v.hash != hash {
-			return nil, huma.Error409Conflict("同一请求 ID 不能用于不同指令")
+			return nil, huma.Error409Conflict(tcylocale.Render(ctx, tcylocale.Error("e20")))
 		}
 		if !v.ready {
-			return nil, huma.Error409Conflict("该请求仍在执行")
+			return nil, huma.Error409Conflict(tcylocale.Render(ctx, tcylocale.Error("e45")))
 		}
 		return &singleBody[tcyai.RunResult]{Body: &v.result}, nil
 	}
 	if aiRuns.busy[uid] || len(aiRuns.entries) >= 256 {
 		aiRuns.Unlock()
-		return nil, huma.Error429TooManyRequests("已有任务执行中，请稍后重试")
+		return nil, huma.Error429TooManyRequests(tcylocale.Render(ctx, tcylocale.Error("e22")))
 	}
 	aiRuns.busy[uid] = true
 	aiRuns.entries[key] = aiRunCacheEntry{hash: hash, at: time.Now()}
@@ -275,12 +306,12 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 	}()
 	s, err := tcyai.Load(uid)
 	if err != nil {
-		result.Reply = err.Error()
+		result.Reply = tcylocale.Render(ctx, err)
 		return &singleBody[tcyai.RunResult]{Body: &result}, nil
 	}
 	c, err := s.Find(s.Assistant, "chat")
 	if err != nil {
-		result.Reply = err.Error()
+		result.Reply = tcylocale.Render(ctx, err)
 		return &singleBody[tcyai.RunResult]{Body: &result}, nil
 	}
 	ec := humabridge.EchoContextFrom(ctx)
@@ -291,7 +322,7 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 		return dispatchAI(ctx, api, caller, name, args)
 	})
 	if err != nil {
-		result.Reply = "执行已停止：" + err.Error() + "。已完成的操作见下方记录。"
+		result.Reply = tcylocale.Text(ctx, "stopped", tcylocale.Render(ctx, err))
 	}
 	return &singleBody[tcyai.RunResult]{Body: &result}, nil
 }
@@ -299,12 +330,12 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name string, raw json.RawMessage) (string, error) {
 	var args map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &args); err != nil {
-		return "", errors.New("工具参数必须是 JSON 对象")
+		return "", tcylocale.Error("e21")
 	}
 	id := func(key string) (int64, error) {
 		var n int64
 		if err := json.Unmarshal(args[key], &n); err != nil || n < 1 {
-			return 0, fmt.Errorf("%s 必须是有效 ID", key)
+			return 0, tcylocale.Error("e1", key)
 		}
 		delete(args, key)
 		return n, nil
@@ -341,7 +372,7 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 			method = "DELETE"
 		}
 		if method != "PATCH" && len(args) > 0 {
-			return "", errors.New("未知工具参数")
+			return "", tcylocale.Error("e32")
 		}
 	case "create_task":
 		n, e := id("project_id")
@@ -354,13 +385,13 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 		path = "/projects"
 		method = "POST"
 	default:
-		return "", errors.New("不支持的工具")
+		return "", tcylocale.Error("e18")
 	}
 	if method == "PATCH" || method == "POST" {
 		allowed := map[string]bool{"title": true, "description": true, "due_date": true, "start_date": true, "end_date": true, "priority": true, "done": true}
 		for k := range args {
 			if !allowed[k] {
-				return "", fmt.Errorf("不允许修改字段 %s", k)
+				return "", tcylocale.Error("e17", k)
 			}
 		}
 	}
@@ -381,17 +412,17 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 	req.Host = caller.Host
 	req.RemoteAddr = caller.RemoteAddr
 	req.TLS = caller.TLS
-	for _, h := range []string{"X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host", "User-Agent"} {
+	for _, h := range []string{"X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host", "User-Agent", "Accept-Language"} {
 		req.Header.Set(h, caller.Header.Get(h))
 	}
 	rec := httptest.NewRecorder()
 	api.Adapter().ServeHTTP(rec, req)
 	data := strings.TrimSpace(rec.Body.String())
 	if len(data) > 64000 {
-		data = data[:64000] + " [结果过长，请缩小查询范围]"
+		data = data[:64000] + tcylocale.Text(ctx, "resultTruncated")
 	}
 	if rec.Code >= 300 {
-		return "", fmt.Errorf("操作失败 HTTP %d: %s", rec.Code, data)
+		return "", tcylocale.Error("e25", rec.Code, data)
 	}
 	if data == "" {
 		data = `{"success":true}`
@@ -414,11 +445,11 @@ func aiQuery(args map[string]json.RawMessage, query url.Values) error {
 		case "page":
 			var n int
 			if e := json.Unmarshal(v, &n); e != nil || n < 1 {
-				return errors.New("页码无效")
+				return tcylocale.Error("e51")
 			}
 			query.Set(k, strconv.Itoa(n))
 		default:
-			return errors.New("未知查询字段")
+			return tcylocale.Error("e33")
 		}
 	}
 	query.Set("per_page", "25")

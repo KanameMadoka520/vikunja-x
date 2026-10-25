@@ -31,11 +31,13 @@ import (
 	"testing"
 
 	"code.vikunja.io/api/pkg/config"
+	"code.vikunja.io/api/pkg/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTCYAIIntegration(t *testing.T) {
+	i18n.Init()
 	e, err := setupTestEnv()
 	require.NoError(t, err)
 	token := humaTokenFor(t, &testuser1)
@@ -169,7 +171,7 @@ func TestTCYAIIntegration(t *testing.T) {
 	assert.Contains(t, denied.Body.String(), `"success":false`)
 	mode = "escalate"
 	escalation := run("escalate-001", "read", token)
-	assert.Contains(t, escalation.Body.String(), "未授权")
+	assert.Contains(t, escalation.Body.String(), "unauthorized")
 	assert.Equal(t, 200, humaRequest(t, e, "GET", fmt.Sprintf("/api/v2/tasks/%d", createdID), "", token, "").Code)
 	mode = "text"
 	audio := fmt.Sprintf(`{"audio":%q,"filename":"test.wav","cleanup":true}`, base64.StdEncoding.EncodeToString([]byte("RIFF test audio")))

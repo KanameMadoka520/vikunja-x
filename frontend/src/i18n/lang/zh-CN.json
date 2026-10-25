@@ -14,7 +14,34 @@
 		"project": {
 			"importText": "将您的项目和任务从其他服务导入 Vikunja：",
 			"import": "将您的数据导入到 Vikunja"
-		}
+		},
+		"welcomeNightOwl": "夜猫子 {username}，你好",
+		"welcomeNightBurning": "{username}，还在挑灯夜战吗？",
+		"welcomeNightQuiet": "{username}，享受这段安静的时间吧",
+		"welcomeNightLate": "{username}，夜深了",
+		"welcomeNightMoonlit": "{username}，在月光下规划明天吗？",
+		"welcomeMorningHey": "{username}，准备好开始了吗？",
+		"welcomeMorningFresh": "{username}，新的一天，新的开始",
+		"welcomeMorningCoffee": "{username}，喝杯咖啡，开始今天的任务吧",
+		"welcomeMorningRise": "{username}，起床安排今天的计划吧",
+		"welcomeMorningBack": "欢迎回来，{username}",
+		"welcomeMondayFresh": "{username}，新的一周开始了",
+		"welcomeTuesday": "{username}，周二愉快",
+		"welcomeWednesdayMid": "{username}，这周已经过半了",
+		"welcomeThursday": "{username}，快到周末了",
+		"welcomeFridayPush": "{username}，周五再加把劲？",
+		"welcomeSaturday": "{username}，进入周末模式",
+		"welcomeSundaySession": "{username}，周日也有安排吗？",
+		"welcomeDayBack": "{username}，继续开始吧",
+		"welcomeDayFocus": "{username}，一起专注做好眼前的事",
+		"welcomeDayKeepGoing": "{username}，继续加油",
+		"welcomeDayWhatsNext": "{username}，接下来做什么？",
+		"welcomeDayGood": "下午好，{username}",
+		"welcomeEveningWind": "{username}，准备收工了吗？",
+		"welcomeEveningReturns": "{username} 回来了",
+		"welcomeEveningWrap": "{username}，该收尾了吗？",
+		"welcomeEveningOneMore": "{username}，还要再做一件事？",
+		"welcomeEveningStill": "{username}，还在忙吗？"
 	},
 	"demo": {
 		"title": "此实例处于演示模式。不要将其用于真实数据！",
@@ -25,7 +52,8 @@
 		"loading": "Vikunja 正在加载…",
 		"errorOccured": "发生错误：",
 		"checkApiUrl": "请检查 api 网址是否正确。",
-		"noApiUrlConfigured": "未配置 API URL。请在下框中设置："
+		"noApiUrlConfigured": "未配置 API URL。请在下框中设置：",
+		"rateLimited": "服务器收到的请求过多，请稍等片刻后刷新页面。"
 	},
 	"offline": {
 		"title": "当前为离线状态。",
@@ -66,7 +94,22 @@
 			"alreadyHaveAnAccount": "已有账户？",
 			"remember": "保持登录状态",
 			"registrationDisabled": "已关闭注册。",
-			"passwordResetTokenMissing": "缺少密码重置令牌。"
+			"passwordResetTokenMissing": "缺少密码重置令牌。",
+			"passwordPlaceholder": "请输入密码",
+			"openIdTotpRequired": "你的账户已启用双重验证，请输入动态验证码后重新登录。",
+			"openIdTotpSubmit": "继续",
+			"oauthMissingParams": "缺少必要的 OAuth 参数：{params}",
+			"oauthRedirectedToApp": "已跳转到应用，现在可以关闭此标签页。",
+			"desktopTryDemo": "试用演示版",
+			"desktopCustomServer": "自定义服务器地址",
+			"desktopCustomServerDescription": "输入你的 Vikunja 服务器地址即可开始使用。",
+			"desktopWaitingForAuth": "正在等待身份验证…",
+			"desktopOAuthError": "身份验证失败：{error}",
+			"registrationFailed": "注册时发生错误，请检查填写内容后重试。",
+			"registrationConfirmEmail": "账户创建成功！请到邮箱点击确认邮件中的链接，然后登录。",
+			"inviteInvalid": "此邀请链接无效或已过期。",
+			"inviteLoadFailed": "无法加载此邀请，请重试。",
+			"inviteTeams": "你将加入：{teams}"
 		},
 		"settings": {
 			"title": "设置",
@@ -95,14 +138,47 @@
 				"defaultView": "默认视图",
 				"timezone": "时区",
 				"overdueTasksRemindersTime": "逾期任务提醒邮件时间",
-				"filterUsedOnOverview": "概述页面上使用已保存过滤器"
+				"filterUsedOnOverview": "概述页面上使用已保存过滤器",
+				"allowIconChanges": "在特定日期显示节日标志",
+				"alwaysShowBucketTaskCount": "始终显示看板分组中的任务数量",
+				"defaultTaskRelationType": "默认任务关联类型",
+				"weekStartTuesday": "星期二",
+				"weekStartWednesday": "星期三",
+				"weekStartThursday": "星期四",
+				"weekStartFriday": "星期五",
+				"weekStartSaturday": "星期六",
+				"quickAddDefaultReminders": "快速添加任务的默认提醒",
+				"quickAddDefaultRemindersDescription": "使用快捷语法创建带截止日期的任务时，会自动添加这些提醒。",
+				"quickAddDefaultRemindersHint": "添加一个或多个相对截止时间的提醒。留空则不自动添加。",
+				"showLastViewed": "在概览页面显示最近查看的项目",
+				"minimumPriority": "显示任务的最低优先级",
+				"dateDisplay": "日期显示格式",
+				"dateDisplayOptions": {
+					"relative": "相对时间（例如：3 天前）",
+					"mm-dd-yyyy": "MM-DD-YYYY",
+					"dd-mm-yyyy": "DD-MM-YYYY",
+					"yyyy-mm-dd": "YYYY-MM-DD",
+					"mm/dd/yyyy": "MM/DD/YYYY",
+					"dd/mm/yyyy": "DD/MM/YYYY",
+					"yyyy/mm/dd": "YYYY/MM/DD"
+				},
+				"timeFormat": "时间格式",
+				"defaultDueTime": "默认截止时间",
+				"defaultDueTimeDescription": "设置任务截止日期但没有指定具体时间时使用，包括日期选择器和快速添加语法。",
+				"timeTrackingDefaultStart": "工时记录自动填充的开始时间",
+				"timeFormatOptions": {
+					"12h": "12 小时制（上午/下午）",
+					"24h": "24 小时制（HH:mm）"
+				},
+				"externalUserNameChange": "你的名称由登录服务（{provider}）管理，请前往该服务修改。"
 			},
 			"sections": {
 				"personalInformation": "个人信息",
 				"taskAndNotifications": "项目和任务",
 				"privacy": "隐私",
 				"localization": "本地化",
-				"appearance": "外观与行为"
+				"appearance": "外观与行为",
+				"desktop": "桌面应用"
 			},
 			"totp": {
 				"title": "两步验证",
@@ -115,12 +191,24 @@
 				"setupSuccess": "您已成功启用两步验证！",
 				"enterPassword": "请输入密码",
 				"disable": "禁用两步验证",
-				"disableSuccess": "两步验证已禁用。"
+				"disableSuccess": "两步验证已禁用。",
+				"confirmNotice": "启用双重验证后，所有设备上的登录会话都会退出，你需要重新登录。",
+				"confirmSuccess": "双重验证已启用！"
 			},
 			"caldav": {
 				"title": "CalDAV",
 				"more": "更多关于 Vikunja 的 CalDAV 信息",
-				"tokens": "CalDAV Tokens"
+				"tokens": "CalDAV 令牌",
+				"howTo": "你可以将 Vikunja 连接到 CalDAV 客户端，在不同应用中查看和管理任务。请在客户端填写以下地址：",
+				"urlLabel": "CalDAV 地址",
+				"tokensHowTo": "进行 CalDAV 身份验证时，可以使用账户密码或专用 CalDAV 令牌。",
+				"createToken": "创建 CalDAV 令牌",
+				"tokenCreated": "你的新令牌是：{token}",
+				"deleteSuccess": "CalDAV 令牌已删除。",
+				"wontSeeItAgain": "请妥善保存，此令牌之后不会再次显示。",
+				"mustUseToken": "通过第三方客户端使用 CalDAV 前，需要先创建 CalDAV 令牌，并将其填入客户端的密码栏。",
+				"usernameIs": "你的 CalDAV 用户名是：{0}",
+				"apiTokenHint": "也可以使用具有 CalDAV 权限的 API 令牌，在 {link} 中创建。"
 			},
 			"avatar": {
 				"title": "头像",
@@ -173,6 +261,115 @@
 					"titlePlaceholder": "输入一个你以后能够识别的标题",
 					"expiresAt": "过期于",
 					"permissions": "权限"
+				},
+				"expiryInvalid": "请选择一个未来的到期日期。",
+				"presets": {
+					"title": "快捷权限预设",
+					"readOnly": "只读",
+					"tasks": "任务管理",
+					"projects": "项目管理",
+					"fullAccess": "全部权限"
+				}
+			},
+			"bots": {
+				"title": "机器人账户",
+				"description": "机器人账户由你管理，只能通过 API 使用。你可以将它们加入项目、分配任务，并使用 API 令牌授权；它们无法在登录页面登录。",
+				"namePlaceholder": "我的助手",
+				"create": "创建机器人",
+				"createSuccess": "机器人“{username}”已创建。",
+				"enable": "启用",
+				"tokensInactive": "已停用机器人的 API 令牌无法使用。请先启用机器人，再创建或使用令牌。",
+				"badge": "机器人",
+				"delete": {
+					"header": "删除此机器人账户",
+					"text1": "确定删除机器人账户“{username}”吗？",
+					"text2": "此操作无法撤销，该机器人的所有 API 令牌也会被撤销。"
+				}
+			},
+			"updateEmailSuccess": "邮箱地址已更新。",
+			"updateEmailPending": "新邮箱 {email} 正在等待确认。点击发送到新邮箱的确认链接之前，原邮箱仍然有效。",
+			"updateEmailPendingSuccess": "已向新邮箱发送确认链接，确认前原邮箱仍然有效。",
+			"updateEmailResend": "重新发送确认邮件",
+			"updateEmailResendSuccess": "已重新发送确认链接。",
+			"updateEmailCancel": "取消更改",
+			"updateEmailCancelSuccess": "已取消邮箱更改。",
+			"updateEmailConfirmed": "新邮箱地址已确认。",
+			"desktop": {
+				"quickEntryShortcut": "快速录入快捷键",
+				"shortcutRecorderPlaceholder": "点击设置快捷键",
+				"shortcutRecorderRecording": "请按下组合键…",
+				"shortcutRecorderClear": "清除快捷键"
+			},
+			"feeds": {
+				"title": "Atom 订阅",
+				"howTo": "你可以使用支持 Atom 的阅读器订阅 Vikunja 通知，订阅地址如下：",
+				"usernameIs": "你的订阅用户名是：{0}",
+				"apiTokenHint": "请使用具有 {scope} 权限的 API 令牌进行身份验证，在 {link} 中创建。",
+				"tokenTitle": "Atom 订阅"
+			},
+			"backgroundBrightness": {
+				"title": "背景亮度"
+			},
+			"webhooks": {
+				"title": "Webhook 通知",
+				"description": "设置 Webhook 地址，在提醒或逾期事件发生时接收 POST 请求。此处配置会接收所有项目的相关事件。"
+			},
+			"sessions": {
+				"title": "登录设备",
+				"description": "这里列出当前已登录你账户的设备。撤销会话可让该设备退出登录，完全生效最多需要 10 分钟。",
+				"deviceInfo": "设备",
+				"ipAddress": "IP 地址",
+				"lastActive": "最近活动",
+				"current": "当前会话",
+				"delete": {
+					"header": "撤销登录会话",
+					"text": "确定撤销此会话吗？该设备会退出登录，完全生效最多需要 10 分钟。"
+				},
+				"deleteSuccess": "登录会话已撤销，完全生效最多需要 10 分钟。",
+				"noOtherSessions": "没有其他已登录设备。"
+			},
+			"mcp": {
+				"intro": "通过模型上下文协议（MCP），让 AI 助手连接你的任务、项目和标签。",
+				"more": "了解 Vikunja 的 MCP 功能",
+				"endpoint": "MCP 接口地址",
+				"tokens": "MCP 令牌",
+				"manageTokens": "管理全部 API 令牌",
+				"created": "MCP 令牌已创建，请选择下方客户端完成连接。",
+				"client": "你使用哪个客户端？",
+				"chooseClient": "选择客户端",
+				"clientHelp": "{client} 配置指南",
+				"typedPreset": "常用工具：读取和修改",
+				"clients": {
+					"claudeCode": {
+						"command": "在终端运行此命令：{value}",
+						"verify": "启动 Claude Code 会话，运行 /mcp 检查连接。"
+					},
+					"codex": {
+						"environment": "在终端环境中设置令牌：{value}",
+						"command": "添加 MCP 服务器：{value}",
+						"config": "也可以在设置环境变量后，将以下内容加入 ~/.codex/config.toml：{value}",
+						"note": "请在设置了 VIKUNJA_MCP_TOKEN 的终端中启动 Codex。每次新开终端都需要重新设置，或将其妥善保存在终端环境配置中。"
+					},
+					"claudeDesktop": {
+						"open": "打开 Customize → Connectors → Add custom connector。Team 或 Enterprise 用户需要由所有者在 Organization settings → Connectors 中添加。",
+						"url": "将连接器命名为 Vikunja，并填写此地址：{value}",
+						"auth": "将 Authentication 设置为 No sign-in（无需登录）。",
+						"header": "在 Request headers 中选择 authorization，粘贴完整值（包含 Bearer 及其后的空格），然后添加连接器：{value}",
+						"beta": "请求头功能目前仅向部分组织开放测试。如果没有此选项，你的账户暂时无法通过此方式连接 Vikunja。"
+					},
+					"mistral": {
+						"open": "在左侧栏依次打开 Context → Connectors → Add Connector → Add Custom Connector。",
+						"url": "将连接器命名为 Vikunja，填写此地址，然后选择 Connect：{value}",
+						"token": "选择 HTTP Bearer 身份验证，并粘贴此令牌：{value}"
+					},
+					"chatgpt": {
+						"unavailable": "ChatGPT 连接 Vikunja 需要 OAuth。目前尚未支持 MCP OAuth，因此不能在 ChatGPT 中使用此令牌。"
+					},
+					"other": {
+						"title": "其他客户端",
+						"url": "使用可流式传输的 HTTP 连接此接口：{value}",
+						"header": "每次请求都发送以下身份验证请求头：{value}"
+					}
 				}
 			}
 		},
@@ -243,7 +440,12 @@
 			"poweredByUnsplash": "由 Unsplash 提供技术支持",
 			"loadMore": "加载更多照片",
 			"success": "背景图设置成功",
-			"removeSuccess": "已移除背景"
+			"removeSuccess": "已移除背景",
+			"searchError": "无法从 Unsplash 加载背景图片。",
+			"retry": "重试",
+			"setBackground": "设为项目背景",
+			"setBackgroundBy": "将 {author} 的照片设为项目背景",
+			"noPermission": "需要此项目的写入权限才能更改背景。"
 		},
 		"delete": {
 			"title": "删除\"{project}\"",
@@ -259,7 +461,8 @@
 			"title": "复制此项目",
 			"label": "复制",
 			"text": "选择一个已存在的命名空间以容纳该列表的副本",
-			"success": "项目已成功复制."
+			"success": "项目已成功复制.",
+			"shares": "将用户、团队和链接分享一并复制到新项目"
 		},
 		"edit": {
 			"header": "编辑此项目",
@@ -305,7 +508,12 @@
 				"removeText": "确定要将 {sharable} 从 {type} 中删除吗？此操作无法撤销。",
 				"removeSuccess": "已成功将 {sharable} 从 {type} 中移除",
 				"addedSuccess": "{type} 已成功添加。",
-				"updatedSuccess": "{type} 已成功添加。"
+				"updatedSuccess": "{type} 已成功添加。",
+				"remove": "移除此{type}",
+				"sharable": "项目",
+				"removeCleanupText": "因此失去此项目或其子项目访问权限的用户，还会失去：",
+				"search": "搜索要分享此项目的{type}",
+				"permissionFor": "{sharable}的权限"
 			},
 			"permission": {
 				"title": "权限",
@@ -316,6 +524,18 @@
 			"attributes": {
 				"link": "链接",
 				"delete": "删除"
+			},
+			"accessCleanup": {
+				"others": {
+					"assignments": "分配给他们的任务",
+					"subscriptions": "他们对任务和项目的订阅",
+					"webhooks": "他们创建的 Webhook"
+				},
+				"self": {
+					"assignments": "分配给你的任务",
+					"subscriptions": "你对任务和项目的订阅",
+					"webhooks": "你创建的 Webhook"
+				}
 			}
 		},
 		"first": {
@@ -327,7 +547,8 @@
 			"addPlaceholder": "添加任务…",
 			"empty": "此项目目前为空。",
 			"newTaskCta": "新建任务。",
-			"editTask": "编辑任务"
+			"editTask": "编辑任务",
+			"sort": "排序"
 		},
 		"gantt": {
 			"title": "甘特图",
@@ -338,11 +559,29 @@
 			"hour": "时",
 			"chartLabel": "项目甘特图",
 			"scheduledDates": "预定日期",
-			"estimatedDates": "估计日期"
+			"estimatedDates": "估计日期",
+			"taskBarsForRow": "第 {rowId} 行的任务时间条",
+			"taskBarLabel": "任务：{task}。从 {startDate} 到 {endDate}。{dateType}。点击编辑，拖动调整时间。",
+			"resizeStartDate": "调整任务 {task} 的开始日期",
+			"resizeEndDate": "调整任务 {task} 的结束日期",
+			"timelineHeader": "显示月份和日期的时间轴表头",
+			"monthsRow": "月份行",
+			"daysRow": "日期行",
+			"monthLabel": "月份：{month}",
+			"dayLabel": "日期：{date}，{weekday}",
+			"dayLabelToday": "今天：{date}，{weekday}",
+			"taskAriaLabel": "任务：{task}",
+			"taskAriaLabelById": "任务 {id}",
+			"partialDatesStart": "仅设置开始日期（结束时间未定）",
+			"partialDatesEnd": "仅设置结束日期（开始时间未定）",
+			"expandGroup": "展开分组：{task}",
+			"collapseGroup": "折叠分组：{task}",
+			"toggleRelationArrows": "显示或隐藏关联箭头"
 		},
 		"table": {
 			"title": "表格",
-			"columns": "列"
+			"columns": "列",
+			"sortBy": "按{column}排序"
 		},
 		"kanban": {
 			"title": "看板",
@@ -367,7 +606,8 @@
 			"bucketTitleSavedSuccess": "存储桶标题已保存。",
 			"bucketLimitSavedSuccess": "存储桶限制已保存。",
 			"collapse": "折叠此存储桶",
-			"bucketLimitReached": "您已经达到数量上限，请删除任务或者提高上限然后再添加任务。"
+			"bucketLimitReached": "您已经达到数量上限，请删除任务或者提高上限然后再添加任务。",
+			"bucketOptions": "分组选项"
 		},
 		"pseudo": {
 			"favorites": {
@@ -386,7 +626,11 @@
 			"create": "创建 Webhook",
 			"secret": "密钥",
 			"secretHint": "如果提供了 webhook 目标 URL 的所有请求都将使用 HMAC签名。",
-			"secretDocs": "查看文档了解如何使用秘密的更多详情。"
+			"secretDocs": "查看文档了解如何使用秘密的更多详情。",
+			"eventsHint": "选择此 Webhook 要接收的事件，仅限当前项目。",
+			"basicauthuser": "基本身份验证用户名",
+			"basicauthpassword": "基本身份验证密码",
+			"basicauthlink": "使用基本身份验证？"
 		},
 		"views": {
 			"header": "编辑视图",
@@ -404,8 +648,11 @@
 			"deleteText": "您确定要删除此视图吗？它将不再可能使用它来查看此项目中的任务。 此操作不会删除任何任务。此操作不能撤销！",
 			"deleteSuccess": "视图删除成功。",
 			"onlyAdminsCanEdit": "只有项目管理员才能编辑视图。",
-			"updateSuccess": "视图更新成功。"
-		}
+			"updateSuccess": "视图更新成功。",
+			"edit": "编辑此视图"
+		},
+		"myOpenTasksFilterTitle": "我的未完成任务",
+		"favoriteDescription": "此项目汇总了所有标记为收藏的任务。"
 	},
 	"filters": {
 		"title": "筛选器",
@@ -455,7 +702,8 @@
 					"project": "任务属于的项目 (仅适用于保存的过滤器，不适用于项目级别)",
 					"reminders": "作为日期字段的任务提醒将返回所有任务，并且至少有一个与查询匹配的提醒",
 					"created": "任务创建的时间和日期",
-					"updated": "任务最后更改的时间和日期"
+					"updated": "任务最后更改的时间和日期",
+					"createdBy": "任务创建者（按用户名匹配）"
 				},
 				"operators": {
 					"intro": "可用的过滤操作员包括：",
@@ -465,7 +713,9 @@
 					"greaterThanOrEqual": "大于或等于",
 					"lessThan": "小于",
 					"lessThanOrEqual": "小于或等于",
-					"like": "匹配模式 (使用通配符%)"
+					"like": "匹配模式 (使用通配符%)",
+					"in": "匹配逗号分隔列表中的任意值",
+					"notIn": "匹配不在逗号分隔列表中的值"
 				},
 				"logicalOperators": {
 					"intro": "若要合并多个条件，您可以使用以下逻辑运算符：",
@@ -479,9 +729,11 @@
 					"dueDatePast": "匹配任务与过去到期日期",
 					"undoneHighPriority": "匹配取消优先级别3或更高的任务",
 					"assigneesIn": "匹配分配给\"user1\" 或 \"user2\" 的任务",
-					"priorityOneOrTwoPastDue": "匹配优先级别1或2以及过去到期的任务"
+					"priorityOneOrTwoPastDue": "匹配优先级别1或2以及过去到期的任务",
+					"createdByEqual": "匹配由“user1”创建的任务"
 				}
-			}
+			},
+			"label": "筛选表达式"
 		}
 	},
 	"migrate": {
@@ -498,7 +750,52 @@
 		"importUpload": "请点击下面的按钮选择一个文件，将 {name} 的数据导入到 Vikunja",
 		"upload": "点击上传文件",
 		"migrationStartedWillReciveEmail": "Vikunja 现在将从 {service} 导入您的列表/项目、任务、注释、提醒和文件。 由于这需要一段时间，完成后我们会向您发送一封电子邮件。 您现在可以关闭此窗口。",
-		"migrationInProgress": "迁移正在进行中。请等待完成。"
+		"migrationInProgress": "迁移正在进行中。请等待完成。",
+		"migrationFinished": "已完成从 {service} 导入，导入的内容现在都可以在你的项目中查看。",
+		"migrationFailed": "从 {service} 导入失败：{reason}",
+		"failure": {
+			"reported": "从 {service} 导入失败。我们已收到错误报告，正在处理。",
+			"interrupted": "从 {service} 导入的过程意外中断，请重新开始。",
+			"credentials": "无法验证 {service} 的登录信息，请重新连接。",
+			"queue": "无法将 {service} 导入任务加入队列，请重新开始。",
+			"upload": "无法保存上传的文件，请重新上传。"
+		},
+		"credentials": {
+			"description": "填写 {name} 实例的地址和登录方式。Vikunja 会导入你有权访问的项目和看板；登录信息只用于本次导入，不会保存。",
+			"url": "{name} 地址",
+			"authMethod": "登录方式",
+			"apiKey": "API 密钥",
+			"apiKeyRequired": "请输入 API 密钥。",
+			"authPassword": "用户名和密码",
+			"start": "开始导入"
+		},
+		"planka": {
+			"apiKeyHelp": "请让 Planka 管理员为你的账户创建 API 密钥，直接复制浏览器中的令牌无法使用。",
+			"passwordHelp": "仅适用于未启用双重验证、且至少登录过一次的 Planka 本地账户。使用单点登录的账户需要 API 密钥。"
+		},
+		"csv": {
+			"description": "从 CSV 文件导入任务，并自定义各列对应的任务字段。",
+			"uploadDescription": "选择要导入的 CSV 文件，第一行应为列标题，其余行包含任务数据。",
+			"selectFile": "选择 CSV 文件",
+			"columnMappingDescription": "为 CSV 的每一列选择对应的任务字段。系统已自动推荐映射，修改设置后下方预览会自动更新。",
+			"parsingOptions": "解析选项",
+			"delimiter": "分隔符",
+			"dateFormat": "日期格式",
+			"skipRows": "跳过行数",
+			"mapColumns": "列与字段对应关系",
+			"example": "例如",
+			"preview": "预览",
+			"previewDescription": "共将导入 {count} 个任务，下面预览前 5 个。",
+			"import": "导入任务",
+			"untitled": "未命名任务",
+			"ignore": "忽略",
+			"delimiters": {
+				"comma": "逗号（,）",
+				"semicolon": "分号（;）",
+				"tab": "制表符",
+				"pipe": "竖线（|）"
+			}
+		}
 	},
 	"label": {
 		"title": "标签",
@@ -538,7 +835,12 @@
 		"upcoming": "即将开始",
 		"settings": "设置",
 		"imprint": "版权信息",
-		"privacy": "隐私政策"
+		"privacy": "隐私政策",
+		"closeSidebar": "关闭侧栏",
+		"home": "Vikunja 首页",
+		"toggleChildProjects": "展开或折叠子项目",
+		"main": "主导航",
+		"savedFilters": "已保存的筛选条件"
 	},
 	"misc": {
 		"loading": "载入中...",
@@ -569,7 +871,24 @@
 		"created": "创建于",
 		"createdBy": "由 {0} 创建",
 		"actions": "行为",
-		"cannotBeUndone": "此操作无法撤消！"
+		"cannotBeUndone": "此操作无法撤消！",
+		"avatarOfUser": "{user} 的头像",
+		"closeBanner": "关闭提示条",
+		"closeDialog": "关闭对话框",
+		"imagePreview": "图片预览",
+		"zoomIn": "放大",
+		"zoomOut": "缩小",
+		"resetZoom": "重置缩放",
+		"imageLoadFailed": "图片加载失败",
+		"videoPreview": "视频预览",
+		"pdfPreview": "PDF 预览",
+		"videoLoadFailed": "你的浏览器无法播放此视频。",
+		"closeQuickActions": "关闭快捷操作",
+		"skipToContent": "跳到主要内容",
+		"sortBy": "排序方式",
+		"dateRange": "日期范围",
+		"notSet": "未设置",
+		"user": "用户"
 	},
 	"input": {
 		"resetColor": "重置颜色",
@@ -580,7 +899,25 @@
 			"thisWeekend": "本周末",
 			"laterThisWeek": "本周稍后",
 			"nextWeek": "下周",
-			"chooseDate": "选择日期"
+			"chooseDate": "选择日期",
+			"nextWeekend": "下个周末",
+			"endOfMonth": "本月底",
+			"inAMonth": "一个月后",
+			"quickSelect": "快捷选择",
+			"clear": "清除",
+			"noDate": "未设置日期",
+			"previousMonth": "上个月",
+			"nextMonth": "下个月",
+			"time": {
+				"hours": "小时",
+				"minutes": "分钟",
+				"hourUp": "推后一小时",
+				"hourDown": "提前一小时",
+				"minuteUp": "推后五分钟",
+				"minuteDown": "提前五分钟"
+			},
+			"month": "月份",
+			"year": "年份"
 		},
 		"editor": {
 			"edit": "编辑",
@@ -631,11 +968,23 @@
 				"toggleHeaderCell": "切换头部单元格",
 				"mergeOrSplit": "合并或拆分",
 				"fixTables": "修复表格"
+			},
+			"label": "富文本编辑器",
+			"urlPlaceholder": "链接地址",
+			"altText": "图片说明",
+			"altTextPlaceholder": "描述这张图片",
+			"toolbarLabel": "文字格式",
+			"more": "更多格式选项",
+			"emoji": {
+				"empty": "没有找到表情"
 			}
 		},
 		"multiselect": {
 			"createPlaceholder": "新建",
-			"selectPlaceholder": "点击或按 Enter 选择"
+			"selectPlaceholder": "点击或按 Enter 选择",
+			"removeItem": "移除此项",
+			"clear": "清除选择",
+			"moreResultsHint": "共找到 {total} 项，目前显示前 {shown} 项。请缩小搜索范围以查找其他结果。"
 		},
 		"datepickerRange": {
 			"to": "到",
@@ -655,7 +1004,8 @@
 				"next30Days": "未来 30 天",
 				"lastMonth": "上个月",
 				"thisYear": "今年",
-				"restOfThisYear": "本年度剩余时间"
+				"restOfThisYear": "本年度剩余时间",
+				"tomorrow": "明天"
 			},
 			"values": {
 				"now": "现在",
@@ -682,7 +1032,7 @@
 		"datemathHelp": {
 			"canuse": "你可以使用 Date Math 来筛选相对日期。",
 			"learnhow": "查看它如何工作",
-			"title": "Date Math",
+			"title": "日期表达式",
 			"intro": "指定应用过滤器时 Vikunja 即时解析的相对日期。",
 			"expression": "每个 Date Math 表达式以锚点日期开头，可以是 {0}，也可以是以 {1} 结尾的日期文本。 这个锚点日期后可以跟一个或多个数学表达式。",
 			"similar": "这些表达式类似于 {0} 和 {1} 提供的表达式。",
@@ -709,7 +1059,8 @@
 				"in30Days": "30 天内",
 				"datePlusMonth": "{0} 加一个月于当日 00:00"
 			}
-		}
+		},
+		"projectColor": "项目颜色"
 	},
 	"task": {
 		"new": "新建任务",
@@ -726,7 +1077,10 @@
 			"overdue": "显示过期任务",
 			"fromuntil": "从 {from} 到 {until} 的任务",
 			"select": "选择一个日期范围",
-			"noTasks": "没有待办事项 —— 祝你一天好心情！"
+			"noTasks": "没有待办事项 —— 祝你一天好心情！",
+			"filterByLabel": "正在按标签 {label} 筛选",
+			"clearLabelFilter": "清除标签筛选",
+			"savedFilterIgnored": "按标签查看任务时，不会应用已保存的首页筛选条件。"
 		},
 		"detail": {
 			"chooseDueDate": "点击设定截止日期",
@@ -767,8 +1121,24 @@
 				"color": "设置颜色",
 				"delete": "删除",
 				"favorite": "添加至收藏",
-				"unfavorite": "从收藏中移除"
-			}
+				"unfavorite": "从收藏中移除",
+				"timeTracking": "记录工时",
+				"duplicate": "复制"
+			},
+			"removeDueDate": "移除截止日期",
+			"removeStartDate": "移除开始日期",
+			"removeEndDate": "移除结束日期",
+			"removeRepeat": "移除重复间隔",
+			"removeAssignee": "取消将任务分配给 {user}",
+			"titleRequired": "任务标题不能为空。",
+			"duplicateSuccess": "任务已复制。",
+			"noBucket": "未分组",
+			"bucketSelectLabel": "看板分组：{bucket}",
+			"bucketChangedSuccess": "任务所属分组已更改。",
+			"closeTaskDetail": "关闭任务详情",
+			"title": "任务详情",
+			"markAsDone": "将“{task}”标记为完成",
+			"scrollToBottom": "滚动到底部"
 		},
 		"attributes": {
 			"assignees": "受理人",
@@ -789,7 +1159,10 @@
 			"startDate": "开始日期",
 			"title": "标题",
 			"updated": "已更新",
-			"doneAt": "完成于"
+			"doneAt": "完成于",
+			"project": "项目",
+			"comment": "{count} 条评论 | {count} 条评论",
+			"attachment": "{count} 个附件 | {count} 个附件"
 		},
 		"subscription": {
 			"subscribedProject": "你当前订阅了此项目，并将收到更改通知。",
@@ -801,7 +1174,9 @@
 			"subscribeSuccessProject": "你现在订阅了此项目",
 			"unsubscribeSuccessProject": "您已取消订阅此项目",
 			"subscribeSuccessTask": "你现在订阅了此任务",
-			"unsubscribeSuccessTask": "你现在已取消订阅此任务"
+			"unsubscribeSuccessTask": "你现在已取消订阅此任务",
+			"subscribedTaskThroughProject": "你通过订阅项目接收此任务的通知。在这里取消订阅，只会停止此任务的通知。",
+			"subscribedProjectThroughParentProject": "你通过父项目订阅了此项目。在这里取消订阅，将停止此项目及其全部内容的通知。"
 		},
 		"attachment": {
 			"title": "附件",
@@ -816,7 +1191,11 @@
 			"setAsCover": "制作封面",
 			"unsetAsCover": "移除封面",
 			"successfullyChangedCoverImage": "封面图片已成功更改。",
-			"usedAsCover": "封面图片"
+			"usedAsCover": "封面图片",
+			"deleteSuccess": "附件已删除。",
+			"play": "播放",
+			"playFile": "播放 {file}",
+			"audioError": "无法播放此音频文件。"
 		},
 		"comment": {
 			"title": "评论",
@@ -829,7 +1208,12 @@
 			"deleteText1": "确实要删除此评论吗?",
 			"deleteSuccess": "评论已删除。",
 			"addedSuccess": "评论已添加。",
-			"permalink": "复制此评论的永久链接"
+			"permalink": "复制此评论的永久链接",
+			"sortNewestFirst": "最新在前",
+			"sortOldestFirst": "最早在前",
+			"reply": "回复",
+			"jumpToOriginal": "跳到原评论",
+			"deletedComment": "已删除的评论"
 		},
 		"mention": {
 			"noUsersFound": "未找到用户"
@@ -859,7 +1243,10 @@
 				"header": "删除此标签",
 				"text1": "确定要删除此标签吗？",
 				"text2": "这将从所有任务中删除它，无法恢复。"
-			}
+			},
+			"linkShareCannotCreate": "不能通过分享链接创建新标签，只能添加此项目已经使用的标签。",
+			"removeLabel": "移除标签 {label}",
+			"createFailed": "以下标签创建失败，未被添加：{labels}"
 		},
 		"priority": {
 			"unset": "取消设置",
@@ -903,7 +1290,10 @@
 			"onStartDate": "开始日期",
 			"onEndDate": "结束日期",
 			"custom": "自定义",
-			"dateAndTime": "日期与时间"
+			"dateAndTime": "日期与时间",
+			"periodUnit": "时间单位",
+			"periodDirection": "提前或延后",
+			"periodRelativeTo": "相对于"
 		},
 		"repeat": {
 			"everyDay": "每天",
@@ -941,8 +1331,14 @@
 			"dateNth": "将使用当月的第 {day} 天",
 			"dateTime": "将日期格式与 “{time}”（或 {timePM}）组合以设置时间。",
 			"repeats": "重复的任务",
-			"repeatsDescription": "将任务设置为间隔重复，只需在任务文本中添加 “{suffix}” 即可。 内容必须是数字，并且可以省略使用类型（参见示例）。"
-		}
+			"repeatsDescription": "将任务设置为间隔重复，只需在任务文本中添加 “{suffix}” 即可。 内容必须是数字，并且可以省略使用类型（参见示例）。",
+			"quickEntryHint": "可使用快捷前缀设置日期、标签等。在 Vikunja 主应用的任务输入框中查看提示，了解详细用法。",
+			"dateWeekday": "任意星期几，将使用下一个对应日期"
+		},
+		"bulkCreateUnexpectedResponse": "服务器返回的已创建任务数量不符合预期。",
+		"removeReminder": "移除此提醒",
+		"readOnlyCheckbox": "你只有此任务的读取权限，无法将其标记为完成。",
+		"movedToProject": "任务已移动到 {project}。"
 	},
 	"team": {
 		"title": "团队",
@@ -967,19 +1363,22 @@
 				"header": "删除此团队",
 				"text1": "确定要删除此团队及其所有成员吗？",
 				"text2": "所有团队成员都将无法访问共享给该团队的项目。并且无法撤消！",
-				"success": "团队已删除。"
+				"success": "团队已删除。",
+				"cleanupText": "团队成员失去项目访问权限时，以下内容也会被删除："
 			},
 			"deleteUser": {
 				"header": "从团队中删除用户",
 				"text1": "确定要将此成员移出团队吗？",
 				"text2": "所有团队成员都将失去所有项目的访问权限，并且无法撤销!",
-				"success": "此用户已成功从团队中删除。"
+				"success": "此用户已成功从团队中删除。",
+				"cleanupText": "此用户失去项目访问权限时，以下内容也会被删除："
 			},
 			"leave": {
 				"title": "离开团队",
 				"text1": "您确定要离开这个团队吗？",
 				"text2": "您将无法访问该团队拥有的所有项目。 如果你改变主意，你需要一个团队管理员来再次添加你。",
-				"success": "您已经成功离开了团队。"
+				"success": "您已经成功离开了团队。",
+				"cleanupText": "你失去项目访问权限时，以下内容也会被删除："
 			}
 		},
 		"attributes": {
@@ -1019,7 +1418,11 @@
 			"priority": "更改此任务的优先级",
 			"favorite": "将此任务标记为收藏/取消收藏",
 			"openProject": "打开该任务的项目",
-			"save": "保存当前任务"
+			"save": "保存当前任务",
+			"copyIdentifier": "复制任务编号到剪贴板",
+			"copyIdentifierAndTitle": "复制任务编号和标题到剪贴板",
+			"copyIdentifierTitleAndUrl": "复制任务编号、标题和链接到剪贴板",
+			"copyUrl": "复制任务链接到剪贴板"
 		},
 		"project": {
 			"title": "项目视图",
@@ -1043,7 +1446,13 @@
 			"open": "打开高亮的任务"
 		},
 		"gantt": {
-			"title": "甘特图"
+			"title": "甘特图",
+			"moveTaskLeft": "将任务移到更早的日期",
+			"moveTaskRight": "将任务移到更晚的日期",
+			"expandTaskLeft": "提前任务开始日期，延长时间段",
+			"expandTaskRight": "推后任务结束日期，延长时间段",
+			"shrinkTaskLeft": "推后任务开始日期，缩短时间段",
+			"shrinkTaskRight": "提前任务结束日期，缩短时间段"
 		}
 	},
 	"update": {
@@ -1064,7 +1473,7 @@
 		"views": "视图"
 	},
 	"apiConfig": {
-		"url": "Vikunja URL",
+		"url": "Vikunja 地址",
 		"urlPlaceholder": "例如： http://localhost:3456",
 		"change": "换一换",
 		"use": "在 {0} 使用 Vikunja 安装程序",
@@ -1082,7 +1491,13 @@
 		"none": "没有任何通知。 祝你今天过得愉快！",
 		"explainer": "当订阅的项目或任务发生操作时，通知会出现在这里。",
 		"markAllRead": "将所有通知标为已读",
-		"markAllReadSuccess": "成功标记所有通知为已读。"
+		"markAllReadSuccess": "成功标记所有通知为已读。",
+		"read": "已读",
+		"unread": "未读",
+		"subscribeFeed": "通过 Atom 订阅通知",
+		"clearAll": "清空通知",
+		"clearAllSuccess": "已清空全部通知。",
+		"loadMore": "加载更早的通知"
 	},
 	"quickActions": {
 		"commands": "命令",
@@ -1101,6 +1516,16 @@
 			"newTask": "新建任务",
 			"newProject": "新项目",
 			"newTeam": "新建团队"
+		},
+		"title": "搜索与快捷操作",
+		"notLoggedIn": "请先在 Vikunja 主窗口登录。",
+		"results": "没有结果 | {count} 条结果 | {count} 条结果",
+		"resultTypes": {
+			"command": "命令",
+			"task": "任务",
+			"project": "项目",
+			"team": "团队",
+			"label": "标签"
 		}
 	},
 	"reaction": {
@@ -1191,13 +1616,46 @@
 		"14001": "提供的 api 令牌无效。",
 		"error": "错误",
 		"success": "成功",
-		"0001": "不允许这样操作"
+		"0001": "不允许这样操作",
+		"1024": "字段 {field} 的声明数据无效，其类型为 {type}。",
+		"1025": "时区“{timezone}”无效，请从列表选择有效时区。",
+		"1035": "没有等待确认的邮箱更改。",
+		"1036": "请等待一分钟后再重新发送确认邮件。",
+		"1038": "OIDC 服务提供的自定义权限范围格式有误，请检查对应数据，尤其是 oidcID 是否已设置。",
+		"1039": "此动态验证码已使用，请等待下一个验证码。",
+		"1040": "登录失败次数过多，账户已锁定。你可以通过重置密码解锁。",
+		"1041": "尝试失败次数过多，请等待几分钟后重试。",
+		"2003": "时区“{timezone}”无效。",
+		"2005": "此邀请链接无效或已过期。",
+		"2006": "此邀请链接不存在。",
+		"2007": "不能将由外部服务管理的团队加入邀请链接。",
+		"3016": "父项目已归档，请先取消父项目归档。",
+		"3017": "默认项目必须是你有写入权限的项目。",
+		"4023": "任务之间不能形成循环关联。",
+		"4034": "文件不存在。",
+		"4035": "上传的文件超过服务器允许的大小。",
+		"10007": "一个项目视图最多可以有 100 个分组。",
+		"14002": "权限组 {group} 中的权限 {permission} 无效。",
+		"14005": "已经有一个来自此服务的导入正在进行，请等待完成。",
+		"14009": "此 ZIP 文件不包含 Vikunja 数据，请上传从 Vikunja 导出的文件。",
+		"14010": "无法解析此文件，请确认它是有效的导出文件。",
+		"14011": "此文件不是有效的 ZIP 文件。",
+		"14012": "此文件不包含任何数据。",
+		"14013": "此导出文件来自过旧的 Vikunja 版本，请使用较新版本重新导出。",
+		"14016": "无法解析导入配置，请确认它是有效的 JSON 对象。",
+		"14018": "导入条目数量超过服务器设置的上限。",
+		"14019": "迁移状态无效或已过期，请重新开始迁移。",
+		"14201": "Planka 拒绝了登录信息，请检查地址、API 密钥或用户名和密码。",
+		"14202": "此 Planka 账户需要额外的登录步骤，例如双重验证或接受条款。请先在浏览器登录一次 Planka，或改用 API 密钥。",
+		"14203": "请填写 Planka 地址，并提供 API 密钥或用户名和密码。",
+		"14204": "无法访问此地址的 Planka API，请检查地址，以及 Vikunja 服务器是否能够连接该实例。"
 	},
 	"about": {
 		"title": "关于",
 		"version": "版本：{version}",
 		"frontendVersion": "前端版本: {version}",
-		"apiVersion": "API 版本: {version}"
+		"apiVersion": "API 版本: {version}",
+		"proActive": "Pro 已启用"
 	},
 	"time": {
 		"units": {
@@ -1207,6 +1665,368 @@
 			"days": "天|天",
 			"weeks": "周|周",
 			"years": "年|年"
+		},
+		"justNow": "刚刚"
+	},
+	"tcymc": {
+		"text": {
+			"due": " 截止",
+			"ai_and_voice": "AI 与语音",
+			"ai_and_voice_settings": "AI 与语音设置",
+			"ai_task_assistant": "AI 任务助手",
+			"api_base_url": "API 基础地址",
+			"anthropic_messages_does_not_accept_raw_audio_use": "Anthropic Messages 不接收原始音频；可用于识别结果整理和任务助手。",
+			"asia_shanghai_china_standard_time": "Asia/Shanghai · 北京时间",
+			"vikunja_x_tcymc_custom_edition": "Vikunja X · tcymc二次开发版",
+			"tcymc_custom_edition": "tcymc二次开发版",
+			"3_48_lowercase_letters_numbers_or_hyphens": "· 3–48 位小写字母、数字或连字符",
+			"showing_until": "· 展示至",
+			"mon": "一",
+			"create_a_task_with_one_sentence": "一句话创建任务",
+			"wed": "三",
+			"upload_audio": "上传音频",
+			"original_names_below_are_only_visible_to_you": "下方原名仅供你编辑，不会包含在公开接口中。修改后请重新预览。",
+			"keep_the_original_transcript": "不整理，保留识别原文",
+			"about_me": "个人简介",
+			"share_a_separate_public_schedule_with_friends_and": "为朋友和机器人提供一份独立的公开日程。别名与隐藏规则只影响对外展示，不修改你的原始任务。",
+			"tue": "二",
+			"fri": "五",
+			"clean_up_text": "仅整理文字",
+			"what_should_i_do_today": "今天先做什么",
+			"start_with_a_sentence": "从一句话开始",
+			"these_times_are_not_occupied_by_your_published": "以下时段未被公开的时间段安排占用。仅供联系参考，不代表预约承诺。",
+			"task_ai_assistant": "任务 AI 助手",
+			"task_assistant": "任务助手",
+			"you": "你",
+			"your_request": "你的指令",
+			"use_a_custom_page_body_and_hide_the": "使用完全自定义正文（隐藏默认日程面板）",
+			"for_example_tcy": "例如 tcy",
+			"for_example_my_task_assistant": "例如：任务助手",
+			"for_example_move_the_due_dates_of_unfinished": "例如：把当前项目里还没完成的文档任务，截止日期改到下周五。",
+			"saving": "保存中…",
+			"save_draft": "保存草稿",
+			"save_settings": "保存配置",
+			"save_connection_changes_before_testing_you_can_fetch": "修改连接后请先保存，再测试；获取模型列表可直接使用当前填写的地址与密钥。",
+			"improve_wording_and_punctuation_without_changing_tasks": "修正口语和断句，不直接修改任务。",
+			"projects_to_publish": "允许公开的项目",
+			"add_a_connection_in_ai_and_voice_settings": "先在「AI 与语音设置」中添加模型，并为任务助手选择支持工具调用的模型。",
+			"preview_before_publishing_the_schedule_stays_up_to": "先预览，再发布。发布后日程按已发布规则实时更新；修改草稿不会改变公开页面，重新发布才会生效。",
+			"all_accessible_projects": "全部可访问项目",
+			"public_page": "公开主页",
+			"your_public_page_and_json_endpoint_have_been": "公开主页与 JSON 接口已撤下",
+			"your_page_is_published_the_schedule_will_update": "公开主页已发布，日程将按已发布规则实时更新",
+			"show_task_titles_with_optional_public_names_below": "公开任务标题（支持下方别名覆盖）",
+			"public_name": "公开别名",
+			"public_schedule": "公开日程",
+			"sat": "六",
+			"write_an_introduction_or_insert_your_public_schedule": "写一段介绍，或者使用模板占位符嵌入公开日程。",
+			"list_my_unfinished_tasks_and_suggest_a_plan": "列出我还未完成的任务，按优先级给我一个今天的安排建议。",
+			"create_task": "创建任务",
+			"create_project": "创建项目",
+			"delete_task": "删除任务",
+			"models_for_each_feature": "功能使用的模型",
+			"assistant_conversation": "助手对话",
+			"assistant_permissions": "助手操作范围",
+			"public_names_and_visibility_for_individual_tasks": "单个任务的对外别名与隐藏",
+			"publish_this_preview": "发布当前预览",
+			"send_request": "发送指令",
+			"show_busy_times_without_task_names": "只显示忙碌，不公开任务原名",
+			"read_only_look_up_tasks_and_suggest_changes": "只读：查询与建议",
+			"available_times": "可联系时间",
+			"weekday": "周",
+			"thu": "四",
+			"create_a_task_in_this_project_to_write": "在当前项目中新建一个任务：整理本周工作总结，截止时间是本周五下午六点。",
+			"enter_a_base_url_to_see_the_endpoint": "填写基础地址后显示",
+			"working": "处理中…",
+			"what_visitors_will_see": "外人看到的效果",
+			"failed": "失败",
+			"hide_completely": "完全隐藏",
+			"hide_completely_and_exclude_from_availability": "完全隐藏，不参与忙闲计算",
+			"request_endpoint": "实际请求端点",
+			"public_name_leave_blank_to_use_project_rules": "对外别名，留空按项目规则",
+			"not_published": "尚未公开",
+			"days_to_show": "展示未来天数",
+			"visibility": "展示程度",
+			"working_mode": "工作方式",
+			"saved_leave_blank_to_keep_the_current_key": "已保存；留空保持不变",
+			"published": "已发布",
+			"there_are_no_available_times_to_show": "当前没有可展示的空闲时段。",
+			"this_browser_cannot_record_audio_please_upload_an": "当前浏览器不支持录音，请上传音频文件。",
+			"current_project": "当前项目",
+			"recording_was_interrupted_please_try_again": "录音中断，请重试。",
+			"the_recording_is_empty_please_try_again": "录音为空，请重试。",
+			"record_up_to_3_minutes_or_upload_up": "录音最长 3 分钟，上传最大 16 MiB。语音先转成可编辑文字，发送后才会操作任务。",
+			"succeeded": "成功",
+			"my_schedule": "我的日程",
+			"due_item": "截止事项",
+			"open_ai_assistant": "打开 AI 助手",
+			"turn_recordings_or_uploaded_audio_into_text": "把录音或上传的音频转成文字。",
+			"connect_your_own_models_and_choose_one_for": "接入自己的模型，为语音识别、文字整理和任务助手分别选择合适的能力。",
+			"connection_purpose": "接口类型",
+			"insert_schedule_template": "插入日程模板",
+			"take_down_page": "撤下公开页面",
+			"text_chat_and_tool_calling": "文字对话 / 工具调用",
+			"new_model": "新模型",
+			"cannot_access_the_microphone_check_your_browser_s": "无法使用麦克风，请检查浏览器录音权限。",
+			"could_not_fetch_models_some_providers_do_not": "无法获取模型列表。部分服务商不提供此接口，仍可手动填写模型名称。",
+			"sun": "日",
+			"schedule_generated_at": "日程生成于",
+			"times_use_asia_shanghai_only_tasks_with_start": "时区为北京时间。只有任务的开始—结束时间段会占用忙闲表；仅有截止日期的任务显示为截止事项。",
+			"time_block": "时间段",
+			"update_task": "更新任务",
+			"model_name_provided_by_your_service": "服务商提供的模型名称",
+			"the_provider_returned_no_models_enter_a_model": "服务商没有返回模型；请手动填写模型名称。",
+			"not_enabled": "未启用",
+			"projects_not_added_here_stay_private_by_default": "未添加的项目完全不公开。默认只显示“忙碌”，公开项目名也使用别名。页面和 JSON 使用相同的公开范围。",
+			"allow_task_deletion_for_this_request": "本次允许删除任务",
+			"json_endpoint_for_bots": "机器人 JSON 接口 ↗",
+			"view_public_page": "查看公开页面 ↗",
+			"view_original_transcript_or_text": "查看识别 / 整理前原文",
+			"find_tasks": "查询任务",
+			"check_progress_break_down_a_plan_or_turn": "查询进度、拆分计划，或把口头想法变成具体任务。",
+			"find_projects": "查询项目",
+			"model_id": "模型 ID",
+			"model_list_updated_you_can_also_enter_a": "模型列表已更新；也可以手动输入模型名称。",
+			"model_list_endpoint": "模型列表端点",
+			"the_provider_has_many_models_only_the_first": "模型较多，仅显示前几页；仍可手动填写。",
+			"model_connections": "模型连接",
+			"model_connections_and_feature_assignments_saved": "模型连接与功能分配已保存",
+			"loading_public_page_settings": "正在加载公开主页设置…",
+			"loading_schedule": "正在加载日程…",
+			"loading_model_settings": "正在加载模型配置…",
+			"reading_tasks_and_processing_your_request": "正在读取任务并处理指令…",
+			"current_projects": "正在进行",
+			"daily_start_hour": "每日开始小时",
+			"daily_end_hour": "每日结束小时",
+			"connection_test_failed_check_the_url_key_model": "测试失败，请检查地址、密钥、模型及接口类型。",
+			"test_saved_connection": "测试已保存连接",
+			"test_audio_must_not_exceed_16_mib": "测试音频不能超过 16 MiB。",
+			"add_project_rule": "添加展示规则",
+			"leave_blank_to_show_private_project": "留空显示“私人项目”",
+			"execute_allow_creation_and_changes": "直接执行：允许创建和修改",
+			"remove": "移除",
+			"remove_connection": "移除连接",
+			"custom_markdown_or_html": "自定义 Markdown / HTML",
+			"custom_public_content": "自定义公开内容",
+			"to": "至",
+			"draft_saved_published_content_has_not_changed": "草稿已保存，公开内容未改变",
+			"the_draft_has_changed_preview_it_again_before": "草稿已变更，请重新预览后再发布。",
+			"fetch_model_list": "获取模型列表",
+			"clean_up_the_transcript": "识别后整理文字",
+			"speech_recognition_failed_check_the_model_settings_or": "识别失败，请检查语音模型配置或更换音频格式。",
+			"transcription_complete_edit_the_text_if_needed_then": "识别完成。可以编辑文字，然后发送给助手。",
+			"transcript_cleanup": "语音文字整理",
+			"speech_recognition": "语音识别",
+			"speech_recognition_and_transcription": "语音识别 / 音频转写",
+			"record_audio": "语音输入",
+			"audio_file_for_connection_testing": "语音连接测试文件",
+			"describe_your_plan_and_turn_it_into_tasks": "说出计划，让任务开始行动。",
+			"choose_an_audio_file_for_testing_first": "请先选择一段测试音频。",
+			"request_protocol": "请求协议",
+			"the_request_did_not_finish_some_changes_may": "请求未完成。若已开始修改，请先检查任务状态，再决定是否重新执行。",
+			"check_the_link_or_try_again_later": "请确认链接，或稍后再试。",
+			"read_task": "读取任务",
+			"enter_a_key_leave_blank_only_if_the": "输入密钥，无需认证的服务可留空",
+			"upcoming_schedule": "近期安排",
+			"no_connections_yet_add_one_then_assign_it": "还没有模型连接。添加后即可在下方分配用途。",
+			"there_are_no_published_events_for_this_period": "这段时间没有公开的安排。",
+			"connection": "连接",
+			"connection_name": "连接名称",
+			"choose_your_provider_s_protocol_and_include_its": "选择服务商实际使用的协议，填写包含版本路径的基础地址（通常是 /v1，Gemini 通常为 /v1beta）。密钥仅保存在服务器。",
+			"select_a_project": "选择项目",
+			"could_not_load_settings_refresh_the_page_to": "配置加载失败，请刷新页面重试。",
+			"choose_a_model_with_tool_calling_to_read": "需要模型支持工具调用，用于读取、创建和修改任务。",
+			"static_html_with_optional_css": "静态 HTML（可包含样式）",
+			"audio_must_not_exceed_16_mib": "音频不能超过 16 MiB。",
+			"audio_chat_needs_a_model_that_accepts_audio": "音频对话需要支持音频输入的模型，使用 WAV 或 MP3；浏览器录音会自动转成 WAV。",
+			"page_and_available_hours": "页面与可联系时间",
+			"page_address": "页面地址",
+			"page_not_published_or_temporarily_unavailable": "页面未发布或暂时不可用",
+			"page_title": "页面标题",
+			"preview_public_page": "预览公开效果",
+			"add_model_connection": "＋ 添加模型连接",
+			"welcome_to_my_schedule_here_are_the_plans": "# 欢迎了解我的近况\n\n这里展示适合公开的安排。\n\n## 近期日程\n\n{'{'}{'{'}schedule{'}'}{'}'}\n\n## 可以联系我的时间\n\n{'{'}{'{'}availability{'}'}{'}'}\n\n## 进行中的项目\n\n{'{'}{'{'}projects{'}'}{'}'}"
+		},
+		"projectID": "项目 #{id}",
+		"stopRecording": "停止录音 · {seconds} 秒",
+		"placeholderHelp": "可用占位符：{schedule}、{availability}、{projects}。HTML 在隔离框架内展示，脚本和表单不会运行。",
+		"publicEyebrow": "公开日程",
+		"assistantEyebrow": "VIKUNJA X · 自选模型，管理任务",
+		"audioConversionFailed": "无法将此录音转换为 WAV。请上传 WAV/MP3 文件，或改用音频转写协议。",
+		"updateAvailable": "本站 tcymc 页面资源已更新（{version}），请在方便时刷新。",
+		"updateUnknown": "新构建",
+		"updateRefresh": "加载本站更新",
+		"currentVersion": "当前页面版本：{version}",
+		"apiKey": "API 密钥",
+		"pagination": "分页导航",
+		"mainNavigation": "主导航",
+		"noResult": "没有找到匹配项",
+		"bot": "机器人",
+		"reset": "重置",
+		"attachmentPreview": "附件预览",
+		"breadcrumb": "当前位置导航",
+		"you": "你",
+		"englishCommands": "以下日期和重复规则需输入英文指令，括号内是中文含义。",
+		"command1": "Today（今天）",
+		"command2": "Tonight（今晚）",
+		"command3": "Tomorrow（明天）",
+		"command4": "Next monday（下周一）",
+		"command5": "This weekend（本周末）",
+		"command6": "Later this week（本周晚些时候）",
+		"command7": "Later next week（下周晚些时候）",
+		"command8": "Next week（下周）",
+		"command9": "Next month（下个月）",
+		"command10": "End of month（月底）",
+		"command11": "In 5 days [hours/weeks/months]（5 天后（可改为 hours 小时、weeks 周、months 月））",
+		"command12": "Every day（每天）",
+		"command13": "Every 3 days（每 3 天）",
+		"command14": "Every week（每周）",
+		"command15": "Every 2 weeks（每 2 周）",
+		"command16": "Every month（每月）",
+		"commandTuesday": "Tuesday（周二）",
+		"commandFeb17": "Feb 17（2 月 17 日）",
+		"command17th": "17th（17 日）"
+	},
+	"sorting": {
+		"manually": "手动排序",
+		"apply": "应用排序",
+		"description": "选择此列表中任务的排序方式。使用手动排序时，可以拖动任务调整顺序。",
+		"options": {
+			"titleAsc": "标题（A–Z）",
+			"titleDesc": "标题（Z–A）",
+			"priorityDesc": "优先级（从高到低）",
+			"priorityAsc": "优先级（从低到高）",
+			"dueDateAsc": "截止日期（从早到晚）",
+			"dueDateDesc": "截止日期（从晚到早）",
+			"startDateAsc": "开始日期（从早到晚）",
+			"startDateDesc": "开始日期（从晚到早）",
+			"endDateAsc": "结束日期（从早到晚）",
+			"endDateDesc": "结束日期（从晚到早）",
+			"percentDoneDesc": "完成进度（从高到低）",
+			"percentDoneAsc": "完成进度（从低到高）",
+			"createdDesc": "创建时间（从新到旧）",
+			"createdAsc": "创建时间（从旧到新）",
+			"updatedDesc": "更新时间（从新到旧）",
+			"updatedAsc": "更新时间（从旧到新）"
+		}
+	},
+	"timeTracking": {
+		"title": "工时记录",
+		"stop": "停止计时",
+		"logTime": "添加工时",
+		"editEntry": "编辑记录",
+		"form": {
+			"task": "任务",
+			"taskSearch": "搜索任务…",
+			"commentPlaceholder": "你做了哪些工作？",
+			"save": "保存记录",
+			"startTimer": "开始计时",
+			"update": "更新记录",
+			"smartFill": "接续上一条记录"
+		},
+		"list": {
+			"emptyTask": "此任务还没有工时记录。",
+			"emptyFiltered": "没有符合筛选条件的工时记录。",
+			"total": "合计",
+			"pageTotal": "本页合计",
+			"time": "时间",
+			"duration": "时长"
+		},
+		"browse": {
+			"selectRange": "选择时间范围",
+			"userSearch": "搜索用户…"
+		}
+	},
+	"admin": {
+		"title": "管理后台",
+		"labels": {
+			"users": "用户",
+			"tasks": "任务"
+		},
+		"overview": {
+			"shares": "分享",
+			"linkSharesShort": "链接",
+			"teamSharesShort": "团队",
+			"userSharesShort": "用户",
+			"version": "版本",
+			"license": "许可证",
+			"licenseValidUntil": "有效期至",
+			"licenseExpiresIn": "还有 {days} 天",
+			"licenseLastVerified": "最近验证时间",
+			"licenseNever": "从未",
+			"licenseLastCheckFailed": "上次检查失败",
+			"licenseFeatures": "功能",
+			"licenseInstance": "实例 ID",
+			"licenseManage": "管理"
+		},
+		"searchUsersPlaceholder": "搜索用户名或邮箱…",
+		"users": {
+			"status": "状态",
+			"details": "详情",
+			"detailsTitle": "用户：{username}",
+			"issuer": "身份提供方",
+			"issuerLocal": "本地账户",
+			"issuerUrl": "身份提供方地址",
+			"subject": "用户身份标识",
+			"statusActive": "正常",
+			"statusEmailConfirmation": "需要确认邮箱",
+			"statusDisabled": "已停用",
+			"statusLocked": "账户已锁定",
+			"isAdminLabel": "管理员",
+			"addUser": "添加用户",
+			"createTitle": "创建用户",
+			"nameLabel": "名称",
+			"skipEmailConfirm": "跳过邮箱确认",
+			"createSubmit": "创建用户",
+			"saveButton": "保存更改",
+			"newPasswordLabel": "新密码",
+			"setPassword": "设置密码",
+			"setPasswordSuccess": "{username} 的密码已更新。",
+			"sendResetEmail": "发送密码重置邮件",
+			"sendResetEmailSuccess": "已向 {username} 发送密码重置邮件。",
+			"createdSuccess": "用户 {username} 已创建。",
+			"updatedSuccess": "用户 {username} 已更新。",
+			"deletedSuccess": "用户 {username} 已删除。",
+			"deleteScheduledSuccess": "将向 {username} 发送确认邮件，以安排删除账户。",
+			"confirmDeleteTitle": "删除用户？",
+			"confirmDeleteIntro": "请选择删除用户 {username} 的方式。",
+			"deleteModeScheduled": "安排删除",
+			"deleteModeScheduledHelp": "向用户发送确认邮件，按用户自行注销账户的流程安排删除。",
+			"deleteModeNow": "立即删除",
+			"deleteModeNowHelp": "立即删除用户及其全部数据，此操作无法撤销。"
+		},
+		"projects": {
+			"ownerLabel": "所有者",
+			"reassignOwner": "更换所有者",
+			"reassignTitle": "更换 {title} 的所有者",
+			"reassignedSuccess": "项目所有者已更换。",
+			"newOwnerLabel": "新所有者",
+			"searchPlaceholder": "搜索项目…",
+			"filterByOwner": "按所有者筛选",
+			"hideDefaultProjects": "隐藏默认项目"
+		},
+		"inviteLinks": {
+			"title": "邀请链接",
+			"create": "创建邀请链接",
+			"name": "链接名称",
+			"teams": "加入的团队",
+			"maxUses": "使用次数上限",
+			"unlimited": "不限",
+			"uses": "已使用次数",
+			"expiresAt": "到期时间",
+			"neverExpires": "永不过期",
+			"createdBy": "创建者",
+			"skipEmailConfirm": "跳过邮箱确认",
+			"shownOnce": "此链接只显示一次，请在关闭窗口前复制保存。",
+			"url": "邀请链接",
+			"copy": "复制链接",
+			"copied": "链接已复制",
+			"delete": "删除邀请链接",
+			"deleteConfirm": "删除“{name}”吗？删除后将无法通过此链接注册，现有账户不受影响。",
+			"deleted": "邀请链接已删除。",
+			"empty": "还没有邀请链接，创建一个来邀请其他人加入此实例。",
+			"futureExpiry": "请选择未来的到期时间。",
+			"creatorDeleted": "已删除的用户"
 		}
 	}
 }

@@ -25,8 +25,8 @@ const isLocalUser = computed(() => authStore.info?.is_local_user)
 
 const navigationItems = computed(() => {
 	const items = [
-		{title: '公开主页', routeName: 'user.settings.showcase'},
-		{title: 'AI 与语音', routeName: 'user.settings.ai'},
+		{title: t('tcymc.text.public_page'), routeName: 'user.settings.showcase'},
+		{title: t('tcymc.text.ai_and_voice'), routeName: 'user.settings.ai'},
 		{
 			title: t('user.settings.general.title'),
 			routeName: 'user.settings.general',

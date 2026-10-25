@@ -74,7 +74,7 @@
 							</td>
 							<td>
 								<template v-if="m.id === userInfo?.id">
-									<b class="is-success">You</b>
+									<b class="is-success">{{ $t('tcymc.you') }}</b>
 								</template>
 							</td>
 							<td class="type">

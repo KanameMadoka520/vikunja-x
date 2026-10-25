@@ -66,27 +66,27 @@
 
 					<h3>{{ $t('task.quickAddMagic.dateAndTime') }}</h3>
 					<p>
-						{{ $t('task.quickAddMagic.date') }}
+						{{ $t('task.quickAddMagic.date') }} {{ $t('tcymc.englishCommands') }}
 					</p>
 					<ul>
-						<!-- Not localized because these only work in english -->
-						<li>Today</li>
-						<li>Tonight</li>
-						<li>Tomorrow</li>
-						<li>Next monday</li>
-						<li>This weekend</li>
-						<li>Later this week</li>
-						<li>Later next week</li>
-						<li>Next week</li>
-						<li>Next month</li>
-						<li>End of month</li>
-						<li>In 5 days [hours/weeks/months]</li>
-						<li>Tuesday ({{ $t('task.quickAddMagic.dateWeekday') }})</li>
+						<!-- Keep the recognized English command alongside its translated explanation. -->
+						<li>{{ $t('tcymc.command1') }}</li>
+						<li>{{ $t('tcymc.command2') }}</li>
+						<li>{{ $t('tcymc.command3') }}</li>
+						<li>{{ $t('tcymc.command4') }}</li>
+						<li>{{ $t('tcymc.command5') }}</li>
+						<li>{{ $t('tcymc.command6') }}</li>
+						<li>{{ $t('tcymc.command7') }}</li>
+						<li>{{ $t('tcymc.command8') }}</li>
+						<li>{{ $t('tcymc.command9') }}</li>
+						<li>{{ $t('tcymc.command10') }}</li>
+						<li>{{ $t('tcymc.command11') }}</li>
+						<li>{{ $t('tcymc.commandTuesday') }} ({{ $t('task.quickAddMagic.dateWeekday') }})</li>
 						<li>02/17/2021</li>
 						<li>2021-02-17</li>
 						<li>17.02.2021</li>
-						<li>Feb 17 ({{ $t('task.quickAddMagic.dateCurrentYear') }})</li>
-						<li>17th ({{ $t('task.quickAddMagic.dateNth', {day: '17'}) }})</li>
+						<li>{{ $t('tcymc.commandFeb17') }} ({{ $t('task.quickAddMagic.dateCurrentYear') }})</li>
+						<li>{{ $t('tcymc.command17th') }} ({{ $t('task.quickAddMagic.dateNth', {day: '17'}) }})</li>
 					</ul>
 					<p>{{ $t('task.quickAddMagic.dateTime', {time: 'at 17:00', timePM: '5pm'}) }}</p>
 
@@ -94,12 +94,12 @@
 					<p>{{ $t('task.quickAddMagic.repeatsDescription', {suffix: 'every {amount} {type}'}) }}</p>
 					<p>{{ $t('misc.forExample') }}</p>
 					<ul>
-						<!-- Not localized because these only work in english -->
-						<li>Every day</li>
-						<li>Every 3 days</li>
-						<li>Every week</li>
-						<li>Every 2 weeks</li>
-						<li>Every month</li>
+						<!-- Keep the recognized English command alongside its translated explanation. -->
+						<li>{{ $t('tcymc.command12') }}</li>
+						<li>{{ $t('tcymc.command13') }}</li>
+						<li>{{ $t('tcymc.command14') }}</li>
+						<li>{{ $t('tcymc.command15') }}</li>
+						<li>{{ $t('tcymc.command16') }}</li>
 					</ul>
 				</Card>
 			</Modal>

@@ -27,10 +27,10 @@
 						<span
 							class="label"
 							aria-hidden="true"
-						>Reset</span>
+						>{{ $t('tcymc.reset') }}</span>
 						<div class="control">
 							<XButton @click="setDefaultFilters">
-								Reset
+								{{ $t('tcymc.reset') }}
 							</XButton>
 						</div>
 					</div>

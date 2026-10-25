@@ -21,7 +21,7 @@
 			<menu class="menu-list other-menu-items">
 				<li>
 					<RouterLink :to="{name: 'tcy-ai'}">
-						<span class="menu-item-icon icon"><Icon icon="comments" /></span>AI 任务助手
+						<span class="menu-item-icon icon"><Icon icon="comments" /></span>{{ t('tcymc.text.ai_task_assistant') }}
 					</RouterLink>
 				</li>
 				<li>
@@ -147,6 +147,8 @@
 </template>
 
 <script setup lang="ts">
+import {useI18n} from 'vue-i18n'
+const {t} = useI18n({useScope: 'global'})
 import {computed} from 'vue'
 import TcyBrand from '@/components/home/TcyBrand.vue'
 

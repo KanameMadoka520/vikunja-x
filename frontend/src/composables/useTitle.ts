@@ -1,3 +1,5 @@
+import {i18n} from '@/i18n'
+const {t} = i18n.global
 import {computed, toValue, type MaybeRef, type MaybeRefOrGetter} from 'vue'
 
 import {useTitle as useTitleVueUse, type UseTitleOptions, type ReadonlyRefOrGetter} from '@vueuse/core'
@@ -13,8 +15,8 @@ export function useTitle(
 
 	const completeTitle = computed(() =>
 		(typeof pageTitle.value === 'undefined' || pageTitle.value === '')
-			? 'Vikunja X · tcymc二次开发版'
-			: `${pageTitle.value} | Vikunja X · tcymc二次开发版`,
+			? t('tcymc.text.vikunja_x_tcymc_custom_edition')
+			: `${pageTitle.value} | ${t('tcymc.text.vikunja_x_tcymc_custom_edition')}`,
 	)
 
 	return useTitleVueUse(completeTitle, options)
