@@ -46,6 +46,7 @@ const router = createRouter({
 	},
 	routes: [
 		{path: '/p/:slug', name: 'tcy-public', component: () => import('@/views/TcyPublic.vue')},
+		{path: '/drive', name: 'drive', component: () => import('@/views/Drive.vue')},
 		{path: '/ai', name: 'tcy-ai', component: () => import('@/views/TcyAssistant.vue')},
 		{
 			path: '/',

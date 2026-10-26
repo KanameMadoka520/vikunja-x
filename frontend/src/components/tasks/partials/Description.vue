@@ -37,6 +37,7 @@
 			class="tiptap__task-description"
 			:is-edit-enabled="canWrite"
 			:upload-callback="uploadCallback"
+			:drive-task-id="modelValue.id"
 			:placeholder="$t('task.description.placeholder')"
 			:show-save="true"
 			edit-shortcut="KeyE"

@@ -322,6 +322,9 @@ func SaveBackground(s *xorm.Session, auth web.Auth, project *models.Project, bg 
 		return err
 	}
 
+	if err := files.AddToDrive(s, f); err != nil {
+		return err
+	}
 	project.BackgroundBlurHash = bg.blurHash
 	p := upload.Provider{}
 	img := &background.Image{ID: strconv.FormatInt(f.ID, 10)}

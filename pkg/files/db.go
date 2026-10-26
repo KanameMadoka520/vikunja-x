@@ -43,5 +43,6 @@ func init() {
 func GetTables() []interface{} {
 	return []interface{}{
 		&File{},
+		&DriveFile{},
 	}
 }

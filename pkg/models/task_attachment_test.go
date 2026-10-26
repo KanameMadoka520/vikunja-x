@@ -181,7 +181,7 @@ func TestTaskAttachment_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, os.IsNotExist(err))
 	})
-	t.Run("removes the previews", func(t *testing.T) {
+	t.Run("retains managed previews until permanent deletion", func(t *testing.T) {
 		files.InitTestFileFixtures(t)
 		db.LoadAndAssertFixtures(t)
 		s := db.NewSession()
@@ -197,6 +197,12 @@ func TestTaskAttachment_Delete(t *testing.T) {
 
 		require.NoError(t, ta.Delete(s, u))
 
+		kept, _, err := ta.File.OpenPreview(PreviewMedium)
+		require.NoError(t, err)
+		require.NoError(t, kept.Close())
+		require.NoError(t, ta.File.PurgeFromDrive(s))
+		require.NoError(t, s.Commit())
+		require.NoError(t, files.FinishDrivePurge(ta.File.ID))
 		_, _, err = ta.File.OpenPreview(PreviewMedium)
 		require.ErrorIs(t, err, fs.ErrNotExist)
 	})

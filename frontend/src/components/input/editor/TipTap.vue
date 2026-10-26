@@ -100,6 +100,21 @@
 				</div>
 			</BubbleMenu>
 
+			<XButton
+				v-if="isEditing && driveTaskId"
+				variant="tertiary"
+				icon="folder"
+				@click="driveOpen = true"
+			>
+				{{ $t('drive.insertImage') }}
+			</XButton>
+			<DrivePicker
+				v-if="driveOpen"
+				images
+				:busy="attachDrive.isPending.value"
+				@close="driveOpen = false"
+				@select="insertDriveImage"
+			/>
 			<EditorContent
 				class="tiptap__editor"
 				data-user-content
@@ -184,6 +199,9 @@
 </template>
 
 <script setup lang="ts">
+import DrivePicker from '@/components/drive/DrivePicker.vue'
+import {useAttachDriveMutation, type DriveEntry} from '@/client/queries/drive'
+import {generateAttachmentUrl} from '@/helpers/attachments'
 import {computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch, watchEffect} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {eventToShortcutString} from '@/helpers/shortcut'
@@ -217,6 +235,7 @@ import {error} from '@/message'
 
 const props = withDefaults(defineProps<{
 	uploadCallback?: UploadCallback,
+ driveTaskId?: number,
 	isEditEnabled?: boolean,
 	bottomActions?: BottomAction[],
 	showSave?: boolean,
@@ -228,6 +247,7 @@ const props = withDefaults(defineProps<{
 	storageKey?: string,
 }>(), {
 	uploadCallback: undefined,
+	driveTaskId: undefined,
 	isEditEnabled: true,
 	bottomActions: () => [],
 	showSave: false,
@@ -470,6 +490,17 @@ onBeforeUnmount(() => {
 	editor.value?.destroy()
 })
 
+const driveOpen = ref(false)
+const attachDrive = useAttachDriveMutation()
+async function insertDriveImage(file: DriveEntry) {
+	if (!props.driveTaskId) return
+	const taskId = props.driveTaskId
+	const attachment = await attachDrive.mutateAsync({file, taskId}).catch(() => undefined)
+	if (!attachment?.id || taskId !== props.driveTaskId) return
+	liveEditor()?.chain().focus().setImage({src: generateAttachmentUrl(taskId, attachment.id)}).run()
+	bubbleNow()
+	driveOpen.value = false
+}
 const uploadInputRef = ref<HTMLInputElement | null>(null)
 
 function uploadAndInsertFiles(files: File[] | FileList) {

@@ -366,7 +366,7 @@
 
 					<!-- Attachments -->
 					<div
-						v-show="activeFields.attachments || hasAttachments"
+						v-show="activeFields.attachments || hasAttachments || canWrite"
 						class="content attachments"
 					>
 						<Attachments

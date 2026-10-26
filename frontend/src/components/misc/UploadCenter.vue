@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {watch, ref, nextTick} from 'vue'
+import {watch, ref, nextTick, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {imagePrompt, uploads, uploadsExpanded, type ImageChoice} from '@/helpers/uploadTransport'
 const {t} = useI18n({useScope: 'global'})
@@ -8,6 +8,16 @@ const mode = ref<'original' | 'webp'>('original')
 const quality = ref(.85)
 const maxSide = ref(2560)
 let restoreFocus: HTMLElement | null = null
+let collapseTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => uploads.value.map(row => `${row.id}:${row.stage}`).join(','), () => {
+	clearTimeout(collapseTimer)
+	if (uploads.value.some(row => !['done', 'error', 'cancelled'].includes(row.stage))) {
+		uploadsExpanded.value = true
+	} else if (uploads.value.length && !uploads.value.some(row => row.stage === 'error')) {
+		collapseTimer = setTimeout(() => {uploadsExpanded.value = false}, 2500)
+	}
+})
+onBeforeUnmount(() => clearTimeout(collapseTimer))
 watch(imagePrompt, async prompt => {
 	if (prompt) { mode.value = 'original'; restoreFocus = document.activeElement as HTMLElement; await nextTick(); dialog.value?.showModal() }
 	else { dialog.value?.close(); restoreFocus?.focus() }

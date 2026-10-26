@@ -20,6 +20,44 @@
 		<template v-if="canWrite">
 			<div
 				v-if="uploadBackgroundEnabled"
+				class="cover-presets"
+			>
+				<h3>{{ t('drive.presets') }}</h3><p>{{ t('drive.presetsNote') }}</p>
+				<div class="cover-preset-grid">
+					<button
+						v-for="preset in coverPresets"
+						:key="preset.id"
+						type="button"
+						:style="{background: `linear-gradient(135deg, ${preset.colors.join(',')})`}"
+						:disabled="backgroundMutationLoading || presetLoading"
+						@click="applyPreset(preset)"
+					>
+						{{ t(`drive.presetNames.${preset.id}`) }}
+					</button>
+				</div>
+				<XButton
+					variant="secondary"
+					icon="folder"
+					@click="driveOpen = true"
+				>
+					{{ t('drive.choose') }}
+				</XButton>
+				<DrivePicker
+					v-if="driveOpen"
+					images
+					:busy="driveCover.isPending.value"
+					@close="driveOpen = false"
+					@select="chooseCover"
+				/>
+				<p
+					v-if="presetLoading || driveCover.isPending.value"
+					role="status"
+				>
+					{{ t('drive.applying') }}
+				</p>
+			</div>
+			<div
+				v-if="uploadBackgroundEnabled"
 				class="mbe-4"
 			>
 				<input
@@ -122,6 +160,10 @@
 
 
 <script setup lang="ts">
+import DrivePicker from '@/components/drive/DrivePicker.vue'
+import {useDriveCoverMutation, type DriveEntry} from '@/client/queries/drive'
+import {coverPresets, createCoverPreset, type CoverPreset} from '@/helpers/coverPresets'
+
 import {useProjectBackground} from '@/composables/useProjectBackground'
 import {computed, ref} from 'vue'
 import {useInfiniteQuery, useQuery} from '@tanstack/vue-query'
@@ -223,10 +265,41 @@ async function removeBackground() {
 		goBack()
 	}
 }
+const driveOpen = ref(false), presetLoading = ref(false)
+const driveCover = useDriveCoverMutation()
+async function chooseCover(file: DriveEntry) {
+	const result = await driveCover.mutateAsync({file, projectId: projectId.value}).catch(() => undefined)
+	if (result) driveOpen.value = false
+}
+async function applyPreset(preset: CoverPreset) {
+	if (presetLoading.value) return
+	presetLoading.value = true
+	try {const file = await createCoverPreset(preset); await uploadBackgroundMutation.mutateAsync({projectId: projectId.value, file}).catch(() => undefined)} finally {presetLoading.value = false}
+}
 </script>
 
 <style lang="scss" scoped>
-.cover-preview img { display: block;
+.cover-presets {
+margin-block-end: 1.5rem;
+}
+.cover-preset-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+gap: .75rem;
+margin-block: 1rem;
+}
+.cover-preset-grid button {
+block-size: 5rem;
+border: 0;
+border-radius: .75rem;
+color: white;
+font-weight: 600;
+text-shadow: 0 1px 3px #000000;
+cursor: pointer;
+}
+
+.cover-preview img {
+display: block;
 inline-size: min(24rem, 100%);
 block-size: 10rem;
 object-fit: cover;

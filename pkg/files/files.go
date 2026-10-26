@@ -208,6 +208,9 @@ func CreateWithMimeAndSession(s *xorm.Session, f io.ReadSeeker, realname string,
 // Delete removes a file from the DB and the file system.
 // The caller is responsible for committing or rolling back the session.
 func (f *File) Delete(s *xorm.Session) error {
+	if kept, err := f.keptInDrive(s); err != nil || kept {
+		return err
+	}
 	if err := f.deleteRow(s); err != nil {
 		return err
 	}
@@ -216,6 +219,9 @@ func (f *File) Delete(s *xorm.Session) error {
 
 // The blob goes in events.DispatchPending(s), so a rolled back session keeps it.
 func (f *File) DeleteOnCommit(s *xorm.Session) error {
+	if kept, err := f.keptInDrive(s); err != nil || kept {
+		return err
+	}
 	if err := f.deleteRow(s); err != nil {
 		return err
 	}

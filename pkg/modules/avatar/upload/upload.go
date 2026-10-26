@@ -192,6 +192,9 @@ func SaveAvatar(s *xorm.Session, u *user.User, provider string, a *EncodedAvatar
 		return err
 	}
 
+	if err := files.AddToDrive(s, f); err != nil {
+		return err
+	}
 	u.AvatarFileID = f.ID
 	u.AvatarProvider = provider
 

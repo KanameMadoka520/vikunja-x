@@ -44,6 +44,7 @@ import {
 	faEye,
 	faEyeSlash,
 	faFile,
+	faFolder,
 	faFileImage,
 	faFilePdf,
 	faFillDrip,
@@ -133,6 +134,7 @@ library.add(faParagraph)
 library.add(faSquareCheck)
 library.add(faTable)
 library.add(faFile)
+library.add(faFolder)
 library.add(faFileImage)
 library.add(faFilePdf)
 library.add(faCheckSquare)

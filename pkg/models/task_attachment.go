@@ -95,6 +95,9 @@ func (ta *TaskAttachment) NewAttachment(s *xorm.Session, f io.ReadSeeker, realna
 		return err
 	}
 	ta.CreatedByID = ta.CreatedBy.ID
+	if err := files.AddToDrive(s, file); err != nil {
+		return err
+	}
 
 	_, err = s.Insert(ta)
 	if err != nil {
@@ -594,7 +597,11 @@ func (ta *TaskAttachment) Delete(s *xorm.Session, a web.Auth) error {
 		return err
 	}
 
-	// Delete the underlying file
+	// Clear any cover pointing to the removed reference, while keeping Drive originals.
+	if _, err = s.Where("id = ? AND cover_image_attachment_id = ?", ta.TaskID, ta.ID).Cols("cover_image_attachment_id").Update(&Task{}); err != nil {
+		return err
+	}
+	// Delete the underlying file only when it is not managed by Drive.
 	err = ta.File.Delete(s)
 	// If the file does not exist, we don't want to error out
 	if err != nil && files.IsErrFileDoesNotExist(err) {

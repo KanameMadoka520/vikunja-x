@@ -133,6 +133,21 @@
 			{{ $t('task.attachment.upload') }}
 		</XButton>
 
+		<XButton
+			v-if="editEnabled"
+			variant="secondary"
+			class="mbe-4"
+			icon="folder"
+			@click="driveOpen = true"
+		>
+			{{ $t('drive.choose') }}
+		</XButton>
+		<DrivePicker
+			v-if="driveOpen"
+			:busy="attachDrive.isPending.value"
+			@close="driveOpen = false"
+			@select="chooseDriveFile"
+		/>
 		<!-- Dropzone -->
 		<Teleport :to="dropzoneTeleportTarget">
 			<div
@@ -164,7 +179,7 @@
 			<template #text>
 				<p v-if="attachmentToDelete">
 					{{ $t('task.attachment.deleteText1', {filename: attachmentToDelete.file?.name}) }}<br>
-					<strong class="has-text-white">{{ $t('misc.cannotBeUndone') }}</strong>
+					<span>{{ $t('drive.detachNote') }}</span>
 				</p>
 			</template>
 		</Modal>
@@ -227,6 +242,8 @@
 </template>
 
 <script setup lang="ts">
+import DrivePicker from '@/components/drive/DrivePicker.vue'
+import {useAttachDriveMutation, type DriveEntry} from '@/client/queries/drive'
 import {ref, computed, nextTick, watch, onMounted, onBeforeUnmount, type ComponentPublicInstance} from 'vue'
 import {useDropZone} from '@vueuse/core'
 
@@ -611,6 +628,12 @@ async function setCoverImage(attachment: IAttachment | null) {
 }
 
 defineExpose({openFilePicker})
+const driveOpen = ref(false)
+const attachDrive = useAttachDriveMutation()
+async function chooseDriveFile(file: DriveEntry) {
+	const result = await attachDrive.mutateAsync({file, taskId: props.task.id!}).catch(() => undefined)
+	if (result) driveOpen.value = false
+}
 </script>
 
 <style lang="scss" scoped>

@@ -1,0 +1,121 @@
+{
+  "rules": [
+    {
+      "state": "on",
+      "code": 403,
+      "action": "allow",
+      "type": "acl",
+      "res": "",
+      "ipBlock": "off",
+      "ipBlockTime": 600,
+      "expireTime": 24,
+      "unit": "h",
+      "name": "Vikunja 网盘文件上传兼容",
+      "description": "仅 task.tcymc.space 网盘指定接口及 Bearer 请求。应用继续校验身份、文件归属、项目权限、记录版本与删除确认。",
+      "conditions": [
+        {
+          "field": "Method",
+          "rule": "^POST$",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "URL",
+          "rule": "^/api/v2/drive/files(?:[?]|$)",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^Bearer[ ]+[A-Za-z0-9._~+/-]+=*$",
+          "pattern": "regex",
+          "name": "authorization"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^multipart/form-data(?:[; ]|$)",
+          "name": "content-type",
+          "pattern": "regex"
+        }
+      ]
+    },
+    {
+      "state": "on",
+      "code": 403,
+      "action": "allow",
+      "type": "acl",
+      "res": "",
+      "ipBlock": "off",
+      "ipBlockTime": 600,
+      "expireTime": 24,
+      "unit": "h",
+      "name": "Vikunja 网盘元数据与引用操作兼容",
+      "description": "仅 task.tcymc.space 网盘指定接口及 Bearer 请求。应用继续校验身份、文件归属、项目权限、记录版本与删除确认。",
+      "conditions": [
+        {
+          "field": "Method",
+          "rule": "^(?:PATCH|POST)$",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "URL",
+          "rule": "^/api/v2/drive/files/[0-9]+(?:/(?:attach|cover))?(?:[?]|$)",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^Bearer[ ]+[A-Za-z0-9._~+/-]+=*$",
+          "pattern": "regex",
+          "name": "authorization"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^application/json(?:[; ]|$)",
+          "name": "content-type",
+          "pattern": "regex"
+        }
+      ]
+    },
+    {
+      "state": "on",
+      "code": 403,
+      "action": "allow",
+      "type": "acl",
+      "res": "",
+      "ipBlock": "off",
+      "ipBlockTime": 600,
+      "expireTime": 24,
+      "unit": "h",
+      "name": "Vikunja 网盘文件名与分类搜索兼容",
+      "description": "仅 task.tcymc.space 网盘指定接口及 Bearer 请求。应用继续校验身份、文件归属、项目权限、记录版本与删除确认。",
+      "conditions": [
+        {
+          "field": "Method",
+          "rule": "^GET$",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "URL",
+          "rule": "^/api/v2/drive/files(?:[?]|$)",
+          "name": "",
+          "pattern": "regex"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^Bearer[ ]+[A-Za-z0-9._~+/-]+=*$",
+          "pattern": "regex",
+          "name": "authorization"
+        },
+        {
+          "field": "URL",
+          "rule": "(?:[?]|&)(?:search|category)=[^&]+",
+          "name": "",
+          "pattern": "regex"
+        }
+      ]
+    }
+  ]
+}

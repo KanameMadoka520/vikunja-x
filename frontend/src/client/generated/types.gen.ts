@@ -884,6 +884,70 @@ export type Draft = {
     weekdays?: Array<number> | null;
 };
 
+export type DriveAttachRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    revision?: number;
+    task_id?: number;
+};
+
+export type DriveCoverRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    project_id?: number;
+    revision?: number;
+};
+
+export type DriveChange = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    action?: 'edit' | 'trash' | 'restore' | 'purge';
+    category?: string;
+    confirm?: boolean;
+    confirm_name?: string;
+    name?: string;
+    pinned?: boolean;
+    revision?: number;
+};
+
+export type DriveFile = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    category?: string;
+    file?: File;
+    file_id?: number;
+    pinned?: boolean;
+    purging?: boolean;
+    revision?: number;
+    trashed_at?: string;
+};
+
+export type DriveListBodyBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    bytes?: number;
+    categories?: Array<string> | null;
+    files?: Array<DriveFile> | null;
+    total?: number;
+};
+
+export type DriveUsage = {
+    kind?: string;
+    restricted?: boolean;
+    title?: string;
+    url?: string;
+};
+
 export type EmailConfirm = {
     /**
      * A URL to the JSON Schema for this object.
@@ -3011,6 +3075,10 @@ export type TaskAssginee = {
 
 export type TaskAttachment = {
     /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
      * A timestamp when this attachment was uploaded. You cannot change this value.
      */
     readonly created?: string;
@@ -4882,6 +4950,42 @@ export type DraftWritable = {
      * Available weekdays, Sunday=0 through Saturday=6.
      */
     weekdays?: Array<number> | null;
+};
+
+export type DriveAttachRequestWritable = {
+    revision?: number;
+    task_id?: number;
+};
+
+export type DriveCoverRequestWritable = {
+    project_id?: number;
+    revision?: number;
+};
+
+export type DriveChangeWritable = {
+    action?: 'edit' | 'trash' | 'restore' | 'purge';
+    category?: string;
+    confirm?: boolean;
+    confirm_name?: string;
+    name?: string;
+    pinned?: boolean;
+    revision?: number;
+};
+
+export type DriveFileWritable = {
+    category?: string;
+    file_id?: number;
+    pinned?: boolean;
+    purging?: boolean;
+    revision?: number;
+    trashed_at?: string;
+};
+
+export type DriveListBodyBodyWritable = {
+    bytes?: number;
+    categories?: Array<string> | null;
+    files?: Array<DriveFileWritable> | null;
+    total?: number;
 };
 
 export type EmailConfirmWritable = {
@@ -7642,6 +7746,227 @@ export type BackgroundsUnsplashSearchResponses = {
 };
 
 export type BackgroundsUnsplashSearchResponse = BackgroundsUnsplashSearchResponses[keyof BackgroundsUnsplashSearchResponses];
+
+export type DriveListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        page?: number;
+        search?: string;
+        category?: string;
+        trash?: boolean;
+        pinned?: boolean;
+        images?: boolean;
+    };
+    url: '/drive/files';
+};
+
+export type DriveListErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveListError = DriveListErrors[keyof DriveListErrors];
+
+export type DriveListResponses = {
+    /**
+     * OK
+     */
+    200: DriveListBodyBody;
+};
+
+export type DriveListResponse = DriveListResponses[keyof DriveListResponses];
+
+export type DriveUploadData = {
+    body: {
+        file: Blob | File;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files';
+};
+
+export type DriveUploadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveUploadError = DriveUploadErrors[keyof DriveUploadErrors];
+
+export type DriveUploadResponses = {
+    /**
+     * OK
+     */
+    200: DriveFile;
+};
+
+export type DriveUploadResponse = DriveUploadResponses[keyof DriveUploadResponses];
+
+export type DriveChangeData = {
+    body: DriveChangeWritable;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}';
+};
+
+export type DriveChangeErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveChangeError = DriveChangeErrors[keyof DriveChangeErrors];
+
+export type DriveChangeResponses = {
+    /**
+     * OK
+     */
+    200: DriveFile;
+};
+
+export type DriveChangeResponse = DriveChangeResponses[keyof DriveChangeResponses];
+
+export type DriveAttachData = {
+    body: DriveAttachRequestWritable;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}/attach';
+};
+
+export type DriveAttachErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveAttachError = DriveAttachErrors[keyof DriveAttachErrors];
+
+export type DriveAttachResponses = {
+    /**
+     * OK
+     */
+    200: TaskAttachment;
+};
+
+export type DriveAttachResponse = DriveAttachResponses[keyof DriveAttachResponses];
+
+export type DriveCoverData = {
+    body: DriveCoverRequestWritable;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}/cover';
+};
+
+export type DriveCoverErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveCoverError = DriveCoverErrors[keyof DriveCoverErrors];
+
+export type DriveCoverResponses = {
+    /**
+     * OK
+     */
+    200: Project;
+};
+
+export type DriveCoverResponse = DriveCoverResponses[keyof DriveCoverResponses];
+
+export type DriveDownloadData = {
+    body?: never;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}/download';
+};
+
+export type DriveDownloadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveDownloadError = DriveDownloadErrors[keyof DriveDownloadErrors];
+
+export type DriveDownloadResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type DriveDownloadResponse = DriveDownloadResponses[keyof DriveDownloadResponses];
+
+export type DrivePreviewData = {
+    body?: never;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}/preview';
+};
+
+export type DrivePreviewErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DrivePreviewError = DrivePreviewErrors[keyof DrivePreviewErrors];
+
+export type DrivePreviewResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type DrivePreviewResponse = DrivePreviewResponses[keyof DrivePreviewResponses];
+
+export type DriveUsagesData = {
+    body?: never;
+    path: {
+        file: number;
+    };
+    query?: never;
+    url: '/drive/files/{file}/usages';
+};
+
+export type DriveUsagesErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type DriveUsagesError = DriveUsagesErrors[keyof DriveUsagesErrors];
+
+export type DriveUsagesResponses = {
+    /**
+     * OK
+     */
+    200: Array<DriveUsage> | null;
+};
+
+export type DriveUsagesResponse = DriveUsagesResponses[keyof DriveUsagesResponses];
 
 export type FiltersCreateData = {
     body: SavedFilterWritable;

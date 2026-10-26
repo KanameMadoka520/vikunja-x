@@ -20,6 +20,11 @@
 			</RouterLink>
 			<menu class="menu-list other-menu-items">
 				<li>
+					<RouterLink :to="{name: 'drive'}">
+						<span class="menu-item-icon icon"><Icon icon="folder" /></span>{{ t('drive.title') }}
+					</RouterLink>
+				</li>
+				<li>
 					<RouterLink
 						data-tour="nav-ai"
 						:to="{name: 'tcy-ai'}"
