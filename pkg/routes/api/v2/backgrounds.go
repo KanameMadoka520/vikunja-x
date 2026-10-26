@@ -63,16 +63,16 @@ func RegisterBackgroundRoutes(api huma.API) {
 	Register(api, huma.Operation{
 		OperationID: "projects-background-get",
 		Summary:     "Get a project background",
-		Description: "Streams a project's background image, whichever provider set it. Requires read access to the project. Always served as image/jpeg with a revalidation Last-Modified header, so a conditional If-Modified-Since request gets a 304. Returns 404 when the project has no background.",
+		Description: "Streams a project's background image, whichever provider set it. Requires read access to the project. Served in the validated stored image format with a revalidation Last-Modified header, so a conditional If-Modified-Since request gets a 304. Returns 404 when the project has no background.",
 		Method:      http.MethodGet,
 		Path:        "/projects/{project}/background",
 		Tags:        tags,
 		// Spell out the binary response; the default would be modeled as JSON.
 		Responses: map[string]*huma.Response{
 			"200": {
-				Description: "The project background as a jpeg image.",
+				Description: "The project background in its stored raster format.",
 				Content: map[string]*huma.MediaType{
-					"image/jpeg": {
+					"image/*": {
 						Schema: &huma.Schema{Type: huma.TypeString, Format: "binary"},
 					},
 				},
@@ -84,7 +84,7 @@ func RegisterBackgroundRoutes(api huma.API) {
 		Register(api, withUploadLimits(huma.Operation{
 			OperationID: "projects-background-upload",
 			Summary:     "Upload a project background",
-			Description: "Uploads an image via multipart/form-data under the \"background\" field and sets it as the project's background. Requires write access to the project. The image is resized server-side and stored as JPEG; it replaces any previous background (idempotent replace, hence PUT). Returns the updated project. A file that is not a decodable image of a supported format fails with 400, an image over the pixel limit fails with 400 and code 4032, and the request fails with 503 and code 4037 when the server is too busy decoding other images.",
+			Description: "Uploads an image via multipart/form-data under the \"background\" field and sets it as the project's background. Requires write access to the project. Without X-Vikunja-Image-Mode the image is resized and stored as JPEG. Setting that header to original or webp retains validated uploaded bytes; it replaces any previous background (idempotent replace, hence PUT). Returns the updated project. A file that is not a decodable image of a supported format fails with 400, an image over the pixel limit fails with 400 and code 4032, and the request fails with 503 and code 4037 when the server is too busy decoding other images.",
 			Method:      http.MethodPut,
 			Path:        "/projects/{project}/backgrounds/upload",
 			// Return the updated project with 200, the natural code for an idempotent PUT.
@@ -225,13 +225,14 @@ func backgroundUnsplashSet(ctx context.Context, in *struct {
 }
 
 type backgroundUploadInput struct {
-	ProjectID int64 `path:"project" doc:"The id of the project to set the background on."`
+	ImageMode string `header:"X-Vikunja-Image-Mode" enum:"original,webp" doc:"Optional client image choice. Both modes retain validated uploaded bytes; webp was converted before transfer."`
+	ProjectID int64  `path:"project" doc:"The id of the project to set the background on."`
 	// Allow-list mirrors the formats background uploads can actually be decoded as
 	// (handler.PrepareBackground's allowedImageMimes); octet-stream covers
 	// programmatic clients. Huma's MimeTypeValidator rejects the part pre-handler, so the
 	// byte-level image check in PrepareBackground is the real gate.
 	RawBody huma.MultipartFormFiles[struct {
-		Background huma.FormFile `form:"background" contentType:"image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/octet-stream" required:"true" doc:"The background image to upload. Must be a decodable raster image (JPEG, PNG, GIF, BMP, TIFF or WebP); it is resized server-side and re-encoded as JPEG."`
+		Background huma.FormFile `form:"background" contentType:"image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,application/octet-stream" required:"true" doc:"The background image to upload. Must be a decodable raster image (JPEG, PNG, GIF, BMP, TIFF or WebP); without X-Vikunja-Image-Mode it is resized and re-encoded as JPEG."`
 	}]
 }
 
@@ -249,7 +250,12 @@ func backgroundUpload(ctx context.Context, in *backgroundUploadInput) (*singleBo
 	file := in.RawBody.Data().Background
 	defer func() { _ = file.Close() }()
 
-	bg, err := backgroundHandler.PrepareBackground(ctx, file, file.Filename)
+	var bg *backgroundHandler.EncodedBackground
+	if in.ImageMode != "" {
+		bg, err = backgroundHandler.PreparePreservedBackground(ctx, file, file.Filename)
+	} else {
+		bg, err = backgroundHandler.PrepareBackground(ctx, file, file.Filename)
+	}
 	if err != nil {
 		return nil, translateBackgroundUploadError(err)
 	}
@@ -339,6 +345,13 @@ func backgroundGet(ctx context.Context, in *struct {
 		return nil, translateDomainError(err)
 	}
 
+	// Loading the blob does not populate its database metadata. v2 serves the actual stored format.
+	if err := bgFile.LoadFileMetaByID(s); err != nil {
+		_ = bgFile.File.Close()
+		_ = s.Rollback()
+		return nil, translateDomainError(err)
+	}
+
 	// The file reader comes from object storage, not the DB session, so it stays
 	// valid after the commit; the StreamResponse callback runs after this returns.
 	if err := s.Commit(); err != nil {
@@ -351,7 +364,7 @@ func backgroundGet(ctx context.Context, in *struct {
 	return &huma.StreamResponse{Body: func(hctx huma.Context) {
 		defer func() { _ = bgFile.File.Close() }()
 		c := humaecho.Unwrap(hctx)
-		webfiles.WriteProjectBackground((*c).Response(), (*c).Request(), bgFile, stat)
+		webfiles.WriteProjectBackgroundInStoredFormat((*c).Response(), (*c).Request(), bgFile, stat)
 	}}, nil
 }
 

@@ -584,6 +584,10 @@ export type Connection = {
      */
     name?: string;
     /**
+     * Explicitly opt out of streaming. Streaming is the default for text models.
+     */
+    non_streaming?: boolean;
+    /**
      * Wire protocol. Omitted legacy values are inferred from kind.
      */
     protocol?: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio';
@@ -614,6 +618,18 @@ export type Conversation = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    /**
+     * Last compaction failure; previous summary remains usable.
+     */
+    readonly compact_error?: string;
+    /**
+     * Live summary draft; authoritative only when compaction completes.
+     */
+    readonly compact_text?: string;
+    /**
+     * Background compaction continues without a connected browser.
+     */
+    readonly compacting?: boolean;
     /**
      * Saved context summaries; only the most recent is sent on subsequent requests.
      */
@@ -935,6 +951,11 @@ export type File = {
      * The size of the file in bytes.
      */
     readonly size?: number;
+};
+
+export type FunctionCall = {
+    arguments?: string;
+    name?: string;
 };
 
 export type HealthBodyBody = {
@@ -1446,6 +1467,10 @@ export type ModelStep = {
      */
     model?: string;
     /**
+     * Observed text and visible reasoning characters, not a token estimate.
+     */
+    output_characters?: number;
+    /**
      * Only reasoning or reasoning summaries explicitly returned by the provider.
      */
     reasoning?: string;
@@ -1454,13 +1479,29 @@ export type ModelStep = {
      */
     request_id?: string;
     /**
+     * Whether streaming was explicitly requested from this provider.
+     */
+    requested_streaming?: boolean;
+    /**
      * One-based model round, including rounds that request tools.
      */
     round?: number;
     /**
+     * Upstream request start time, for live elapsed time.
+     */
+    started?: string;
+    /**
+     * Whether the provider actually responded with an event stream.
+     */
+    streaming?: boolean;
+    /**
      * Model text, distinct from its reasoning and actual tool execution.
      */
     text?: string;
+    /**
+     * Provider tool-call drafts; never executable until the model round completes and validation succeeds.
+     */
+    tool_calls?: Array<ToolCall> | null;
     /**
      * Provider-reported usage for this model round.
      */
@@ -3811,6 +3852,12 @@ export type TokenTestBodyBody = {
     readonly message?: string;
 };
 
+export type ToolCall = {
+    function?: FunctionCall;
+    id?: string;
+    type?: string;
+};
+
 export type TotpDisableBodyBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -4677,6 +4724,10 @@ export type ConnectionWritable = {
      * Display name.
      */
     name?: string;
+    /**
+     * Explicitly opt out of streaming. Streaming is the default for text models.
+     */
+    non_streaming?: boolean;
     /**
      * Wire protocol. Omitted legacy values are inferred from kind.
      */
@@ -7066,6 +7117,34 @@ export type TcyAiConversationsCompactResponses = {
 
 export type TcyAiConversationsCompactResponse = TcyAiConversationsCompactResponses[keyof TcyAiConversationsCompactResponses];
 
+export type TcyAiConversationsEventsData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/events';
+};
+
+export type TcyAiConversationsEventsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsEventsError = TcyAiConversationsEventsErrors[keyof TcyAiConversationsEventsErrors];
+
+export type TcyAiConversationsEventsResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
 export type TcyAiConversationsForkData = {
     body: TcyAiConversationsForkRequestWritable;
     path: {
@@ -9159,7 +9238,7 @@ export type ProjectsBackgroundGetError = ProjectsBackgroundGetErrors[keyof Proje
 
 export type ProjectsBackgroundGetResponses = {
     /**
-     * The project background as a jpeg image.
+     * The project background in its stored raster format.
      */
     200: Blob | File;
 };
@@ -9196,9 +9275,15 @@ export type ProjectsBackgroundUnsplashSetResponse = ProjectsBackgroundUnsplashSe
 export type ProjectsBackgroundUploadData = {
     body: {
         /**
-         * The background image to upload. Must be a decodable raster image (JPEG, PNG, GIF, BMP, TIFF or WebP); it is resized server-side and re-encoded as JPEG.
+         * The background image to upload. Must be a decodable raster image (JPEG, PNG, GIF, BMP, TIFF or WebP); without X-Vikunja-Image-Mode it is resized and re-encoded as JPEG.
          */
         background: Blob | File;
+    };
+    headers?: {
+        /**
+         * Optional client image choice. Both modes retain validated uploaded bytes; webp was converted before transfer.
+         */
+        'X-Vikunja-Image-Mode'?: 'original' | 'webp';
     };
     path: {
         /**
@@ -13071,9 +13156,15 @@ export type SessionsDeleteResponse = SessionsDeleteResponses[keyof SessionsDelet
 export type UserAvatarUploadData = {
     body: {
         /**
-         * The avatar image to upload. Must be a decodable raster image (PNG, JPEG, GIF, TIFF or BMP); it is resized server-side and re-encoded as PNG.
+         * The avatar image to upload. Must be a decodable raster image (PNG, JPEG, GIF, TIFF, BMP or WebP); without X-Vikunja-Image-Mode it is resized and re-encoded as PNG.
          */
         avatar: Blob | File;
+    };
+    headers?: {
+        /**
+         * Retain validated bytes uploaded in the selected client format; display thumbnails are generated separately.
+         */
+        'X-Vikunja-Image-Mode'?: 'original' | 'webp';
     };
     path?: never;
     query?: never;

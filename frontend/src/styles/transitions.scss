@@ -17,3 +17,8 @@
 .width-leave-to {
   width: 0;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+ dialog[open] { animation: surface-appear .28s cubic-bezier(.2,.8,.25,1.1); }
+ @keyframes surface-appear { from {opacity:0;transform:translateY(10px) scale(.98);} to {opacity:1;transform:translateY(0) scale(1);} }
+}

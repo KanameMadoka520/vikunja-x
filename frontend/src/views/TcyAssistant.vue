@@ -2,6 +2,7 @@
 import {useI18n} from 'vue-i18n'
 const {t} = useI18n({useScope: 'global'})
 import {audioChatFile} from '@/helpers/tcyAudio'
+import {useConversationEvents} from '@/client/queries/conversationEvents'
 import {computed, onBeforeUnmount, ref, watch, nextTick} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useQuery} from '@tanstack/vue-query'
@@ -40,9 +41,11 @@ const refreshChanges = useRefreshAgentChanges()
 const listPage = ref(1)
 const sessions = useQuery(computed(() => conversationsQuery(listPage.value)))
 const chatID = computed(() => typeof route.query.chat === 'string' ? route.query.chat : '')
-const current = useQuery(computed(() => conversationQuery(chatID.value)))
+const events = useConversationEvents(chatID)
+const current = useQuery(computed(() => ({...conversationQuery(chatID.value), refetchInterval: events.connected.value ? false : 1000})))
 const active = computed(() => current.data.value)
-const activeRun = computed(() => active.value?.turns?.some(turn => turn.status === 'running') ?? false)
+const canCompact = computed(() => (active.value?.turns?.length ?? 0) > (active.value?.compactions?.at(-1)?.through ?? 0))
+const activeRun = computed(() => Boolean(active.value?.compacting || active.value?.turns?.some(turn => turn.status === 'running')))
 const sidebarOpen = ref(false)
 const connectionID = ref('')
 const chatModels = computed(() => settings.data.value?.connections.filter(c => c.kind === 'chat') ?? [])
@@ -70,8 +73,9 @@ const original = ref('')
 const notice = ref('')
 const audioInput = ref<HTMLInputElement>()
 const recording = ref(false)
+const audioStage = ref('')
 const elapsed = ref(0)
-const editingBusy = computed(() => review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
+const editingBusy = computed(() => Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
 const busy = computed(() => editingBusy.value || activeRun.value || Boolean(paused.value))
 const hasAssistant = computed(() => Boolean(selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
@@ -181,17 +185,18 @@ watch(() => active.value?.turns?.at(-1)?.status, (status, previous) => {
 })
 watch(() => JSON.stringify(active.value?.turns?.at(-1)?.result), async () => {
 	await nextTick()
-	if (stickToBottom.value && thread.value) thread.value.scrollTop = thread.value.scrollHeight
+	if (stickToBottom.value && thread.value) thread.value.scrollTo({top: thread.value.scrollHeight, behavior: 'instant'})
 })
 
 async function processAudio(file: Blob, filename: string) {
 	if (file.size > 16 * 1024 * 1024) { notice.value = t('tcymc.text.audio_must_not_exceed_16_mib'); return }
 	if (!file.size) { notice.value = t('tcymc.text.the_recording_is_empty_please_try_again'); return }
 	notice.value = ''
+	audioStage.value = 'preparing'
 	const connection = settings.data.value?.connections.find(c => c.id === settings.data.value?.transcription)
 	if (connection?.protocol === 'openai-audio') {
-		try { const converted = await audioChatFile(file, filename); file = converted.file; filename = converted.filename }
-		catch { notice.value = t('tcymc.audioConversionFailed'); return }
+		try { audioStage.value = 'audioConverting'; const converted = await audioChatFile(file, filename); file = converted.file; filename = converted.filename }
+		catch { audioStage.value = ''; notice.value = t('tcymc.audioConversionFailed'); return }
 	}
 	try {
 		const audio = await new Promise<string>((resolve, reject) => {
@@ -200,12 +205,13 @@ async function processAudio(file: Blob, filename: string) {
 			reader.onerror = reject
 			reader.readAsDataURL(file)
 		})
+		audioStage.value = 'audioProcessing'
 		const result = await transcribe.mutateAsync({audio, filename, cleanup: tidy.value})
 		if (disposed) return
 		original.value = result.original ?? ''
 		prompt.value = [prompt.value, result.text].filter(Boolean).join('\n')
 		notice.value = result.warning || t('tcymc.text.transcription_complete_edit_the_text_if_needed_then')
-	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = t('tcymc.text.speech_recognition_failed_check_the_model_settings_or') }
+	} catch (e) { if (isRequestContextAbort(e)) return; notice.value = t('tcymc.text.speech_recognition_failed_check_the_model_settings_or') } finally { audioStage.value = '' }
 }
 
 function stopTracks() {
@@ -303,6 +309,9 @@ onBeforeUnmount(() => {
 			{{ t('agent.currentTask') }} <RouterLink :to="{name: 'task.detail', params: {id: contextTaskID}}">
 				#{{ contextTaskID }}
 			</RouterLink>
+		</p>
+		<p class="live-connection">
+			<span :class="{connected: events.connected.value}" />{{ events.connected.value ? t('flow.liveConnected') : t('flow.reconnecting') }} · {{ t('flow.backgroundNote') }}
 		</p>
 		<div class="chat-shell">
 			<aside
@@ -414,8 +423,8 @@ onBeforeUnmount(() => {
 							<Icon icon="pen" />
 						</BaseButton><BaseButton
 							class="toolbar-button"
-							:aria-disabled="busy || (active.turns?.length ?? 0) < 5"
-							@click="!busy && (active.turns?.length ?? 0) >= 5 && manage('compact')"
+							:aria-disabled="busy || !canCompact"
+							@click="!busy && canCompact && manage('compact')"
 						>
 							<Icon icon="compress" /> {{ t('chat.compact') }}
 						</BaseButton><BaseButton
@@ -440,6 +449,18 @@ onBeforeUnmount(() => {
 						{{ active.compactions.at(-1)?.model }} · {{ t('chat.totalTokens') }}: {{ active.compactions.at(-1)?.usage?.reported ? (active.compactions.at(-1)?.usage?.input ?? 0) + (active.compactions.at(-1)?.usage?.output ?? 0) : t('chat.unavailable') }}
 					</p>
 				</details>
+				<section
+					v-if="active?.compacting || active?.compact_error"
+					class="compact-progress"
+					role="status"
+				>
+					<strong>{{ active.compacting ? t('flow.compacting') : t('flow.compactFailed') }}</strong><progress
+						v-if="active.compacting"
+						:aria-label="t('flow.compacting')"
+					/><pre v-if="active.compact_text">{{ active.compact_text }}</pre><p v-if="active.compact_error">
+						{{ active.compact_error }}
+					</p>
+				</section>
 				<div
 					ref="thread"
 					class="conversation"
@@ -463,16 +484,27 @@ onBeforeUnmount(() => {
 							</XButton>
 						</div>
 					</div>
-					<ChatTurnCard
-						v-for="turn in active?.turns"
-						:key="turn.id"
-						:turn="turn"
-						:busy="busy"
-						:review-busy="review.isPending.value || action.isPending.value"
-						@review="reviewOperation"
-						@fork="manage('fork', $event)"
-					/>
+					<TransitionGroup name="message-reveal">
+						<ChatTurnCard
+							v-for="turn in active?.turns"
+							:key="turn.id"
+							:turn="turn"
+							:busy="busy"
+							:review-busy="review.isPending.value || action.isPending.value"
+							@review="reviewOperation"
+							@fork="manage('fork', $event)"
+						/>
+					</TransitionGroup>
 				</div>
+				<XButton
+					v-if="!stickToBottom && active?.turns?.length"
+					class="jump-latest"
+					variant="secondary"
+					icon="arrow-down"
+					@click="stickToBottom = true; thread?.scrollTo({top: thread.scrollHeight, behavior: 'instant'})"
+				>
+					{{ t('flow.jumpLatest') }}
+				</XButton>
 				<div
 					v-if="!hasAssistant && !settings.isPending.value"
 					class="setup-note"
@@ -576,7 +608,13 @@ onBeforeUnmount(() => {
 						maxlength="12000"
 						:placeholder="t('tcymc.text.for_example_move_the_due_dates_of_unfinished')"
 						@keydown="composerKeydown"
-					/><div
+					/><p
+						v-if="audioStage || cleanup.isPending.value"
+						class="audio-progress"
+						role="status"
+					>
+						<progress :aria-label="t(`flow.${audioStage || 'audioProcessing'}`)" /> {{ t(`flow.${audioStage || 'audioProcessing'}`) }}
+					</p><div
 						class="composer-tools"
 						data-tour="ai-voice"
 					>
@@ -661,6 +699,20 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.jump-latest { align-self: center;
+margin-block: -.75rem .5rem;
+font-size: .75rem;
+}
+
+.audio-progress { display: flex;
+gap: .75rem;
+align-items: center;
+font-size: .8rem;
+}
+.audio-progress progress { inline-size: 4rem;
+block-size: .35rem;
+}
+
 .tcy-assistant {
 	max-inline-size: 1450px;
 	margin-inline: auto;
@@ -1009,4 +1061,51 @@ summary {
   max-block-size: 10rem;
  }
 }
+
+.live-connection { display: flex;
+align-items: center;
+flex-wrap: wrap;
+gap: .4rem;
+color: var(--text-light);
+font-size: .75rem;
+margin-block: 0 .75rem;
+}
+.live-connection span { inline-size: .45rem;
+block-size: .45rem;
+border-radius: 50%;
+background: var(--grey-400);
+}
+.live-connection span.connected { background: var(--success);
+box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 15%, transparent);
+}
+.compact-progress { padding: .9rem 1rem;
+background: var(--grey-100);
+border-radius: .8rem;
+margin: .5rem;
+font-size: .8rem;
+}
+.compact-progress progress { display: block;
+inline-size: 100%;
+block-size: .3rem;
+margin-block: .5rem;
+}
+.compact-progress pre { max-block-size: 10rem;
+overflow: auto;
+white-space: pre-wrap;
+}
+.message-reveal-enter-active { transition: opacity .32s ease, transform .42s cubic-bezier(.2,.85,.25,1.15);
+}
+.message-reveal-enter-from { opacity: 0;
+transform: translateY(14px) scale(.985);
+}
+.tcy-assistant :deep(.button), .toolbar-button, .message-action { transition: transform .2s cubic-bezier(.2,.8,.25,1.3), background-color .2s, box-shadow .2s;
+}
+.tcy-assistant :deep(.button:active), .toolbar-button:active { transform: scale(.96);
+}
+.composer:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .message-reveal-enter-active, .tcy-assistant :deep(*) { transition: none !important;
+animation: none !important;
+scroll-behavior: auto !important;
+} }
 </style>

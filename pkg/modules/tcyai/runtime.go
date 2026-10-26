@@ -263,6 +263,7 @@ func (state *AgentState) modelRound(ctx context.Context, c Connection, started t
 	b.Rounds++
 	observed, o := withObservation(ctx, b.Rounds, c.Model, func(step ModelStep) {
 		live := state.Result
+		state.Result.DurationMS = baseDuration + time.Since(started).Milliseconds()
 		state.Result.Steps = append(append([]ModelStep{}, live.Steps...), step)
 		state.Streaming = true
 		if err := persist(); err != nil {

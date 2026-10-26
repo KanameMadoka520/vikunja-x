@@ -134,7 +134,7 @@ func RunObserved(ctx context.Context, c Connection, in RunInput, execute Executo
 // AgentEndpoint reports the actual streaming URL used by agent runs and capability tests.
 func AgentEndpoint(c Connection) string {
 	endpoint := Endpoint(c)
-	if c.EffectiveProtocol() == "gemini" {
+	if !c.NonStreaming && c.EffectiveProtocol() == "gemini" {
 		endpoint = strings.Replace(endpoint, ":generateContent", ":streamGenerateContent?alt=sse", 1)
 	}
 	return endpoint

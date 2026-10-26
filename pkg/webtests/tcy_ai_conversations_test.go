@@ -17,6 +17,7 @@
 package webtests
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -51,6 +52,8 @@ func TestTCYAIConversations(t *testing.T) {
 	config.OutgoingRequestsAllowNonRoutableIPs.Set(true)
 	t.Cleanup(func() { config.FilesBasePath.Set(oldPath); config.OutgoingRequestsAllowNonRoutableIPs.Set(oldAllow) })
 	var calls atomic.Int64
+	compactRelease := make(chan struct{})
+	var compactStarted atomic.Bool
 	write := func(w http.ResponseWriter, text string) { _, err := io.WriteString(w, text); assert.NoError(t, err) }
 	provider := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -69,6 +72,12 @@ func TestTCYAIConversations(t *testing.T) {
 		text := "Done"
 		if len(body.Tools) == 0 {
 			text = "Saved compact summary"
+			compactStarted.Store(true)
+			select {
+			case <-compactRelease:
+			case <-r.Context().Done():
+				return
+			}
 		}
 		if len(body.Tools) > 0 && body.Messages[len(body.Messages)-1].Role != "tool" {
 			write(w, `data: {"model":"actual-fixture","choices":[{"index":0,"delta":{"reasoning_content":"Checking accessible projects"}}]}`+"\n\n")
@@ -99,6 +108,18 @@ func TestTCYAIConversations(t *testing.T) {
 	require.Equal(t, 401, humaRequest(t, e, "GET", path, "", "", "").Code)
 	assert.Contains(t, []int{401, 403}, humaRequest(t, e, "GET", base, "", "tk_2eef46f40ebab3304919ab2e7e39993f75f29d2e", "").Code)
 	require.Equal(t, 404, humaRequest(t, e, "GET", path, "", other, "").Code)
+	require.Equal(t, 401, humaRequest(t, e, "GET", path+"/events", "", "", "").Code)
+	require.Equal(t, 404, humaRequest(t, e, "GET", path+"/events", "", other, "").Code)
+	eventCtx, eventCancel := context.WithCancel(t.Context())
+	eventRequest := httptest.NewRequest("GET", path+"/events", nil).WithContext(eventCtx)
+	eventRequest.Header.Set("Authorization", "Bearer "+token)
+	eventRecorder := &cancelOnFlushRecorder{ResponseRecorder: httptest.NewRecorder(), cancel: eventCancel}
+	e.ServeHTTP(eventRecorder, eventRequest)
+	assert.Equal(t, "text/event-stream", eventRecorder.Header().Get("Content-Type"))
+	assert.Equal(t, "no", eventRecorder.Header().Get("X-Accel-Buffering"))
+	assert.Contains(t, eventRecorder.Body.String(), "event: activity")
+	assert.NotContains(t, eventRecorder.Body.String(), "private-fixture")
+
 	require.Equal(t, 404, humaRequest(t, e, "POST", path+"/messages", `{"message":"denied","history":[],"project_id":0,"mode":"read","allow_delete":false,"request_id":"denied-key"}`, other, "").Code)
 	share, err := auth.NewLinkShareJWTAuthtoken(&models.LinkSharing{ID: 1, Hash: "test", ProjectID: 1})
 	require.NoError(t, err)
@@ -140,12 +161,27 @@ func TestTCYAIConversations(t *testing.T) {
 		conversation = wait()
 		assert.Equal(t, "completed", conversation.Turns[len(conversation.Turns)-1].Status)
 	}
-	compact := humaRequest(t, e, "POST", path+"/compact", `{"connection_id":"fixture"}`, token, "")
+	compactCtx, cancelCompactBrowser := context.WithCancel(t.Context())
+	compactRequest := httptest.NewRequest("POST", path+"/compact", strings.NewReader(`{"connection_id":"fixture"}`)).WithContext(compactCtx)
+	compactRequest.Header.Set("Authorization", "Bearer "+token)
+	compactRequest.Header.Set("Content-Type", "application/json")
+	compact := httptest.NewRecorder()
+	e.ServeHTTP(compact, compactRequest)
+	require.Eventually(t, compactStarted.Load, time.Second, 5*time.Millisecond)
+	cancelCompactBrowser() // The background job must outlive this browser request.
+	close(compactRelease)
 	require.Equal(t, 201, compact.Code, compact.Body.String())
 	require.NoError(t, json.Unmarshal(compact.Body.Bytes(), &conversation))
 	require.Len(t, conversation.Turns, 5)
+	require.True(t, conversation.Compacting)
+	require.Eventually(t, func() bool {
+		res := humaRequest(t, e, "GET", path, "", token, "")
+		_ = json.Unmarshal(res.Body.Bytes(), &conversation)
+		return !conversation.Compacting
+	}, 5*time.Second, 10*time.Millisecond)
+	require.Empty(t, conversation.CompactError)
 	require.Len(t, conversation.Compactions, 1)
-	assert.Equal(t, 1, conversation.Compactions[0].Through)
+	assert.Equal(t, 5, conversation.Compactions[0].Through)
 	fork := humaRequest(t, e, "POST", path+"/fork", fmt.Sprintf(`{"turn_id":%q}`, conversation.Turns[1].ID), token, "")
 	require.Equal(t, 201, fork.Code, fork.Body.String())
 	var branch tcyai.Conversation
@@ -166,3 +202,10 @@ func TestTCYAIConversations(t *testing.T) {
 	assert.Equal(t, "no-store", prompt.Header().Get("Cache-Control"))
 	assert.NotContains(t, strings.Join([]string{create.Body.String(), compact.Body.String(), fork.Body.String()}, ""), "private-fixture")
 }
+
+type cancelOnFlushRecorder struct {
+	*httptest.ResponseRecorder
+	cancel context.CancelFunc
+}
+
+func (r *cancelOnFlushRecorder) Flush() { r.ResponseRecorder.Flush(); r.cancel() }

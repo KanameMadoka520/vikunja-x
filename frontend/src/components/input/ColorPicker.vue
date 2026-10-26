@@ -54,6 +54,41 @@
 			</svg>
 		</div>
 
+		<details
+			class="color-presets"
+			@toggle="positionPalette"
+		>
+			<summary ref="paletteAnchor">
+				{{ $t('flow.colorPalette') }}
+			</summary><div
+				ref="palettePanel"
+				class="palette-panel"
+				:style="palettePosition"
+			>
+				<select
+					v-model="palette"
+					:aria-label="$t('flow.colorPalette')"
+				>
+					<option
+						v-for="(_, name) in palettes"
+						:key="name"
+						:value="name"
+					>
+						{{ $t(`flow.palette_${name}`) }}
+					</option>
+				</select><div class="swatches">
+					<button
+						v-for="swatch in palettes[palette]"
+						:key="swatch"
+						type="button"
+						:style="{background: swatch}"
+						:aria-label="swatch"
+						:aria-pressed="color.toLowerCase() === swatch"
+						@click="color = swatch; update(true)"
+					/>
+				</div>
+			</div>
+		</details>
 		<XButton
 			v-if="!isEmpty"
 			:disabled="isEmpty"
@@ -68,20 +103,38 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, ref, watch, nextTick, onBeforeUnmount} from 'vue'
+import {computePosition, autoUpdate, offset, flip, shift} from '@floating-ui/dom'
 import {createRandomID} from '@/helpers/randomId'
 import XButton from '@/components/input/Button.vue'
 
 const model = defineModel<string>({ required: true })
 
-const DEFAULT_COLORS = [
-	'#1973ff',
-	'#7F23FF',
-	'#ff4136',
-	'#ff851b',
-	'#ffeb10',
-	'#00db60',
-]
+const palettes = {
+	vivid: ['#1973ff','#4f46e5','#7c3aed','#c026d3','#db2777','#e11d48','#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981','#14b8a6','#06b6d4','#0ea5e9'],
+	soft: ['#bfdbfe','#c7d2fe','#ddd6fe','#f5d0fe','#fbcfe8','#fecdd3','#fecaca','#fed7aa','#fde68a','#fef08a','#d9f99d','#bbf7d0','#a7f3d0','#99f6e4','#a5f3fc','#bae6fd'],
+	earth: ['#1e3a8a','#312e81','#581c87','#701a75','#831843','#881337','#7f1d1d','#9a3412','#92400e','#854d0e','#3f6212','#14532d','#064e3b','#134e4a','#164e63','#0c4a6e'],
+	neutral: ['#ffffff','#f8fafc','#e2e8f0','#cbd5e1','#94a3b8','#64748b','#475569','#334155','#1e293b','#0f172a','#000000','#78716c','#a8a29e','#d6d3d1','#e7e5e4','#fafaf9'],
+}
+const palette = ref<keyof typeof palettes>('vivid')
+const paletteAnchor = ref<HTMLElement>()
+const palettePanel = ref<HTMLElement>()
+const palettePosition = ref({left: '0px', top: '0px'})
+let stopPositioning: (() => void) | undefined
+onBeforeUnmount(() => stopPositioning?.())
+async function positionPalette(event: Event) {
+	stopPositioning?.()
+	if (!(event.target as HTMLDetailsElement).open) return
+	await nextTick()
+	const anchor=paletteAnchor.value, panel=palettePanel.value
+	if (!anchor || !panel) return
+	const update = async () => {
+		const {x,y} = await computePosition(anchor,panel,{strategy:'fixed',placement:'bottom-start',middleware:[offset(8),flip(),shift({padding:12})]})
+		palettePosition.value={left:`${x}px`,top:`${y}px`}
+	}
+	stopPositioning=autoUpdate(anchor,panel,update)
+}
+const DEFAULT_COLORS = Object.values(palettes).flat()
 
 const color = ref('')
 const defaultColors = ref(DEFAULT_COLORS)
@@ -176,5 +229,42 @@ function reset() {
 	.picker__pattern {
 		pointer-events: none;
 	}
+}
+.color-presets { position: relative;
+margin-inline-start: .6rem;
+font-size: .8rem;
+}
+.color-presets summary { cursor: pointer;
+min-block-size: 2rem;
+display: flex;
+align-items: center;
+}
+.palette-panel { position: fixed;
+z-index: 40;
+inline-size: min(18rem, 70vw);
+background: var(--site-background);
+border: 1px solid var(--grey-300);
+border-radius: .8rem;
+padding: .75rem;
+box-shadow: 0 10px 30px #00000022;
+}
+.palette-panel select { inline-size: 100%;
+margin-block-end: .6rem;
+}
+.swatches { display: grid;
+grid-template-columns: repeat(8, 1fr);
+gap: .35rem;
+}
+.swatches button { aspect-ratio: 1;
+min-block-size: 24px;
+border: 1px solid #88888844;
+border-radius: .45rem;
+cursor: pointer;
+transition: transform .16s ease;
+}
+.swatches button:hover { transform: scale(1.16);
+}
+.swatches button[aria-pressed="true"] { outline: 2px solid var(--primary);
+outline-offset: 2px;
 }
 </style>

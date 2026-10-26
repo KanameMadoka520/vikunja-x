@@ -249,7 +249,7 @@
             "chatLimit": "Conversation limit reached. Use a new conversation, delete old conversations, or reduce its size.",
             "chatCompactFirst": "This conversation is too long. Compact its context before continuing.",
             "chatSaveFailed": "The answer could not be saved. Check server storage before continuing; some task changes may already have completed.",
-            "chatTooShort": "No additional older turns to compact. More than four turns are needed.",
+            "chatTooShort": "There are no new conversation turns to summarize.",
             "chatMissing": "Conversation or message not found.",
             "chatBusy": "An operation is still running. Stop it or wait before continuing.",
             "chatRequestChanged": "This request ID was already used for a different message. Start a new request.",

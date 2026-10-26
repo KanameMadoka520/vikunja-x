@@ -17,6 +17,7 @@
 package webtests
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -30,6 +31,7 @@ import (
 
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/i18n"
+	"code.vikunja.io/api/pkg/modules/tcyai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,7 +104,7 @@ func TestTCYAIProtocols(t *testing.T) {
 				assert.Contains(t, string(raw), base64.StdEncoding.EncodeToString([]byte("RIFF test audio")))
 				respond(`{"choices":[{"message":{"role":"assistant","content":"Audio transcript"}}]}`)
 			case "gemini":
-				assert.Equal(t, "/custom/v1/models/task-model:generateContent", r.URL.Path)
+				assert.Equal(t, "/custom/v1/models/task-model:streamGenerateContent", r.URL.Path)
 				assert.Contains(t, string(raw), `"mimeType":"audio/wav"`)
 				assert.Contains(t, string(raw), base64.StdEncoding.EncodeToString([]byte("RIFF test audio")))
 				respond(`{"candidates":[{"content":{"parts":[{"text":"Audio transcript"}]},"finishReason":"STOP"}]}`)
@@ -231,6 +233,70 @@ func TestTCYAIProtocols(t *testing.T) {
 		} else {
 			assert.Contains(t, rec.Body.String(), "HTTPS")
 			assert.NotContains(t, rec.Body.String(), "must")
+		}
+	}
+}
+
+func TestTCYAIStreamingDefaultAndOptOut(t *testing.T) {
+	oldAllow := config.OutgoingRequestsAllowNonRoutableIPs.GetBool()
+	config.OutgoingRequestsAllowNonRoutableIPs.Set(true)
+	t.Cleanup(func() { config.OutgoingRequestsAllowNonRoutableIPs.Set(oldAllow) })
+	protocol := ""
+	nonStreaming := false
+	provider := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+		if protocol == "gemini" {
+			if nonStreaming {
+				assert.True(t, strings.HasSuffix(r.URL.Path, ":generateContent"))
+				assert.Empty(t, r.URL.Query().Get("alt"))
+			} else {
+				assert.True(t, strings.HasSuffix(r.URL.Path, ":streamGenerateContent"))
+				assert.Equal(t, "sse", r.URL.Query().Get("alt"))
+			}
+		} else {
+			assert.Equal(t, !nonStreaming, body["stream"] == true)
+		}
+		if nonStreaming {
+			w.Header().Set("Content-Type", "application/json")
+			responses := map[string]string{
+				"openai-chat":      `{"choices":[{"message":{"role":"assistant","content":"Hello"}}]}`,
+				"openai-responses": `{"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"}]}]}`,
+				"anthropic":        `{"content":[{"type":"text","text":"Hello"}],"stop_reason":"end_turn"}`,
+				"gemini":           `{"candidates":[{"content":{"parts":[{"text":"Hello"}]},"finishReason":"STOP"}]}`,
+			}
+			_, err := io.WriteString(w, responses[protocol])
+			assert.NoError(t, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		responses := map[string]string{
+			"openai-chat":      `data: {"choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":"stop"}]}` + "\n\n",
+			"openai-responses": `event: response.output_text.delta` + "\n" + `data: {"type":"response.output_text.delta","delta":"Hello","output_index":0}` + "\n\n" + `event: response.completed` + "\n" + `data: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Hello"}]}]}}` + "\n\n",
+			"anthropic":        `data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}` + "\n\n" + `data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}` + "\n\n" + `data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}` + "\n\n" + `data: {"type":"message_stop"}` + "\n\n",
+			"gemini":           `data: {"candidates":[{"content":{"parts":[{"text":"Hello"}]},"finishReason":"STOP"}]}` + "\n\n",
+		}
+		_, err := io.WriteString(w, responses[protocol])
+		assert.NoError(t, err)
+	}))
+	defer provider.Close()
+	pool := x509.NewCertPool()
+	pool.AddCert(provider.Certificate())
+	original := http.DefaultTransport
+	transport := original.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	http.DefaultTransport = transport
+	t.Cleanup(func() { http.DefaultTransport = original; transport.CloseIdleConnections() })
+	for _, p := range []string{"openai-chat", "openai-responses", "anthropic", "gemini"} {
+		for _, disabled := range []bool{false, true} {
+			protocol, nonStreaming = p, disabled
+			t.Run(fmt.Sprintf("%s/non_streaming=%t", p, disabled), func(t *testing.T) {
+				result, err := tcyai.Chat(context.Background(), tcyai.Connection{BaseURL: provider.URL + "/v1", Model: "fixture", Protocol: p, NonStreaming: disabled}, []tcyai.Message{{Role: "user", Content: "Hello"}}, nil)
+				require.NoError(t, err)
+				assert.Equal(t, "Hello", result.Content)
+			})
 		}
 	}
 }

@@ -28,6 +28,8 @@ const backgrounds = vi.hoisted(() => ({
 	uploadProjectBackground: vi.fn(),
 }))
 
+vi.mock('@/composables/useProjectBackground', async () => {const {ref}=await import('vue');return {useProjectBackground:()=>({background:ref(undefined)})}})
+
 vi.mock('@/client/generated', async importOriginal => ({
 	...await importOriginal<typeof import('@/client/generated')>(),
 	projectsBackgroundDelete: async ({path}: {path: {project: number}}) => ({

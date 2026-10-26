@@ -28,6 +28,8 @@ import (
 	"math"
 	"strconv"
 
+	_ "golang.org/x/image/webp" // Decode browser-compressed WebP avatars.
+
 	"code.vikunja.io/api/pkg/files"
 	"code.vikunja.io/api/pkg/log"
 	"code.vikunja.io/api/pkg/modules/imageutils"
@@ -35,6 +37,7 @@ import (
 	"code.vikunja.io/api/pkg/user"
 
 	"github.com/disintegration/imaging"
+	"github.com/gabriel-vasile/mimetype"
 	"xorm.io/xorm"
 )
 
@@ -130,19 +133,32 @@ func (p *Provider) AsDataURI(ctx context.Context, u *user.User, size int64) (str
 }
 
 type EncodedAvatar struct {
-	png []byte
+	png  []byte
+	mime string
 }
 
 // May queue for decode capacity; call outside a transaction.
 func PrepareAvatar(ctx context.Context, raw []byte) (*EncodedAvatar, error) {
+	return prepareAvatar(ctx, raw, false)
+}
+func PreparePreservedAvatar(ctx context.Context, raw []byte) (*EncodedAvatar, error) {
+	return prepareAvatar(ctx, raw, true)
+}
+func prepareAvatar(ctx context.Context, raw []byte, preserve bool) (*EncodedAvatar, error) {
 	buf := &bytes.Buffer{}
 	err := imageutils.Decode(ctx, imageutils.BytesOpener(raw), func(img image.Image, _ string) error {
+		if preserve {
+			return nil
+		}
 		return png.Encode(buf, imaging.Fit(centeredSquare(img), maxAvatarSide, maxAvatarSide, imaging.Lanczos))
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &EncodedAvatar{png: buf.Bytes()}, nil
+	if preserve {
+		return &EncodedAvatar{png: raw, mime: mimetype.Detect(raw).String()}, nil
+	}
+	return &EncodedAvatar{png: buf.Bytes(), mime: "image/png"}, nil
 }
 
 // Zero-copy where possible: a full-resolution copy would escape the decode budget.
@@ -171,7 +187,7 @@ func SaveAvatar(s *xorm.Session, u *user.User, provider string, a *EncodedAvatar
 		}
 	}()
 
-	f, err := files.CreateWithMimeAndSession(s, bytes.NewReader(a.png), "avatar.png", uint64(len(a.png)), u, "image/png", true)
+	f, err := files.CreateWithMimeAndSession(s, bytes.NewReader(a.png), "avatar", uint64(len(a.png)), u, a.mime, true)
 	if err != nil {
 		return err
 	}

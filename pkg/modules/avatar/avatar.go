@@ -166,6 +166,9 @@ func GetProvider(u *user.User) Provider {
 }
 
 func PrepareUpload(ctx context.Context, src io.Reader) (*upload.EncodedAvatar, error) {
+	return PrepareUploadWithMode(ctx, src, false)
+}
+func PrepareUploadWithMode(ctx context.Context, src io.Reader, preserve bool) (*upload.EncodedAvatar, error) {
 	raw, err := io.ReadAll(src)
 	if err != nil {
 		return nil, err
@@ -174,7 +177,12 @@ func PrepareUpload(ctx context.Context, src io.Reader) (*upload.EncodedAvatar, e
 		return nil, ErrNotAnImage
 	}
 
-	a, err := upload.PrepareAvatar(ctx, raw)
+	var a *upload.EncodedAvatar
+	if preserve {
+		a, err = upload.PreparePreservedAvatar(ctx, raw)
+	} else {
+		a, err = upload.PrepareAvatar(ctx, raw)
+	}
 	if errors.Is(err, imageutils.ErrUndecodable) {
 		return nil, ErrNotAnImage
 	}

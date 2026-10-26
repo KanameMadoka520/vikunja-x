@@ -34,9 +34,16 @@ describe('ColorPicker', () => {
 		expect(emitted).toEqual([])
 	})
 
-	it('emits an empty value on reset', async () => {
+	it('offers 64 colors and applies the selected palette swatch', async () => {
+ const {wrapper,emitted}=mountPicker('')
+ expect(wrapper.findAll('datalist option')).toHaveLength(64)
+ await wrapper.find('.palette-panel select').setValue('earth')
+ await wrapper.find('.swatches button').trigger('click')
+ expect(emitted).toEqual(['#1e3a8a'])
+ })
+ it('emits an empty value on reset' , async () => {
 		const {wrapper, emitted} = mountPicker('ff0000')
-		await wrapper.find('button').trigger('click')
+		await wrapper.find('button.button').trigger('click')
 		expect(emitted).toEqual([''])
 	})
 })

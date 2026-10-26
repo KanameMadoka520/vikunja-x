@@ -26,6 +26,10 @@
 			</div>
 
 			<template v-if="avatarProvider === 'upload'">
+				<label class="image-choice mbe-4"><input
+					v-model="cropBeforeUpload"
+					type="checkbox"
+				> {{ $t('flow.cropAvatar') }}</label>
 				<input
 					ref="avatarUploadInput"
 					accept="image/*"
@@ -122,6 +126,7 @@ function updateAvatarStatus() {
 
 const cropper = ref()
 const isCropAvatar = ref(false)
+const cropBeforeUpload = ref(false)
 
 async function uploadAvatar() {
 	const username = authStore.info?.username
@@ -146,13 +151,19 @@ async function uploadAvatar() {
 const avatarToCrop = ref()
 const avatarUploadInput = ref()
 
-function cropAvatar() {
+async function cropAvatar() {
 	const avatar = avatarUploadInput.value.files
 
 	if (avatar.length === 0) {
 		return
 	}
 
+	if (!cropBeforeUpload.value) {
+		const username = authStore.info?.username
+		if (username) await upload.mutateAsync({username, blob: avatar[0]}).catch(() => undefined)
+		avatarUploadInput.value.value = ''
+		return
+	}
 	loading.value = true
 	const reader = new FileReader()
 	reader.onload = () => {
@@ -168,7 +179,7 @@ function cropAvatar() {
 
 <style lang="scss">
 .cropper {
-	block-size: 80vh;
+	block-size: min(65dvh, 32rem);
 	background: transparent;
 }
 

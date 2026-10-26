@@ -8,6 +8,15 @@
 	>
 		<ErrorMessage v-if="project.isError.value" />
 
+		<p>{{ $t('flow.coverNote') }}</p><div
+			v-if="cover"
+			class="cover-preview"
+		>
+			<img
+				:src="cover"
+				:alt="$t('flow.coverPreview')"
+			>
+		</div>
 		<template v-if="canWrite">
 			<div
 				v-if="uploadBackgroundEnabled"
@@ -113,6 +122,7 @@
 
 
 <script setup lang="ts">
+import {useProjectBackground} from '@/composables/useProjectBackground'
 import {computed, ref} from 'vue'
 import {useInfiniteQuery, useQuery} from '@tanstack/vue-query'
 import {useI18n} from 'vue-i18n'
@@ -156,6 +166,7 @@ const unsplashBackgroundEnabled = computed(() => configStore.enabled_background_
 const uploadBackgroundEnabled = computed(() => configStore.enabled_background_providers.includes('upload'))
 const projectId = computed(() => Number(route.params.projectId))
 const project = useQuery(computed(() => projectQuery(projectId.value)))
+const {background: cover} = useProjectBackground(() => project.data.value ?? null)
 const canWrite = computed(() => project.data.value !== undefined && (project.data.value.max_permission ?? 0) >= PERMISSIONS.READ_WRITE)
 const backgroundSearchTerm = ref('')
 const backgroundSearchInput = ref('')
@@ -215,6 +226,13 @@ async function removeBackground() {
 </script>
 
 <style lang="scss" scoped>
+.cover-preview img { display: block;
+inline-size: min(24rem, 100%);
+block-size: 10rem;
+object-fit: cover;
+border-radius: 1rem;
+margin-block-end: 1rem;
+}
 .unsplash-credit {
 	text-align: end;
 	font-size: .8rem;
@@ -243,7 +261,8 @@ async function removeBackground() {
 }
 
 .image-search__result-item {
-	margin-block-start: 0; // FIXME: removes padding from .content
+	margin-block-start: 0;
+// FIXME: removes padding from .content
 	aspect-ratio: 16 / 10;
 	display: flex;
 }

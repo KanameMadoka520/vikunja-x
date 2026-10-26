@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
+import {useNow} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
 import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
-import type {ChatTurn, ReviewInput} from '@/client/generated'
+import type {ChatTurn, ReviewInput, ModelStep} from '@/client/generated'
 
 const props = withDefaults(defineProps<{
 	turn: ChatTurn
@@ -21,6 +22,13 @@ const {t} = useI18n({useScope: 'global'})
 const copied = ref(false)
 const running = computed(() => props.turn.status === 'running')
 const result = computed(() => props.turn.result)
+const now = useNow({interval: 250})
+const lastStep = computed(() => result.value?.steps?.at(-1))
+const liveUsage = computed(() => (result.value?.steps ?? []).reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
+function stepTime(step: ModelStep) {
+	const elapsed = running.value && step.round === lastStep.value?.round && result.value?.stage === 'model' && step.started ? Math.max(step.duration_ms ?? 0, now.value.getTime() - new Date(step.started).getTime()) : step.duration_ms
+	return seconds(elapsed)
+}
 const answer = computed(() => result.value?.reply || result.value?.steps?.at(-1)?.text || '')
 const html = computed(() => sanitizeProjectDescription(marked.parse(answer.value, {async: false})))
 const labels = computed<Record<string, string>>(() => ({
@@ -63,6 +71,16 @@ async function copy() {
 					role="status"
 				>{{ t('chat.running') }}</span>
 			</div>
+			<div
+				v-if="running"
+				class="live-run-panel"
+				role="status"
+			>
+				<span class="working-orbit" /><div><strong>{{ t(`flow.stage_${result?.stage || 'model'}`) }}</strong><small>{{ lastStep?.streaming ? t('flow.streaming') : t('flow.waitingData') }}<template v-if="lastStep"> · {{ stepTime(lastStep) }}</template></small></div>
+				<div class="live-counts">
+					<span v-if="liveUsage.reported">{{ liveUsage.input }} {{ t('chat.inputTokens') }} · {{ liveUsage.output }} {{ t('chat.outputTokens') }}<template v-if="liveUsage.reasoning"> · {{ liveUsage.reasoning }} {{ t('chat.reasoningTokens') }}</template></span><span v-else>{{ t('flow.usagePending') }}</span><small>{{ t('flow.observedCharacters', {count: lastStep?.output_characters ?? 0}) }}</small>
+				</div>
+			</div>
 			<details
 				v-if="result?.steps?.length"
 				class="execution"
@@ -74,7 +92,13 @@ async function copy() {
 					:key="step.round"
 					class="model-step"
 				>
-					<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ seconds(step.duration_ms) }}</span></header>
+					<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ stepTime(step) }}</span></header>
+					<p
+						v-if="!running && step.requested_streaming && !step.streaming"
+						class="step-note"
+					>
+						{{ t('flow.streamIgnored') }}
+					</p>
 					<p
 						v-if="step.http_status"
 						class="step-note"
@@ -101,7 +125,22 @@ async function copy() {
 						{{ step.text }}
 					</p>
 					<details
-						v-for="(action, actionIndex) in (result.actions ?? []).filter(a => a.round === step.round)"
+						v-for="call in (step.tool_calls ?? []).filter(call => !(result?.actions ?? []).some(action => action.round === step.round && action.tool === call.function?.name))"
+						:key="call.id || call.function?.name"
+						class="tool-step tool-draft"
+						:open="running"
+					>
+						<summary><Icon icon="code" />{{ labels[call.function?.name ?? ''] || call.function?.name }} · {{ t(running && step.round === lastStep?.round && result?.stage === 'model' ? 'flow.toolDraft' : 'flow.toolProposed') }}</summary><pre>{{ pretty(call.function?.arguments) }}</pre>
+					</details>
+					<div
+						v-for="receipt in (result.operations ?? []).filter(op => op.status === 'running' && step.round === lastStep?.round)"
+						:key="receipt.id"
+						class="tool-inflight"
+					>
+						<span class="working-orbit" />{{ labels[receipt.tool ?? ''] || receipt.tool }} · {{ t('flow.toolExecuting') }}
+					</div>
+					<details
+						v-for="(action, actionIndex) in (result?.actions ?? []).filter(a => a.round === step.round)"
 						:key="actionIndex"
 						class="tool-step"
 					>
@@ -124,6 +163,7 @@ async function copy() {
 			<div
 				v-if="answer"
 				class="chat-markdown content"
+				:class="{'is-streaming': running && result?.stage === 'model'}"
 				v-html="html"
 			/>
 			<p
@@ -198,6 +238,8 @@ async function copy() {
 
 <style scoped lang="scss">
 .chat-turn {
+content-visibility: auto;
+contain-intrinsic-size: auto 200px;
 	margin-block: 1.5rem 2rem;
 }
 .user-message {
@@ -345,4 +387,60 @@ pre {
 	font-size: .8rem;
 	color: var(--text-light);
 }
+
+.chat-turn:has(.live-run-panel) { content-visibility: visible;
+}
+.live-run-panel { display: flex;
+flex-wrap: wrap;
+align-items: center;
+gap: .75rem;
+padding: .85rem 1rem;
+border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--grey-200));
+background: linear-gradient(115deg, color-mix(in srgb, var(--primary) 6%, var(--site-background)), var(--site-background));
+border-radius: 1rem;
+margin-block-end: .8rem;
+font-size: .8rem;
+}
+.live-run-panel small { display: block;
+color: var(--text-light);
+font-size: .72rem;
+margin-block-start: .25rem;
+}
+.live-counts { margin-inline-start: auto;
+font-variant-numeric: tabular-nums;
+}
+.working-orbit { display: inline-block;
+inline-size: .9rem;
+block-size: .9rem;
+border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);
+border-block-start-color: var(--primary);
+border-radius: 50%;
+animation: working-spin .85s linear infinite;
+flex-shrink: 0;
+}
+.tool-inflight { display: flex;
+align-items: center;
+gap: .5rem;
+padding: .7rem;
+border-radius: .6rem;
+background: var(--grey-100);
+}
+.tool-draft { border: 1px dashed var(--grey-300);
+padding: .6rem;
+border-radius: .6rem;
+}
+.chat-markdown.is-streaming::after { content: '';
+display: inline-block;
+inline-size: .4rem;
+block-size: 1rem;
+background: var(--primary);
+border-radius: .15rem;
+animation: cursor-breathe 1s ease-in-out infinite;
+}
+@keyframes working-spin { to { transform: rotate(360deg);
+} }
+@keyframes cursor-breathe { 50% { opacity: .2;
+} }
+@media (prefers-reduced-motion: reduce) { .working-orbit, .chat-markdown.is-streaming::after { animation: none;
+} }
 </style>

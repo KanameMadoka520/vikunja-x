@@ -259,6 +259,14 @@ func (bg *EncodedBackground) Size() int64 {
 
 // May queue for decode capacity; call outside a transaction.
 func PrepareBackground(ctx context.Context, src io.ReadSeeker, filename string) (*EncodedBackground, error) {
+	return prepareBackground(ctx, src, filename, false)
+}
+
+// PreparePreservedBackground validates with the same decode and pixel limits while retaining the uploaded bytes.
+func PreparePreservedBackground(ctx context.Context, src io.ReadSeeker, filename string) (*EncodedBackground, error) {
+	return prepareBackground(ctx, src, filename, true)
+}
+func prepareBackground(ctx context.Context, src io.ReadSeeker, filename string, preserve bool) (*EncodedBackground, error) {
 	mime, err := mimetype.DetectReader(src)
 	if err != nil {
 		return nil, err
@@ -279,9 +287,11 @@ func PrepareBackground(ctx context.Context, src io.ReadSeeker, filename string) 
 	bg := &EncodedBackground{filename: filename}
 	buf := bytes.Buffer{}
 	err = imageutils.Decode(ctx, open, func(img image.Image, _ string) error {
-		dst := imaging.Fit(img, background.MaxBackgroundImageHeight, background.MaxBackgroundImageHeight, imaging.Lanczos)
-		if err := imaging.Encode(&buf, dst, imaging.JPEG, imaging.JPEGQuality(80)); err != nil {
-			return err
+		if !preserve {
+			dst := imaging.Fit(img, background.MaxBackgroundImageHeight, background.MaxBackgroundImageHeight, imaging.Lanczos)
+			if err := imaging.Encode(&buf, dst, imaging.JPEG, imaging.JPEGQuality(80)); err != nil {
+				return err
+			}
 		}
 		hash, err := CreateBlurHashFromImage(img)
 		bg.blurHash = hash
@@ -294,6 +304,15 @@ func PrepareBackground(ctx context.Context, src io.ReadSeeker, filename string) 
 		return nil, err
 	}
 	bg.jpeg = buf.Bytes()
+	if preserve {
+		if _, err = src.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		bg.jpeg, err = io.ReadAll(src)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return bg, nil
 }
 

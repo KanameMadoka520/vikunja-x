@@ -126,6 +126,16 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 			}
 		case "openai-responses":
 			switch textValue(frame, "type") {
+			case "response.output_item.added", "response.output_item.done":
+				item := object(frame, "item")
+				if textValue(item, "type") == "function_call" {
+					tools[int(number(frame, "output_index"))] = map[string]any{"id": textValue(item, "call_id"), "type": "function", "function": map[string]any{"name": textValue(item, "name"), "arguments": textValue(item, "arguments")}}
+				}
+			case "response.function_call_arguments.delta":
+				fn := object(tools[int(number(frame, "output_index"))], "function")
+				if fn != nil {
+					fn["arguments"] = textValue(fn, "arguments") + textValue(frame, "delta")
+				}
 			case "response.output_text.delta":
 				o.delta(textValue(frame, "delta"), "")
 			case "response.reasoning_text.delta", "response.reasoning_summary_text.delta":
@@ -203,6 +213,59 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 				}
 			}
 		}
+		draft := []ToolCall{}
+		switch protocol {
+		case "anthropic":
+			for i, b := range blocks {
+				m := asObject(b)
+				if textValue(m, "type") == "tool_use" {
+					args := arguments[i]
+					if args == "" {
+						raw, encodeErr := json.Marshal(m["input"])
+						if encodeErr != nil {
+							return encodeErr
+						}
+						args = string(raw)
+					}
+					draft = append(draft, ToolCall{ID: textValue(m, "id"), Type: "function", Function: FunctionCall{Name: textValue(m, "name"), Arguments: args}})
+				}
+			}
+		case "gemini":
+			for _, b := range blocks {
+				if call := object(asObject(b), "functionCall"); call != nil {
+					raw, encodeErr := json.Marshal(call["args"])
+					if encodeErr != nil {
+						return encodeErr
+					}
+					draft = append(draft, ToolCall{ID: textValue(call, "id"), Type: "function", Function: FunctionCall{Name: textValue(call, "name"), Arguments: string(raw)}})
+				}
+			}
+		default:
+			for _, t := range tools {
+				raw, encodeErr := json.Marshal(t)
+				if encodeErr != nil {
+					return encodeErr
+				}
+				var call ToolCall
+				if encodeErr = json.Unmarshal(raw, &call); encodeErr != nil {
+					return encodeErr
+				}
+				draft = append(draft, call)
+			}
+		}
+		if len(draft) > 0 {
+			sort.SliceStable(draft, func(i, j int) bool { return draft[i].ID < draft[j].ID })
+			o.step.ToolCalls = draft
+		}
+		if raw, err := json.Marshal(response); err == nil {
+			if usage, model := providerUsage(protocol, raw); usage.Reported {
+				o.step.Usage = usage
+				if model != "" {
+					o.step.Model = model
+				}
+			}
+		}
+		o.publish()
 		if len(o.step.Text)+len(o.step.Reasoning) > 2*1024*1024 {
 			return tcylocale.Error("e37")
 		}

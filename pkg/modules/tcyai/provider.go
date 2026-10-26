@@ -36,13 +36,14 @@ import (
 	"code.vikunja.io/api/pkg/utils"
 )
 
+type FunctionCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
 type ToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function FunctionCall `json:"function"`
 }
 type Message struct {
 	Native           json.RawMessage `json:"-"`
@@ -71,7 +72,7 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 		}
 	}
 	client := utils.NewSSRFSafeHTTPClient()
-	client.Timeout = 90 * time.Second
+	client.Timeout = 10 * time.Minute
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := client.Do(req)
 	if err != nil {
@@ -79,6 +80,7 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 	}
 	defer resp.Body.Close()
 	if o := observe(ctx); o != nil {
+		o.step.RequestedStreaming = !c.NonStreaming
 		o.step.HTTPStatus = resp.StatusCode
 		for _, header := range []string{"x-request-id", "request-id", "x-amzn-requestid"} {
 			if value := resp.Header.Get(header); value != "" {
@@ -97,7 +99,14 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 		return upstreamError(resp.StatusCode, resp.Body, c.APIKey)
 	}
 	var raw []byte
-	if o := observe(ctx); o != nil && strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
+	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
+		o := observe(ctx)
+		if o != nil {
+			o.step.Streaming = true
+		}
+		if o == nil {
+			o = &observation{start: time.Now()}
+		}
 		raw, err = readStream(resp.Body, c.EffectiveProtocol(), o)
 	} else {
 		raw, err = io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024+1))
@@ -133,7 +142,7 @@ func openAIChat(ctx context.Context, c Connection, input map[string]any, tools [
 		input["tools"] = tools
 		input["tool_choice"] = "auto"
 	}
-	if observe(ctx) != nil {
+	if !c.NonStreaming {
 		input["stream"] = true
 		input["stream_options"] = map[string]any{"include_usage": true}
 	}
@@ -207,11 +216,14 @@ func Endpoint(c Connection) string {
 	suffix := map[string]string{"openai-chat": "/chat/completions", "openai-responses": "/responses", "anthropic": "/messages", "openai-transcription": "/audio/transcriptions", "openai-audio": "/chat/completions"}[c.EffectiveProtocol()]
 	if c.EffectiveProtocol() == "gemini" {
 		suffix = "/models/" + url.PathEscape(strings.TrimPrefix(c.Model, "models/")) + ":generateContent"
+		if !c.NonStreaming {
+			suffix = strings.Replace(suffix, ":generateContent", ":streamGenerateContent?alt=sse", 1)
+		}
 	}
 	return strings.TrimRight(c.BaseURL, "/") + suffix
 }
 func requestJSON(ctx context.Context, c Connection, input any, target any) error {
-	if observe(ctx) != nil {
+	if !c.NonStreaming {
 		if body, ok := input.(map[string]any); ok && c.EffectiveProtocol() != "gemini" {
 			body["stream"] = true
 		}
@@ -221,7 +233,7 @@ func requestJSON(ctx context.Context, c Connection, input any, target any) error
 		return err
 	}
 	suffix := strings.TrimPrefix(Endpoint(c), c.BaseURL)
-	if observe(ctx) != nil && c.EffectiveProtocol() == "gemini" {
+	if !c.NonStreaming && c.EffectiveProtocol() == "gemini" {
 		suffix = strings.Replace(suffix, ":generateContent", ":streamGenerateContent?alt=sse", 1)
 	}
 	return request(ctx, c, "POST", suffix, "application/json", bytes.NewReader(data), target)

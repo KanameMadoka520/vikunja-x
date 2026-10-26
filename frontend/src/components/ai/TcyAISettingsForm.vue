@@ -80,7 +80,7 @@ function endpoint(c: AIConnection, models = false) {
 	const base = c.base_url.trim().replace(/\/+$/, '')
 	if (!base) return t('tcymc.text.enter_a_base_url_to_see_the_endpoint')
 	const paths = {'openai-chat': '/chat/completions', 'openai-responses': '/responses', anthropic: '/messages', 'openai-transcription': '/audio/transcriptions', 'openai-audio': '/chat/completions', gemini: `/models/${encodeURIComponent(c.model.replace(/^models\//, '') || '{model}')}:generateContent`}
-	return base + (models ? '/models' : paths[c.protocol])
+	return base + (models ? '/models' : c.protocol === 'gemini' && !c.non_streaming ? paths.gemini.replace(':generateContent', ':streamGenerateContent?alt=sse') : paths[c.protocol])
 }
 function fingerprint(c: AIConnection) { return JSON.stringify([c.base_url, c.protocol, c.kind]) }
 function loadedModels(c: AIConnection) { const saved = modelLists.value[c.id]; return saved?.fingerprint === fingerprint(c) ? saved.models : [] }
@@ -95,7 +95,7 @@ async function fetchModels(c: AIConnection) {
 }
 function savedMatches(c: AIConnection) {
 	const saved = props.initial.connections.find(s => s.id === c.id)
-	return saved && saved.base_url === c.base_url && saved.model === c.model && saved.protocol === c.protocol && saved.kind === c.kind && !c.api_key
+	return saved && saved.base_url === c.base_url && saved.model === c.model && saved.protocol === c.protocol && saved.kind === c.kind && Boolean(saved.non_streaming) === Boolean(c.non_streaming) && !c.api_key
 }
 </script>
 
@@ -177,6 +177,13 @@ function savedMatches(c: AIConnection) {
 					></label>
 				</div>
 				<div class="endpoint-info">
+					<label
+						v-if="connection.protocol !== 'openai-transcription'"
+						class="stream-choice"
+					><input
+						v-model="connection.non_streaming"
+						type="checkbox"
+					>{{ t('flow.nonStreaming') }}</label>
 					<span>{{ t('tcymc.text.request_endpoint') }}</span><code>{{ endpoint(connection) }}</code><span>{{ t('tcymc.text.model_list_endpoint') }}</span><code>{{ endpoint(connection, true) }}</code><small v-if="connection.protocol === 'openai-audio'">{{ t('tcymc.text.audio_chat_needs_a_model_that_accepts_audio') }}</small><small v-if="connection.protocol === 'anthropic'">{{ t('tcymc.text.anthropic_messages_does_not_accept_raw_audio_use') }}</small>
 				</div>
 				<div class="actions">

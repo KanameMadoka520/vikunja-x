@@ -33,6 +33,19 @@ import (
 // Content-Length), with a cache-revalidation Last-Modified from the storage modtime
 // rather than the file's DB Created timestamp.
 func WriteProjectBackground(w http.ResponseWriter, r *http.Request, bgFile *files.File, stat os.FileInfo) {
+	writeProjectBackground(w, r, bgFile, stat, "image/jpg")
+}
+
+// WriteProjectBackgroundInStoredFormat serves validated original or client-converted images on v2.
+func WriteProjectBackgroundInStoredFormat(w http.ResponseWriter, r *http.Request, bgFile *files.File, stat os.FileInfo) {
+	contentType := bgFile.Mime
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+	writeProjectBackground(w, r, bgFile, stat, contentType)
+}
+
+func writeProjectBackground(w http.ResponseWriter, r *http.Request, bgFile *files.File, stat os.FileInfo, contentType string) {
 	// Override the global no-store directive so browsers can cache background images.
 	// no-cache allows caching but requires revalidation via If-Modified-Since.
 	w.Header().Set("Cache-Control", "no-cache")
@@ -49,7 +62,7 @@ func WriteProjectBackground(w http.ResponseWriter, r *http.Request, bgFile *file
 		}
 	}
 
-	w.Header().Set("Content-Type", "image/jpg")
+	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, bgFile.File)
 }

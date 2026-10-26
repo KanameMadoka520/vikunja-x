@@ -37,14 +37,15 @@ import (
 )
 
 type Connection struct {
-	Protocol string `json:"protocol,omitempty" enum:"openai-chat,openai-responses,anthropic,gemini,openai-transcription,openai-audio" doc:"Wire protocol. Omitted legacy values are inferred from kind."`
-	ID       string `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
-	Name     string `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
-	BaseURL  string `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
-	Model    string `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
-	Kind     string `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
-	APIKey   string `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
-	HasKey   bool   `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
+	NonStreaming bool   `json:"non_streaming,omitempty" doc:"Explicitly opt out of streaming. Streaming is the default for text models."`
+	Protocol     string `json:"protocol,omitempty" enum:"openai-chat,openai-responses,anthropic,gemini,openai-transcription,openai-audio" doc:"Wire protocol. Omitted legacy values are inferred from kind."`
+	ID           string `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
+	Name         string `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
+	BaseURL      string `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
+	Model        string `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
+	Kind         string `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
+	APIKey       string `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
+	HasKey       bool   `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
 }
 
 type Settings struct {

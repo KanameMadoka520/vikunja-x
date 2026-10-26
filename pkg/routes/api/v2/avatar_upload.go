@@ -31,9 +31,10 @@ import (
 )
 
 type avatarUploadInput struct {
+	ImageMode string `header:"X-Vikunja-Image-Mode" enum:"original,webp" doc:"Retain validated bytes uploaded in the selected client format; display thumbnails are generated separately."`
 	// Allow-list mirrors the image formats avatar.PrepareUpload can actually decode (the decoders registered process-wide by the imaging package: png, jpeg, gif, tiff, bmp); octet-stream covers programmatic clients. Huma's MimeTypeValidator rejects the part pre-handler, so anything advertised here must also pass the byte-level image check in avatar.PrepareUpload. Formats without a registered decoder (e.g. svg, webp) are intentionally excluded.
 	RawBody huma.MultipartFormFiles[struct {
-		Avatar huma.FormFile `form:"avatar" contentType:"image/png,image/jpeg,image/gif,image/tiff,image/bmp,application/octet-stream" required:"true" doc:"The avatar image to upload. Must be a decodable raster image (PNG, JPEG, GIF, TIFF or BMP); it is resized server-side and re-encoded as PNG."`
+		Avatar huma.FormFile `form:"avatar" contentType:"image/png,image/jpeg,image/gif,image/tiff,image/bmp,image/webp,application/octet-stream" required:"true" doc:"The avatar image to upload. Must be a decodable raster image (PNG, JPEG, GIF, TIFF, BMP or WebP); without X-Vikunja-Image-Mode it is resized and re-encoded as PNG."`
 	}]
 }
 
@@ -47,7 +48,7 @@ func RegisterAvatarUploadRoutes(api huma.API) {
 	Register(api, withUploadLimits(huma.Operation{
 		OperationID:   "user-avatar-upload",
 		Summary:       "Upload your avatar",
-		Description:   "Uploads an image as the authenticated user's avatar and switches their avatar provider to \"upload\". The image is validated to be an image, resized server-side, and stored as PNG. Replaces any previously uploaded avatar (idempotent replace, hence PUT). An image the server cannot decode fails with 400, an image over the pixel limit fails with 400 and code 4032, and the request fails with 503 and code 4037 when the server is too busy decoding other images.",
+		Description:   "Uploads an image as the authenticated user's avatar and switches their avatar provider to \"upload\". The image is validated and, without X-Vikunja-Image-Mode, resized and stored as PNG. Setting that header to original or webp retains validated uploaded bytes; display thumbnails are generated separately. Replaces any previously uploaded avatar (idempotent replace, hence PUT). An image the server cannot decode fails with 400, an image over the pixel limit fails with 400 and code 4032, and the request fails with 503 and code 4037 when the server is too busy decoding other images.",
 		Method:        http.MethodPut,
 		Path:          "/user/settings/avatar",
 		Tags:          tags,
@@ -72,7 +73,7 @@ func avatarUpload(ctx context.Context, in *avatarUploadInput) (*avatarUploadBody
 	src := in.RawBody.Data().Avatar
 	defer func() { _ = src.Close() }()
 
-	prepared, err := avatar.PrepareUpload(ctx, src)
+	prepared, err := avatar.PrepareUploadWithMode(ctx, src, in.ImageMode != "")
 	if errors.Is(err, avatar.ErrNotAnImage) {
 		return nil, huma.Error400BadRequest("Uploaded file is no image.")
 	}

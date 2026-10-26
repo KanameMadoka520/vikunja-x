@@ -87,9 +87,9 @@ const showLoading = useDelayedLoading(() => props.loading)
 	white-space: var(--button-white-space);
 
 	// Custom styles
-	transition: all $transition;
+	transition: transform .2s cubic-bezier(.2,.8,.3,1.25), box-shadow .2s ease, background-color .18s ease, color .18s ease;
 	border: 0;
-	text-transform: uppercase;
+	text-transform: none;
 	font-size: 0.85rem;
 	font-weight: bold;
 	block-size: auto;
@@ -102,8 +102,11 @@ const showLoading = useDelayedLoading(() => props.loading)
 	// Default/Primary variant colors
 	background-color: var(--primary);
 	color: var(--button-text-color);
-	border-radius: $radius;
+	border-radius: max(#{$radius}, .65rem);
 
+ &:active:not([disabled], [aria-disabled="true"]) { transform: scale(.96);
+}
+ @media (prefers-reduced-motion: reduce) {transition: none;}
 	[dir="rtl"] & {
 		flex-direction: row-reverse;
 	}

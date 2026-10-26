@@ -1,7 +1,7 @@
 import {test, expect} from '../../support/fixtures'
 import type {Page} from '@playwright/test'
 
-async function chatServer(page: Page, withReview = false) {
+async function chatServer(page: Page, withReview = false, live = false) {
  const reviews: any[] = []
 	const conversations = new Map<string, any>()
 	let sends = 0
@@ -22,6 +22,7 @@ async function chatServer(page: Page, withReview = false) {
 			return route.fulfill({status: 201, json: c})
 		}
 		const c = conversations.get(id)!
+ if (action === 'events') return route.fulfill({status: 200, contentType: 'text/event-stream', body: `event: activity\ndata: ${JSON.stringify({turn:c.turns.at(-1),compacting:c.compacting ?? false,compactions:c.compactions})}\n\n`})
 		if (action === 'messages') {
 			sends++
 			c.title ||= body.message
@@ -50,8 +51,13 @@ async function chatServer(page: Page, withReview = false) {
                 turn.result.pending = null
             }
         }
-		if (action === 'title') c.title = body.title
-		if (action === 'compact') c.compactions.push({through: c.turns.length - 4, summary: 'Kept compact summary', model: 'actual-fixture', usage: {input: 100, output: 20, reported: true}})
+		if (live && action === 'messages') {
+ const turn=c.turns.at(-1);turn.status='running';turn.started=new Date().toISOString();turn.result.reply='';turn.result.stage='model';
+ turn.result.steps=[{round:1,started:new Date().toISOString(),model:'actual-fixture',streaming:true,reasoning:'Checking accessible projects as data arrives',text:'',output_characters:48,usage:{input:30,output:5,reported:true},tool_calls:[{id:'draft-1',function:{name:'list_projects',arguments:'{'}}]}];turn.result.actions=[]
+ setTimeout(()=>{turn.status='completed';turn.result.reply='Saved after background execution';turn.result.stage='completed'},2500)
+ }
+ if (action === 'title') c.title = body.title
+		if (action === 'compact') { c.compacting=true;setTimeout(()=>{c.compactions.push({through:c.turns.length,summary:'Kept compact summary',model:'actual-fixture',usage:{input:100,output:20,reported:true}});c.compacting=false},200) }
 		if (action === 'fork') {
 			const branch = structuredClone(c)
 			branch.id = crypto.randomUUID()
@@ -101,7 +107,7 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	}
 	page.on('dialog', dialog => dialog.accept())
 	await page.getByRole('button', {name: 'Compact context', exact: true}).click()
-	await expect(page.locator('.summary-banner')).toContainText('turn 1')
+	await expect(page.locator('.summary-banner')).toContainText('turn 5')
 	await expect(page.locator('.chat-turn')).toHaveCount(5)
 	await page.getByRole('button', {name: 'Branch from here'}).first().click()
 	await expect(page.locator('.chat-turn')).toHaveCount(1)
@@ -203,4 +209,22 @@ test('proxy HTML errors produce a useful diagnostic instead of rendering the blo
     await expect(dialog.locator('pre')).toContainText('/api/v2/ai/settings')
     await expect(dialog.locator('pre')).not.toContainText('private-block-page-token')
     await expect(dialog.locator('pre')).not.toContainText('<!DOCTYPE')
+})
+
+
+test('live thinking, real usage and tool drafts remain observable after leaving the page', async ({authenticatedPage:page})=>{
+ const server=await chatServer(page,false,true)
+ await page.goto('/ai')
+ await page.getByLabel('Your request').fill('Live run')
+ await page.getByLabel('Your request').press('Enter')
+ await expect(page.locator('.live-run-panel')).toContainText('Receiving model stream')
+ await expect(page.locator('.live-run-panel')).toContainText('30 Input')
+ await expect(page.locator('.reasoning')).toContainText('Checking accessible projects as data arrives')
+ await expect(page.locator('.tool-draft')).toContainText('Receiving proposed tool arguments')
+ const url=page.url()
+ await page.goto('/')
+ await expect.poll(()=>[...server.conversations.values()][0]?.turns[0]?.status).toBe('completed')
+ await page.goto(url)
+ await expect(page.locator('.chat-markdown')).toHaveText('Saved after background execution')
+ expect(server.sends()).toBe(1)
 })

@@ -36,6 +36,7 @@
 			<UpdateNotification v-if="!isQuickAddMode" />
 			<Notification />
 			<DiagnosticWindow />
+			<UploadCenter />
 			<DemoMode v-if="!isQuickAddMode" />
 		</Teleport>
 	</Ready>
@@ -43,6 +44,8 @@
 
 <script lang="ts" setup>
 import {computed, watch, onBeforeUnmount} from 'vue'
+import {clearUploads} from '@/helpers/uploadTransport'
+import UploadCenter from '@/components/misc/UploadCenter.vue'
 import DiagnosticWindow from '@/components/ai/DiagnosticWindow.vue'
 import {clearDiagnostics, installBrowserDiagnostics} from '@/helpers/diagnostics'
 import {useRoute, useRouter} from 'vue-router'
@@ -77,7 +80,7 @@ import {getSensitiveParam} from '@/helpers/sensitiveQueryParams'
 
 const authStore = useAuthStore()
 const baseStore = useBaseStore()
-watch(() => [authStore.session?.id, authStore.session?.type], clearDiagnostics)
+watch(() => [authStore.session?.id, authStore.session?.type], () => {clearDiagnostics(); clearUploads()})
 onBeforeUnmount(installBrowserDiagnostics())
 
 const {isQuickAddMode} = useQuickAddMode()

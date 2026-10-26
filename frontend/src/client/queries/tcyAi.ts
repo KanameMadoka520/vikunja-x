@@ -11,7 +11,7 @@ import {projectKeys} from './projects'
 import {taskKeys} from './tasks'
 
 export type AIProtocol = 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio'
-export type AIConnection = {protocol: AIProtocol, id: string, name: string, base_url: string, model: string, kind: 'chat' | 'transcription', api_key: string, has_key: boolean}
+export type AIConnection = {non_streaming?: boolean, protocol: AIProtocol, id: string, name: string, base_url: string, model: string, kind: 'chat' | 'transcription', api_key: string, has_key: boolean}
 export type AISettings = {connections: AIConnection[], assistant: string, transcription: string, cleanup: string}
 export type AIRunResult = {reply: string, actions: {tool: string, arguments: string, result: string, success: boolean}[]}
 

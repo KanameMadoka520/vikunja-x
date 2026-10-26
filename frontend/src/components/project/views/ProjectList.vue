@@ -39,12 +39,14 @@
 
 					<Nothing v-if="ctaVisible && tasks.length === 0 && !loading">
 						{{ $t('project.list.empty') }}
-						<ButtonLink
+						<XButton
 							v-if="(project?.id ?? 0) > 0 && canWrite"
+							variant="secondary"
+							icon="plus"
 							@click="focusNewTaskInput()"
 						>
 							{{ $t('project.list.newTaskCta') }}
-						</ButtonLink>
+						</XButton>
 					</Nothing>
 
 					<draggable
@@ -105,7 +107,6 @@ import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, toRef} from 
 import {draggableFor} from '@/components/base/Draggable'
 
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
-import ButtonLink from '@/components/misc/ButtonLink.vue'
 import AddTask from '@/components/tasks/AddTask.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'

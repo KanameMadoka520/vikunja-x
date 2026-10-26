@@ -1,3 +1,4 @@
+import {uploadAwareFetch} from '@/helpers/uploadTransport'
 import {captureHttpDiagnostic} from '@/helpers/diagnostics'
 import {i18n} from '@/i18n'
 import {client} from '@/client/generated/client.gen'
@@ -68,6 +69,7 @@ async function fenceResponseBody(
 export function configureApiClient(): void {
 	client.setConfig({
 		baseUrl: getApiBaseUrl(),
+		fetch: uploadAwareFetch,
 		credentials: 'include',
 		throwOnError: true,
 	})

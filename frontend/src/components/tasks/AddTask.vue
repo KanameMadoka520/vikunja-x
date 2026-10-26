@@ -2,6 +2,7 @@
 	<div
 		ref="taskAdd"
 		class="task-add"
+		:class="{'is-invited': focusPulse}"
 	>
 		<div class="add-task__field field">
 			<p class="control task-input-wrapper">
@@ -46,6 +47,13 @@
 				</XButton>
 			</p>
 		</div>
+		<p
+			v-if="focusPulse"
+			class="task-invite"
+			role="status"
+		>
+			{{ $t('flow.taskInvite') }}
+		</p>
 		<Expandable :open="errorMessage !== ''">
 			<p
 				v-if="errorMessage !== ''"
@@ -60,7 +68,7 @@
 <script setup lang="ts">
 import {assertClientRequestContext, captureClientRequestContext} from '@/client/requestContext'
 import {useCreateTaskRelationMutation} from '@/client/queries/taskMutations'
-import {computed, ref} from 'vue'
+import {computed, ref, nextTick, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useElementHover} from '@vueuse/core'
 import {useRouter} from 'vue-router'
@@ -255,8 +263,16 @@ function handleEnter(e: KeyboardEvent) {
 	addTask()
 }
 
-function focusTaskInput() {
-	newTaskInput.value?.focus()
+const focusPulse = ref(false)
+let pulseTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(pulseTimer))
+async function focusTaskInput() {
+	await nextTick()
+	focusPulse.value = true
+	newTaskInput.value?.scrollIntoView({block:'center', behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'})
+	newTaskInput.value?.focus({preventScroll:true})
+	clearTimeout(pulseTimer)
+	pulseTimer=setTimeout(()=>focusPulse.value=false,2500)
 }
 
 function blurTaskInput() {
@@ -269,6 +285,15 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
+.task-add { border-radius: .8rem;
+transition: box-shadow .25s ease;
+}
+.task-add.is-invited, .task-add:focus-within { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 17%, transparent);
+}
+.task-invite { font-size: .8rem;
+color: var(--primary);
+margin: .5rem;
+}
 .task-add,
 	// overwrite bulma styles
 .task-add .add-task__field {
