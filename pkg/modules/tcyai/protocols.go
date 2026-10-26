@@ -52,6 +52,9 @@ func responsesChat(ctx context.Context, c Connection, messages []Message, tools 
 		input = append(input, map[string]any{"role": m.Role, "content": m.Content})
 	}
 	req := map[string]any{"model": c.Model, "input": input, "store": false, "include": []string{"reasoning.encrypted_content"}}
+	if limit := c.Capabilities().MaxOutputTokens; limit > 0 {
+		req["max_output_tokens"] = limit
+	}
 	if len(tools) > 0 {
 		defs := []any{}
 		for _, t := range tools {
@@ -61,8 +64,11 @@ func responsesChat(ctx context.Context, c Connection, messages []Message, tools 
 		req["tools"] = defs
 	}
 	var response struct {
-		Output json.RawMessage `json:"output"`
-		Status string          `json:"status"`
+		Output     json.RawMessage `json:"output"`
+		Status     string          `json:"status"`
+		Incomplete struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details"`
 	}
 	if err := requestJSON(ctx, c, req, &response); err != nil {
 		return Message{}, err
@@ -90,6 +96,9 @@ func responsesChat(ctx context.Context, c Connection, messages []Message, tools 
 				m.Content += part.Text
 			}
 		}
+	}
+	if response.Incomplete.Reason == "max_output_tokens" {
+		return Message{}, tcylocale.Error("chatOutputLimit")
 	}
 	if response.Status == "incomplete" || response.Status == "failed" {
 		return Message{}, tcylocale.Error("e10")
@@ -135,7 +144,7 @@ func anthropicChat(ctx context.Context, c Connection, messages []Message, tools 
 			turns = append(turns, anthropicTurn{Role: role, Content: parts})
 		}
 	}
-	req := map[string]any{"model": c.Model, "system": system, "messages": turns, "max_tokens": 4096}
+	req := map[string]any{"model": c.Model, "system": system, "messages": turns, "max_tokens": c.Capabilities().MaxOutputTokens}
 	if len(tools) > 0 {
 		defs := []any{}
 		for _, t := range tools {
@@ -171,7 +180,7 @@ func anthropicChat(ctx context.Context, c Connection, messages []Message, tools 
 		}
 	}
 	if response.Stop == "max_tokens" {
-		return Message{}, tcylocale.Error("e10")
+		return Message{}, tcylocale.Error("chatOutputLimit")
 	}
 	return checkMessage(m)
 }
@@ -232,6 +241,9 @@ func geminiChat(ctx context.Context, c Connection, messages []Message, tools []m
 		turns[len(turns)-1].Parts = append(turns[len(turns)-1].Parts, raw)
 	}
 	req := map[string]any{"contents": turns}
+	if limit := c.Capabilities().MaxOutputTokens; limit > 0 {
+		req["generationConfig"] = map[string]any{"maxOutputTokens": limit}
+	}
 	if system != "" {
 		req["systemInstruction"] = map[string]any{"parts": []any{map[string]string{"text": system}}}
 	}
@@ -258,6 +270,9 @@ func geminiChat(ctx context.Context, c Connection, messages []Message, tools []m
 		return Message{}, tcylocale.Error("e9")
 	}
 	candidate := response.Candidates[0]
+	if candidate.Finish == "MAX_TOKENS" {
+		return Message{}, tcylocale.Error("chatOutputLimit")
+	}
 	if candidate.Finish != "" && candidate.Finish != "STOP" {
 		return Message{}, tcylocale.Error("e10")
 	}

@@ -31,7 +31,7 @@ import (
 //nolint:gocyclo // Explicit protocol event switches preserve native signed tool context.
 func readStream(reader io.Reader, protocol string, o *observation) ([]byte, error) {
 	scanner := bufio.NewScanner(io.LimitReader(reader, 8*1024*1024+1))
-	scanner.Buffer(make([]byte, 4096), 2*1024*1024)
+	scanner.Buffer(make([]byte, 4096), 32*1024*1024)
 	response := map[string]any{}
 	blocks := []any{}
 	tools := map[int]map[string]any{}
@@ -266,7 +266,7 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 			}
 		}
 		o.publish()
-		if len(o.step.Text)+len(o.step.Reasoning) > 2*1024*1024 {
+		if len(o.step.Text)+len(o.step.Reasoning) > 32*1024*1024 {
 			return tcylocale.Error("e37")
 		}
 		return nil
@@ -331,6 +331,23 @@ func captureResponse(o *observation, protocol string, raw []byte) {
 	var body map[string]any
 	if json.Unmarshal(raw, &body) != nil {
 		return
+	}
+	switch protocol {
+	case "anthropic":
+		o.step.StopReason = textValue(body, "stop_reason")
+	case "openai-responses":
+		o.step.StopReason = textValue(object(body, "incomplete_details"), "reason")
+		if o.step.StopReason == "" {
+			o.step.StopReason = textValue(body, "status")
+		}
+	case "gemini":
+		if candidates := list(body, "candidates"); len(candidates) > 0 {
+			o.step.StopReason = textValue(asObject(candidates[0]), "finishReason")
+		}
+	default:
+		if choices := list(body, "choices"); len(choices) > 0 {
+			o.step.StopReason = textValue(asObject(choices[0]), "finish_reason")
+		}
 	}
 	if o.step.Text != "" || o.step.Reasoning != "" {
 		return

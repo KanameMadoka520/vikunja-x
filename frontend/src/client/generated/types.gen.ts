@@ -608,6 +608,34 @@ export type ColumnMapping = {
     column_name?: string;
 };
 
+export type CompactProgress = {
+    /**
+     * Current batch attempt; at most two.
+     */
+    attempt?: number;
+    /**
+     * Current chronological batch, one-based.
+     */
+    batch?: number;
+    /**
+     * Total bounded batches.
+     */
+    batches?: number;
+    duration_ms?: number;
+    endpoint?: string;
+    error_code?: string;
+    protocol?: string;
+    started?: string;
+    /**
+     * Request diagnostics with text, reasoning and tool arguments omitted.
+     */
+    steps?: Array<ModelStep> | null;
+    /**
+     * Includes failed attempts when the provider reports usage.
+     */
+    usage?: Usage;
+};
+
 export type Compaction = {
     /**
      * UTC creation timestamp.
@@ -641,6 +669,10 @@ export type Connection = {
      */
     base_url?: string;
     /**
+     * Declared model context capacity in tokens; zero uses known provider metadata or remains unknown.
+     */
+    context_window?: number;
+    /**
      * Whether a key is saved; the key itself is never returned.
      */
     readonly has_key?: boolean;
@@ -649,9 +681,17 @@ export type Connection = {
      */
     id?: string;
     /**
+     * Model capabilities: text and optionally image. Empty uses known provider metadata or text only.
+     */
+    input_types?: Array<string> | null;
+    /**
      * chat uses chat/completions; transcription uses audio/transcriptions.
      */
     kind?: 'chat' | 'transcription';
+    /**
+     * Per-request output allowance; zero uses provider defaults, or a visible protocol fallback when required.
+     */
+    max_output_tokens?: number;
     /**
      * Provider model identifier.
      */
@@ -665,9 +705,17 @@ export type Connection = {
      */
     non_streaming?: boolean;
     /**
+     * OpenAI Chat compatibility override; empty chooses the protocol default.
+     */
+    output_token_field?: '' | 'max_tokens' | 'max_completion_tokens';
+    /**
      * Wire protocol. Omitted legacy values are inferred from kind.
      */
     protocol?: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio';
+    /**
+     * Effective capacities and input types, resolved by the server; never accepted as configuration.
+     */
+    readonly resolved?: ModelCapabilities;
 };
 
 export type ConnectionSettings = {
@@ -699,6 +747,10 @@ export type Conversation = {
      * Last compaction failure; previous summary remains usable.
      */
     readonly compact_error?: string;
+    /**
+     * Live and last completed compaction diagnostics.
+     */
+    readonly compact_progress?: CompactProgress;
     /**
      * Live summary draft; authoritative only when compaction completes.
      */
@@ -1463,6 +1515,23 @@ export type LinkSharing = {
     readonly updated?: string;
 };
 
+export type ListedModel = {
+    /**
+     * Declared context capacity in tokens. Zero means unknown, not zero capacity.
+     */
+    context_window?: number;
+    id?: string;
+    /**
+     * Declared model input capabilities: text and optionally image.
+     */
+    input_types?: Array<string> | null;
+    /**
+     * Per-request output allowance, including reasoning where applicable. Zero uses provider defaults unless the protocol requires a value.
+     */
+    max_output_tokens?: number;
+    name?: string;
+};
+
 export type LocalAuthInfo = {
     enabled?: boolean;
     registration_enabled?: boolean;
@@ -1576,11 +1645,30 @@ export type MigrationStartedBodyBody = {
     readonly message?: string;
 };
 
+export type ModelCapabilities = {
+    /**
+     * Declared context capacity in tokens. Zero means unknown, not zero capacity.
+     */
+    context_window?: number;
+    /**
+     * Declared model input capabilities: text and optionally image.
+     */
+    input_types?: Array<string> | null;
+    /**
+     * Per-request output allowance, including reasoning where applicable. Zero uses provider defaults unless the protocol requires a value.
+     */
+    max_output_tokens?: number;
+};
+
 export type ModelList = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    /**
+     * Only capabilities actually provided by the upstream model directory.
+     */
+    details?: Array<ListedModel> | null;
     endpoint?: string;
     models?: Array<string> | null;
     truncated?: boolean;
@@ -1595,6 +1683,10 @@ export type ModelStep = {
      * Number of tools available to discover under current permissions.
      */
     catalog_tool_count?: number;
+    /**
+     * Configured model capacity for this request; zero means unknown.
+     */
+    context_window?: number;
     /**
      * Elapsed wall-clock milliseconds.
      */
@@ -1615,6 +1707,10 @@ export type ModelStep = {
      * Actual tool names supplied in this model request.
      */
     loaded_tools?: Array<string> | null;
+    /**
+     * Actual configured output allowance sent to the provider; zero means omitted.
+     */
+    max_output_tokens?: number;
     /**
      * Model name returned by the provider, falling back to the requested ID.
      */
@@ -1643,6 +1739,10 @@ export type ModelStep = {
      * Upstream request start time, for live elapsed time.
      */
     started?: string;
+    /**
+     * Provider termination reason; never inferred from token counts.
+     */
+    stop_reason?: string;
     /**
      * Whether the provider actually responded with an event stream.
      */
@@ -4889,13 +4989,25 @@ export type ConnectionWritable = {
      */
     base_url?: string;
     /**
+     * Declared model context capacity in tokens; zero uses known provider metadata or remains unknown.
+     */
+    context_window?: number;
+    /**
      * Stable connection identifier.
      */
     id?: string;
     /**
+     * Model capabilities: text and optionally image. Empty uses known provider metadata or text only.
+     */
+    input_types?: Array<string> | null;
+    /**
      * chat uses chat/completions; transcription uses audio/transcriptions.
      */
     kind?: 'chat' | 'transcription';
+    /**
+     * Per-request output allowance; zero uses provider defaults, or a visible protocol fallback when required.
+     */
+    max_output_tokens?: number;
     /**
      * Provider model identifier.
      */
@@ -4908,6 +5020,10 @@ export type ConnectionWritable = {
      * Explicitly opt out of streaming. Streaming is the default for text models.
      */
     non_streaming?: boolean;
+    /**
+     * OpenAI Chat compatibility override; empty chooses the protocol default.
+     */
+    output_token_field?: '' | 'max_tokens' | 'max_completion_tokens';
     /**
      * Wire protocol. Omitted legacy values are inferred from kind.
      */
@@ -5288,6 +5404,10 @@ export type MigrationMigrateBodyWritable = {
 };
 
 export type ModelListWritable = {
+    /**
+     * Only capabilities actually provided by the upstream model directory.
+     */
+    details?: Array<ListedModel> | null;
     endpoint?: string;
     models?: Array<string> | null;
     truncated?: boolean;

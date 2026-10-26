@@ -45,6 +45,9 @@ func (u *Usage) Add(v Usage) {
 }
 
 type ModelStep struct {
+	ContextWindow      int64      `json:"context_window,omitempty" doc:"Configured model capacity for this request; zero means unknown."`
+	MaxOutputTokens    int64      `json:"max_output_tokens,omitempty" doc:"Actual configured output allowance sent to the provider; zero means omitted."`
+	StopReason         string     `json:"stop_reason,omitempty" doc:"Provider termination reason; never inferred from token counts."`
 	LoadedTools        []string   `json:"loaded_tools" doc:"Actual tool names supplied in this model request."`
 	ToolSchemaBytes    int        `json:"tool_schema_bytes" doc:"UTF-8 bytes of canonical JSON definitions, not billable tokens or provider wire bytes."`
 	CatalogSchemaBytes int        `json:"catalog_schema_bytes" doc:"Canonical JSON bytes if all permitted tool definitions had been loaded."`

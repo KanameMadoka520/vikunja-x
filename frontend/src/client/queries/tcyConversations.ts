@@ -42,7 +42,7 @@ export function conversationQuery(id: string) {
 		queryFn: async ({signal}) => (await tcyAiConversationsRead({path: {id}, signal})).data,
 		enabled: Boolean(id),
 		meta: {handlesError: true},
-		refetchInterval: query => query.state.data?.turns?.some(turn => turn.status === 'running') ? 500 : false,
+		refetchInterval: query => (query.state.data?.compacting || query.state.data?.turns?.some(turn => turn.status === 'running')) ? 1000 : false,
 	})
 }
 

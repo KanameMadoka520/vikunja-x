@@ -25,7 +25,7 @@ import {
 import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
 import type {ReviewInput} from '@/client/generated'
-import {openDiagnostics} from '@/helpers/diagnostics'
+import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
 import {isRequestContextAbort} from '@/client/requestContext'
 
 useTitle(() => t('tcymc.text.ai_task_assistant'))
@@ -515,16 +515,42 @@ onBeforeUnmount(() => {
 					</p>
 				</details>
 				<section
-					v-if="active?.compacting || active?.compact_error"
+					v-if="active?.compacting || active?.compact_error || active?.compact_progress"
 					class="compact-progress"
 					role="status"
 				>
-					<strong>{{ active.compacting ? t('flow.compacting') : t('flow.compactFailed') }}</strong><progress
+					<strong>{{ active.compacting ? t('flow.compacting') : active.compact_error ? t('flow.compactFailed') : t('flow.compactDone') }}</strong>
+					<p v-if="active.compact_progress">
+						{{ t('flow.compactBatch', {batch: active.compact_progress.batch, total: active.compact_progress.batches, attempt: active.compact_progress.attempt}) }}
+						· {{ t('chat.totalTokens') }}: {{ active.compact_progress.usage?.reported ? (active.compact_progress.usage.input ?? 0) + (active.compact_progress.usage.output ?? 0) : t('chat.unavailable') }}
+						· {{ ((active.compact_progress.duration_ms ?? 0) / 1000).toFixed(1) }} s
+					</p>
+					<progress
 						v-if="active.compacting"
 						:aria-label="t('flow.compacting')"
-					/><pre v-if="active.compact_text">{{ active.compact_text }}</pre><p v-if="active.compact_error">
+					/>
+					<p v-if="active.compact_error">
 						{{ active.compact_error }}
 					</p>
+					<details v-if="active.compacting && active.compact_text">
+						<summary>{{ t('flow.compactDraft') }}</summary>
+						<pre>{{ active.compact_text }}</pre>
+					</details>
+					<button
+						v-if="active.compact_error && !busy && canCompact"
+						type="button"
+						class="text-button"
+						@click="manage('compact')"
+					>
+						{{ t('flow.compactRetry') }}
+					</button>
+					<button
+						type="button"
+						class="text-button"
+						@click="openCompactDiagnostic(active)"
+					>
+						{{ t('flow.compactDiagnostics') }}
+					</button>
 				</section>
 				<div
 					ref="thread"

@@ -6,11 +6,12 @@ import {audioChatFile} from '@/helpers/tcyAudio'
 import {computed, ref} from 'vue'
 import type {AIConnection, AISettings} from '@/client/queries/tcyAi'
 import {useFetchAIModels, useSaveAISettings, useTestAIConnection} from '@/client/queries/tcyAi'
+import type {ListedModel} from '@/client/generated'
 import {isRequestContextAbort} from '@/client/requestContext'
 
 type Settings = AISettings
 function initialDraft(): Settings { return {
-	connections: props.initial.connections.map(c => ({...c, api_key: ''})),
+	connections: props.initial.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', api_key: ''})),
 	assistant: props.initial.assistant,
 	transcription: props.initial.transcription,
 	cleanup: props.initial.cleanup,
@@ -20,7 +21,7 @@ const save = useSaveAISettings()
 const test = useTestAIConnection()
 const testResult = ref('')
 const modelFetcher = useFetchAIModels()
-const modelLists = ref<Record<string, {models: string[], fingerprint: string}>>({})
+const modelLists = ref<Record<string, {models: string[], details: ListedModel[], fingerprint: string}>>({})
 const modelNotice = ref<Record<string, string>>({})
 const endpointResult = ref('')
 const chatModels = computed(() => draft.value.connections.filter(c => c.kind === 'chat'))
@@ -28,7 +29,7 @@ const speechModels = computed(() => draft.value.connections.filter(c => c.kind =
 const testAudio = ref<File>()
 
 function addConnection() {
-	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: 'chat', protocol: 'openai-chat', api_key: '', has_key: false})
+	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: 'chat', protocol: 'openai-chat', context_window: 0, max_output_tokens: 0, input_types: [], output_token_field: '', api_key: '', has_key: false})
 }
 
 function removeConnection(id: string) {
@@ -39,7 +40,7 @@ function removeConnection(id: string) {
 }
 
 async function saveSettings() {
-	try { await save.mutateAsync(draft.value) } catch { return }
+	try { await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({...c, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0}))}) } catch { return }
 }
 
 async function testConnection(id: string, kind: string) {
@@ -80,6 +81,7 @@ function endpoint(c: AIConnection, models = false) {
 	const base = c.base_url.trim().replace(/\/+$/, '')
 	if (!base) return t('tcymc.text.enter_a_base_url_to_see_the_endpoint')
 	const paths = {'openai-chat': '/chat/completions', 'openai-responses': '/responses', anthropic: '/messages', 'openai-transcription': '/audio/transcriptions', 'openai-audio': '/chat/completions', gemini: `/models/${encodeURIComponent(c.model.replace(/^models\//, '') || '{model}')}:generateContent`}
+	if (models && isOfficialDeepSeek(c)) return 'https://api.deepseek.com/models'
 	return base + (models ? '/models' : c.protocol === 'gemini' && !c.non_streaming ? paths.gemini.replace(':generateContent', ':streamGenerateContent?alt=sse') : paths[c.protocol])
 }
 function fingerprint(c: AIConnection) { return JSON.stringify([c.base_url, c.protocol, c.kind]) }
@@ -89,13 +91,32 @@ async function fetchModels(c: AIConnection) {
 	try {
 		const result = await modelFetcher.mutateAsync({id: c.id, base_url: c.base_url, protocol: c.protocol, kind: c.kind, api_key: c.api_key})
 		if (stamp !== fingerprint(c)) return
-		modelLists.value[c.id] = {models: result.models ?? [], fingerprint: stamp}
+		modelLists.value[c.id] = {models: result.models ?? [], details: result.details ?? [], fingerprint: stamp}
 		modelNotice.value[c.id] = result.truncated ? t('tcymc.text.the_provider_has_many_models_only_the_first') : result.models?.length ? t('tcymc.text.model_list_updated_you_can_also_enter_a') : t('tcymc.text.the_provider_returned_no_models_enter_a_model')
 	} catch (e) { if (isRequestContextAbort(e)) return; modelNotice.value[c.id] = t('tcymc.text.could_not_fetch_models_some_providers_do_not') }
 }
+function isOfficialDeepSeek(c: AIConnection) {
+	try { const url = new URL(c.base_url); return url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && (!url.port || url.port === '443') } catch { return false }
+}
+function listedModel(c: AIConnection) {
+	const list = modelLists.value[c.id]
+	return list?.fingerprint === fingerprint(c) ? list.details.find(m => m.id === c.model) : undefined
+}
+function applyCapabilities(c: AIConnection) {
+	const model = listedModel(c)
+	if (!model) return
+	if (model.context_window) c.context_window = model.context_window
+	if (model.max_output_tokens) c.max_output_tokens = model.max_output_tokens
+	if (model.input_types?.length) c.input_types = [...model.input_types]
+}
+function capabilityKey(c: AIConnection) { return JSON.stringify([c.context_window || 0, c.max_output_tokens || 0, c.input_types ?? [], c.output_token_field || '']) }
+function changeInputTypes(c: AIConnection, event: Event) {
+	const value = (event.target as HTMLSelectElement).value
+	c.input_types = value ? value.split(',') : []
+}
 function savedMatches(c: AIConnection) {
 	const saved = props.initial.connections.find(s => s.id === c.id)
-	return saved && saved.base_url === c.base_url && saved.model === c.model && saved.protocol === c.protocol && saved.kind === c.kind && Boolean(saved.non_streaming) === Boolean(c.non_streaming) && !c.api_key
+	return saved && saved.base_url === c.base_url && saved.model === c.model && saved.protocol === c.protocol && saved.kind === c.kind && Boolean(saved.non_streaming) === Boolean(c.non_streaming) && capabilityKey(saved) === capabilityKey(c) && !c.api_key
 }
 </script>
 
@@ -176,6 +197,64 @@ function savedMatches(c: AIConnection) {
 						:placeholder="initial.connections.some(c => c.id === connection.id && c.has_key) ? t('tcymc.text.saved_leave_blank_to_keep_the_current_key') : t('tcymc.text.enter_a_key_leave_blank_only_if_the')"
 					></label>
 				</div>
+				<details
+					v-if="connection.kind === 'chat'"
+					class="model-options"
+				>
+					<summary><Icon icon="cog" /> {{ t('modelConfig.title') }}</summary>
+					<p>{{ t('modelConfig.help') }}</p>
+					<div class="fields">
+						<label>{{ t('modelConfig.context') }}<input
+							v-model.number="connection.context_window"
+							:aria-label="t('modelConfig.context')"
+							class="input"
+							type="number"
+							min="0"
+							step="1"
+							placeholder="0"
+						><small>{{ t('modelConfig.contextHelp') }}</small></label>
+						<label>{{ t('modelConfig.output') }}<input
+							v-model.number="connection.max_output_tokens"
+							:aria-label="t('modelConfig.output')"
+							class="input"
+							type="number"
+							min="0"
+							step="1"
+							placeholder="0"
+						><small>{{ t('modelConfig.outputHelp') }}</small></label>
+						<label>{{ t('modelConfig.inputs') }}<select
+							:value="connection.input_types?.join(',') || ''"
+							:aria-label="t('modelConfig.inputs')"
+							class="input"
+							@change="changeInputTypes(connection, $event)"
+						><option value="">{{ t('modelConfig.auto') }}</option><option value="text">{{ t('modelConfig.text') }}</option><option value="text,image">{{ t('modelConfig.vision') }}</option></select><small>{{ t('modelConfig.inputsHelp') }}</small></label>
+						<label v-if="connection.protocol === 'openai-chat'">{{ t('modelConfig.outputField') }}<select
+							v-model="connection.output_token_field"
+							:aria-label="t('modelConfig.outputField')"
+							class="input"
+						><option value="">{{ t('modelConfig.auto') }}</option><option value="max_completion_tokens">max_completion_tokens</option><option value="max_tokens">max_tokens</option></select><small>{{ t('modelConfig.fieldHelp') }}</small></label>
+					</div>
+					<XButton
+						v-if="listedModel(connection)"
+						type="button"
+						variant="secondary"
+						@click="applyCapabilities(connection)"
+					>
+						{{ t('modelConfig.useListed') }}
+					</XButton>
+					<p
+						v-if="savedMatches(connection) && connection.resolved"
+						class="model-resolved"
+					>
+						{{ t('modelConfig.effective') }}:
+						{{ t('modelConfig.context') }} {{ connection.resolved.context_window?.toLocaleString() || t('modelConfig.unknown') }} ·
+						{{ t('modelConfig.output') }} {{ connection.resolved.max_output_tokens?.toLocaleString() || t('modelConfig.providerDefault') }} ·
+						{{ connection.resolved.input_types?.includes('image') ? t('modelConfig.vision') : t('modelConfig.text') }}
+					</p>
+					<p v-else>
+						{{ t('modelConfig.saveToResolve') }}
+					</p>
+				</details>
 				<div class="endpoint-info">
 					<label
 						v-if="connection.protocol !== 'openai-transcription'"
@@ -229,7 +308,10 @@ function savedMatches(c: AIConnection) {
 			>
 				{{ t('tcymc.text.add_model_connection') }}
 			</XButton>
-			<label class="audio-test">{{ t('tcymc.text.audio_file_for_connection_testing') }}<input
+			<label
+				v-if="speechModels.length"
+				class="audio-test"
+			>{{ t('tcymc.text.audio_file_for_connection_testing') }}<input
 				type="file"
 				accept="audio/*"
 				@change="testAudio = ($event.target as HTMLInputElement).files?.[0]"
@@ -296,6 +378,39 @@ function savedMatches(c: AIConnection) {
 </template>
 
 <style scoped>
+.model-options {
+ padding: .85rem 1rem;
+ border: 1px solid var(--grey-200);
+ border-radius: .75rem;
+ background: var(--site-background);
+}
+.model-options .fields > label {
+ align-content: start;
+}
+.endpoint-info .stream-choice {
+ display: flex;
+ align-items: center;
+ gap: .5rem;
+}
+.endpoint-info .stream-choice input {
+ flex: 0 0 auto;
+ inline-size: auto;
+}
+.model-options > summary {
+ cursor: pointer;
+ font-weight: 600;
+}
+.model-options[open] > summary {
+ margin-block-end: .75rem;
+}
+.model-options p {
+ margin-block: .65rem;
+ overflow-wrap: anywhere;
+}
+.model-resolved {
+ color: var(--text-light);
+ font-size: .85rem;
+}
 .tcy-settings {
 	display: grid;
 	gap: 1.5rem;

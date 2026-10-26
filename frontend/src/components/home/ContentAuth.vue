@@ -119,27 +119,15 @@ function showKeyboardShortcuts() {
 const route = useRoute()
 const router = useRouter()
 
-// FIXME: this is really error prone
-// Reset the current project highlight in menu if the current route is not project related.
-watch(() => route.name as string, (routeName) => {
-	if (
-		routeName &&
-		(
-			[
-				'home',
-				'teams.index',
-				'teams.edit',
-				'tasks.range',
-				'labels.index',
-				'migrate.start',
-				'projects.index',
-			].includes(routeName) ||
-			routeName.startsWith('user.settings')
-		)
-	) {
+// Project controls and backgrounds belong only to project routes and task details.
+// Use a positive context check so newly added global pages cannot inherit a stale project.
+watch(() => route.fullPath, () => {
+	if (route.params.projectId) {
+		baseStore.setCurrentProject({id: Number(route.params.projectId)}, route.params.viewId ? Number(route.params.viewId) : undefined)
+	} else if (route.name !== 'task.detail') {
 		baseStore.setCurrentProject(null)
 	}
-})
+}, {immediate: true})
 
 // TODO: Reset the title if the page component does not set one itself
 

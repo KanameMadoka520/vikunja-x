@@ -4,7 +4,7 @@ import {tcyAiConversationsEvents, type Conversation, type ChatTurn} from '@/clie
 import {assertClientRequestContext, captureClientRequestContext} from '@/client/requestContext'
 import {conversationKeys} from './tcyConversations'
 
-type Activity = Pick<Conversation, 'compacting' | 'compact_text' | 'compact_error' | 'compactions'> & {turn?: ChatTurn}
+type Activity = Pick<Conversation, 'compact_progress' | 'compacting' | 'compact_text' | 'compact_error' | 'compactions'> & {turn?: ChatTurn}
 export function useConversationEvents(id: Ref<string>) {
 	const client = useQueryClient()
 	const connected = ref(false)
@@ -44,7 +44,7 @@ export function useConversationEvents(id: Ref<string>) {
 							if (!data) continue
 							const activity = JSON.parse(data) as Activity
 							client.setQueryData<Conversation>(conversationKeys.detail(value), current => current ? {
-								...current, ...activity, compact_text: activity.compact_text ?? '', compact_error: activity.compact_error ?? '', turns: activity.turn ? [...(current.turns ?? []).filter(turn => turn.id !== activity.turn!.id), activity.turn] : current.turns,
+								...current, ...activity, compact_progress: activity.compact_progress, compact_text: activity.compact_text ?? '', compact_error: activity.compact_error ?? '', turns: activity.turn ? [...(current.turns ?? []).filter(turn => turn.id !== activity.turn!.id), activity.turn] : current.turns,
 							} : current)
 						}
 					}

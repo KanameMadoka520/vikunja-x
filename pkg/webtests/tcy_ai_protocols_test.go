@@ -135,7 +135,7 @@ func TestTCYAIProtocols(t *testing.T) {
 			}
 		case "anthropic":
 			assert.Equal(t, "/custom/v1/messages", r.URL.Path)
-			assert.InDelta(t, 4096, body["max_tokens"], 0)
+			assert.InDelta(t, 128000, body["max_tokens"], 0)
 			assert.Contains(t, string(raw), `"input_schema"`)
 			if calls == 1 {
 				respond(`{"content":[{"type":"thinking","thinking":"internal","signature":"opaque-signature"},{"type":"tool_use","id":"call-1","name":"list_projects","input":{}}],"stop_reason":"tool_use"}`)

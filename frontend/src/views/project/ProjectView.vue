@@ -36,8 +36,10 @@ const currentView = computed(() => {
 const isLoadingProject = project.isPending
 
 watch(
-	() => [currentProject.value, props.viewId] as const,
-	([newCurrentProject, newViewId]) => {
+	() => [currentProject.value, props.viewId, route.name, route.params.projectId] as const,
+	([newCurrentProject, newViewId, routeName, projectId]) => {
+		// A cached project view may receive query updates while a global page is active.
+		if (routeName !== 'project.view' || Number(projectId) !== props.projectId) return
 		if (!newCurrentProject) {
 			baseStore.setCurrentProject(null)
 			return
@@ -99,7 +101,7 @@ watchEffect(() => {
 })
 watchEffect(() => saveProjectView(props.projectId, props.viewId))
 
-watchEffect(() => baseStore.setCurrentProjectViewId(props.viewId))
+
 </script>
 
 <template>

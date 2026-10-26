@@ -37,15 +37,20 @@ import (
 )
 
 type Connection struct {
-	NonStreaming bool   `json:"non_streaming,omitempty" doc:"Explicitly opt out of streaming. Streaming is the default for text models."`
-	Protocol     string `json:"protocol,omitempty" enum:"openai-chat,openai-responses,anthropic,gemini,openai-transcription,openai-audio" doc:"Wire protocol. Omitted legacy values are inferred from kind."`
-	ID           string `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
-	Name         string `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
-	BaseURL      string `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
-	Model        string `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
-	Kind         string `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
-	APIKey       string `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
-	HasKey       bool   `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
+	ContextWindow    int64              `json:"context_window,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Declared model context capacity in tokens; zero uses known provider metadata or remains unknown."`
+	MaxOutputTokens  int64              `json:"max_output_tokens,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Per-request output allowance; zero uses provider defaults, or a visible protocol fallback when required."`
+	InputTypes       []string           `json:"input_types,omitempty" maxItems:"2" uniqueItems:"true" doc:"Model capabilities: text and optionally image. Empty uses known provider metadata or text only."`
+	OutputTokenField string             `json:"output_token_field,omitempty" enum:",max_tokens,max_completion_tokens" doc:"OpenAI Chat compatibility override; empty chooses the protocol default."`
+	Resolved         *ModelCapabilities `json:"resolved,omitempty" readOnly:"true" doc:"Effective capacities and input types, resolved by the server; never accepted as configuration."`
+	NonStreaming     bool               `json:"non_streaming,omitempty" doc:"Explicitly opt out of streaming. Streaming is the default for text models."`
+	Protocol         string             `json:"protocol,omitempty" enum:"openai-chat,openai-responses,anthropic,gemini,openai-transcription,openai-audio" doc:"Wire protocol. Omitted legacy values are inferred from kind."`
+	ID               string             `json:"id" minLength:"1" maxLength:"80" doc:"Stable connection identifier."`
+	Name             string             `json:"name" minLength:"1" maxLength:"100" doc:"Display name."`
+	BaseURL          string             `json:"base_url" doc:"OpenAI-compatible API base, including /v1 when required."`
+	Model            string             `json:"model" minLength:"1" maxLength:"150" doc:"Provider model identifier."`
+	Kind             string             `json:"kind" enum:"chat,transcription" doc:"chat uses chat/completions; transcription uses audio/transcriptions."`
+	APIKey           string             `json:"api_key,omitempty" writeOnly:"true" doc:"Write-only key. Empty preserves the saved key when the endpoint is unchanged."`
+	HasKey           bool               `json:"has_key" readOnly:"true" doc:"Whether a key is saved; the key itself is never returned."`
 }
 
 type Settings struct {
@@ -107,6 +112,8 @@ func Redact(s Settings) Settings {
 		s.Connections[i].Protocol = s.Connections[i].EffectiveProtocol()
 		s.Connections[i].HasKey = s.Connections[i].APIKey != ""
 		s.Connections[i].APIKey = ""
+		resolved := s.Connections[i].Capabilities()
+		s.Connections[i].Resolved = &resolved
 	}
 	return s
 }
@@ -196,6 +203,10 @@ func writeSettings(uid int64, s Settings) (Settings, error) {
 }
 
 func validateConnection(c *Connection, ids map[string]bool) error {
+	c.Resolved = nil
+	if err := c.validateCapabilities(); err != nil {
+		return err
+	}
 	c.BaseURL = strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
 	u, e := url.Parse(c.BaseURL)
 	if e != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Scheme != "https" {

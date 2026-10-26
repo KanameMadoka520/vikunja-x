@@ -39,7 +39,7 @@ export const useBaseStore = defineStore('base', () => {
 		...projectQuery(currentProjectId.value),
 		enabled: currentProjectId.value > 0,
 	})), queryClient)
-	const currentProject = computed(() => currentProjectQuery.data.value ?? null)
+	const currentProject = computed(() => currentProjectId.value > 0 ? currentProjectQuery.data.value ?? null : null)
 	const {background: backgroundUrl, blurHashUrl} = useProjectBackground(currentProject)
 	const background = computed(() => backgroundUrl.value ?? '')
 	const blurHash = computed(() => blurHashUrl.value ?? '')

@@ -72,7 +72,8 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 		}
 	}
 	client := utils.NewSSRFSafeHTTPClient()
-	client.Timeout = 10 * time.Minute
+	// Caller contexts own the execution deadline; do not add a hidden output-time cap.
+	client.Timeout = 0
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := client.Do(req)
 	if err != nil {
@@ -109,7 +110,7 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 		}
 		raw, err = readStream(resp.Body, c.EffectiveProtocol(), o)
 	} else {
-		raw, err = io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024+1))
+		raw, err = io.ReadAll(io.LimitReader(resp.Body, 32*1024*1024+1))
 	}
 	if o := observe(ctx); o != nil && err == nil {
 		captureResponse(o, c.EffectiveProtocol(), raw)
@@ -117,7 +118,7 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 	if err != nil {
 		return err
 	}
-	if len(raw) > 2*1024*1024 {
+	if len(raw) > 32*1024*1024 {
 		return tcylocale.Error("e37")
 	}
 	if err = json.Unmarshal(raw, target); err != nil {
@@ -127,6 +128,11 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 }
 
 func Chat(ctx context.Context, c Connection, messages []Message, tools []map[string]any) (Message, error) {
+	if o := observe(ctx); o != nil {
+		caps := c.Capabilities()
+		o.step.ContextWindow = caps.ContextWindow
+		o.step.MaxOutputTokens = caps.MaxOutputTokens
+	}
 	switch c.EffectiveProtocol() {
 	case "openai-responses":
 		return responsesChat(ctx, c, messages, tools)
@@ -138,6 +144,9 @@ func Chat(ctx context.Context, c Connection, messages []Message, tools []map[str
 	return openAIChat(ctx, c, map[string]any{"model": c.Model, "messages": messages, "stream": false}, tools)
 }
 func openAIChat(ctx context.Context, c Connection, input map[string]any, tools []map[string]any) (Message, error) {
+	if limit := c.Capabilities().MaxOutputTokens; limit > 0 {
+		input[c.outputTokenField()] = limit
+	}
 	if len(tools) > 0 {
 		input["tools"] = tools
 		input["tool_choice"] = "auto"
@@ -162,7 +171,10 @@ func openAIChat(ctx context.Context, c Connection, input map[string]any, tools [
 	if len(result.Choices) == 0 {
 		return Message{}, tcylocale.Error("e40")
 	}
-	if reason := result.Choices[0].FinishReason; reason == "length" || reason == "content_filter" {
+	if result.Choices[0].FinishReason == "length" {
+		return Message{}, tcylocale.Error("chatOutputLimit")
+	}
+	if reason := result.Choices[0].FinishReason; reason == "content_filter" {
 		return Message{}, tcylocale.Error("e37")
 	}
 	m := result.Choices[0].Message
@@ -270,15 +282,23 @@ func transcribeMultimodal(ctx context.Context, c Connection, filename string, au
 	return m.Content, nil
 }
 
+type ListedModel struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+	ModelCapabilities
+}
 type ModelList struct {
-	Models    []string `json:"models"`
-	Endpoint  string   `json:"endpoint"`
-	Truncated bool     `json:"truncated"`
+	Details   []ListedModel `json:"details" doc:"Only capabilities actually provided by the upstream model directory."`
+	Models    []string      `json:"models"`
+	Endpoint  string        `json:"endpoint"`
+	Truncated bool          `json:"truncated"`
 }
 
 func ListModels(ctx context.Context, c Connection) (ModelList, error) {
-	out := ModelList{Models: []string{}, Endpoint: strings.TrimRight(c.BaseURL, "/") + "/models"}
+	c = modelListConnection(c)
+	out := ModelList{Models: []string{}, Details: []ListedModel{}, Endpoint: strings.TrimRight(c.BaseURL, "/") + "/models"}
 	seen := map[string]bool{}
+	details := map[string]ListedModel{}
 	cursor := ""
 	for page := 0; page < 10; page++ {
 		suffix := "/models"
@@ -300,10 +320,24 @@ func ListModels(ctx context.Context, c Connection) (ModelList, error) {
 		}
 		var response struct {
 			Data []struct {
-				ID string `json:"id"`
+				ID              string   `json:"id"`
+				Name            string   `json:"name"`
+				ContextWindow   int64    `json:"context_window"`
+				ContextLength   int64    `json:"context_length"`
+				MaxOutputTokens int64    `json:"max_output_tokens"`
+				InputTypes      []string `json:"input_modalities"`
+				Architecture    struct {
+					InputTypes []string `json:"input_modalities"`
+				} `json:"architecture"`
+				TopProvider struct {
+					MaxOutputTokens int64 `json:"max_completion_tokens"`
+				} `json:"top_provider"`
 			} `json:"data"`
 			Models []struct {
-				Name string `json:"name"`
+				Name         string `json:"name"`
+				DisplayName  string `json:"displayName"`
+				InputTokens  int64  `json:"inputTokenLimit"`
+				OutputTokens int64  `json:"outputTokenLimit"`
 			} `json:"models"`
 			HasMore bool   `json:"has_more"`
 			LastID  string `json:"last_id"`
@@ -315,11 +349,34 @@ func ListModels(ctx context.Context, c Connection) (ModelList, error) {
 		for _, m := range response.Data {
 			if m.ID != "" {
 				seen[m.ID] = true
+				capacity, output := m.ContextWindow, m.MaxOutputTokens
+				if capacity == 0 {
+					capacity = m.ContextLength
+				}
+				if output == 0 {
+					output = m.TopProvider.MaxOutputTokens
+				}
+				inputs := m.InputTypes
+				if len(inputs) == 0 {
+					inputs = m.Architecture.InputTypes
+				}
+				known := []string{}
+				for _, input := range []string{"text", "image"} {
+					for _, listed := range inputs {
+						if listed == input {
+							known = append(known, input)
+							break
+						}
+					}
+				}
+				details[m.ID] = ListedModel{ID: m.ID, Name: m.Name, ModelCapabilities: ModelCapabilities{ContextWindow: max(0, capacity), MaxOutputTokens: max(0, output), InputTypes: known}}
 			}
 		}
 		for _, m := range response.Models {
 			if m.Name != "" {
-				seen[strings.TrimPrefix(m.Name, "models/")] = true
+				id := strings.TrimPrefix(m.Name, "models/")
+				seen[id] = true
+				details[id] = ListedModel{ID: id, Name: m.DisplayName, ModelCapabilities: ModelCapabilities{ContextWindow: max(0, m.InputTokens), MaxOutputTokens: max(0, m.OutputTokens)}}
 			}
 		}
 		next := response.Next
@@ -339,5 +396,8 @@ func ListModels(ctx context.Context, c Connection) (ModelList, error) {
 		out.Models = append(out.Models, name)
 	}
 	sort.Strings(out.Models)
+	for _, id := range out.Models {
+		out.Details = append(out.Details, details[id])
+	}
 	return out, nil
 }

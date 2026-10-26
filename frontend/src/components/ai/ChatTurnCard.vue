@@ -211,6 +211,8 @@ async function copy() {
 					class="run-metrics"
 				>
 					<span>{{ t('chat.totalTime') }}: {{ seconds(result?.duration_ms) }}</span><span>{{ t('chat.firstToken') }}: {{ seconds(result?.first_token_ms) }}</span><span>{{ t('chat.firstText') }}: {{ seconds(result?.first_text_ms) }}</span>
+					<span v-if="result?.steps?.at(-1)?.context_window">{{ t('modelConfig.context') }}: {{ result.steps.at(-1)?.context_window?.toLocaleString() }} · {{ t('modelConfig.lastInput') }}: {{ result.steps.at(-1)?.usage?.reported ? result.steps.at(-1)?.usage?.input?.toLocaleString() : t('chat.unavailable') }}</span>
+					<span v-if="result?.steps?.at(-1)?.max_output_tokens">{{ t('modelConfig.output') }}: {{ result.steps.at(-1)?.max_output_tokens?.toLocaleString() }}</span>
 					<span v-if="result?.usage?.reported">{{ t('chat.inputTokens') }}: {{ result.usage.input }} · {{ t('chat.outputTokens') }}: {{ result.usage.output }} · {{ t('chat.totalTokens') }}: {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }}</span>
 					<span v-else>{{ t('chat.tokens') }}: {{ t('chat.unavailable') }}</span>
 					<span v-if="result?.usage?.reported && result.usage.partial">{{ t('chat.partialUsage') }}</span>

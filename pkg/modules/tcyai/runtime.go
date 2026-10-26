@@ -83,6 +83,9 @@ func failureCode(err error) string {
 	if errors.As(err, &localized) && localized.Key == "tcymc.errors.chatUpstream" && len(localized.Args) > 0 {
 		return fmt.Sprintf("MODEL_HTTP_%v", localized.Args[0])
 	}
+	if errors.As(err, &localized) && localized.Key == "tcymc.errors.chatOutputLimit" {
+		return "MODEL_OUTPUT_LIMIT"
+	}
 	var toolErr *ToolError
 	if errors.As(err, &toolErr) {
 		return toolErr.Code
