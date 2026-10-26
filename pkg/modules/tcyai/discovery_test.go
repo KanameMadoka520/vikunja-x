@@ -87,3 +87,28 @@ func TestTCYAIDiscoveryHistory(t *testing.T) {
 	assert.Equal(t, messages[2].Content, compacted[2].Content, "unrelated results must remain intact")
 	assert.Contains(t, messages[1].Content, "parameters", "stored history is untouched")
 }
+
+func TestTCYAICurrentPermissionsOverrideHistory(t *testing.T) {
+	for _, mode := range []string{"read", "write", "read"} {
+		state := NewAgentState(context.Background(), Connection{}, RunInput{Mode: mode, Approval: "smart", Summary: "The old session was read-only; create_project was unavailable.", ServerHistory: []Message{{Role: "assistant", Content: "I cannot create projects."}}, Message: "Create a project"})
+		require.NotNil(t, state.Result.Configuration)
+		assert.Equal(t, mode, state.Result.Configuration.Mode)
+		assert.Contains(t, state.Messages[1].Content, "past runs only")
+		data, err := state.discover(json.RawMessage(`{"query":"create_project","limit":1}`))
+		require.NoError(t, err)
+		var result struct {
+			Tools         []toolEntry      `json:"tools"`
+			Configuration AssistantOptions `json:"execution_configuration"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(data), &result))
+		assert.Equal(t, mode, result.Configuration.Mode)
+		if mode == "write" {
+			require.Len(t, result.Tools, 1)
+			assert.Equal(t, "create_project", result.Tools[0].Name)
+			assert.Contains(t, state.Available, "create_project")
+		} else {
+			assert.Empty(t, result.Tools)
+			assert.NotContains(t, state.Available, "create_project")
+		}
+	}
+}

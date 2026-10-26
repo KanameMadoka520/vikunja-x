@@ -2791,6 +2791,10 @@ export type RunResult = {
      */
     choices?: Array<string> | null;
     /**
+     * Effective server-normalized execution settings for this turn; not an account permission grant.
+     */
+    readonly configuration?: AssistantOptions;
+    /**
      * Elapsed wall-clock milliseconds.
      */
     duration_ms?: number;
@@ -3017,6 +3021,65 @@ export type ShareCounts = {
      * Number of user-project shares.
      */
     readonly user_shares?: number;
+};
+
+export type Snapshot = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Available cores after CPU quota and cpuset limits; zero if unavailable.
+     */
+    cpu_cores?: number;
+    /**
+     * Whether a finite cgroup CPU quota or cpuset restriction was found.
+     */
+    cpu_limited?: boolean;
+    /**
+     * CPU time delta divided by elapsed time and available CPU cores, percent; null until a sample pair exists.
+     */
+    cpu_percent?: number | null;
+    /**
+     * Filesystem capacity available to this process: used plus available bytes; not a container-specific quota.
+     */
+    disk_total?: number | null;
+    /**
+     * Used bytes on the filesystem containing uploaded data; includes other applications on that filesystem.
+     */
+    disk_used?: number | null;
+    /**
+     * Database and configured Redis are reachable.
+     */
+    healthy?: boolean;
+    /**
+     * True only when an independent finite cgroup memory limit applies.
+     */
+    memory_limited?: boolean;
+    /**
+     * Finite cgroup memory limit, or host RAM when no independent limit exists.
+     */
+    memory_total?: number | null;
+    /**
+     * Container working set bytes: cgroup usage minus inactive file cache, as in Docker stats.
+     */
+    memory_used?: number | null;
+    /**
+     * UTC sample time. Samples are shared and cached for 15 seconds.
+     */
+    sampled?: string;
+    /**
+     * Application process start, UTC; resets on restart.
+     */
+    started?: string;
+    /**
+     * Continuous application process runtime in seconds.
+     */
+    uptime_seconds?: number;
+    /**
+     * Running API build version.
+     */
+    version?: string;
 };
 
 export type Source = {
@@ -6088,6 +6151,61 @@ export type SettingsWritable = {
      * Connection used for speech recognition.
      */
     transcription?: string;
+};
+
+export type SnapshotWritable = {
+    /**
+     * Available cores after CPU quota and cpuset limits; zero if unavailable.
+     */
+    cpu_cores?: number;
+    /**
+     * Whether a finite cgroup CPU quota or cpuset restriction was found.
+     */
+    cpu_limited?: boolean;
+    /**
+     * CPU time delta divided by elapsed time and available CPU cores, percent; null until a sample pair exists.
+     */
+    cpu_percent?: number | null;
+    /**
+     * Filesystem capacity available to this process: used plus available bytes; not a container-specific quota.
+     */
+    disk_total?: number | null;
+    /**
+     * Used bytes on the filesystem containing uploaded data; includes other applications on that filesystem.
+     */
+    disk_used?: number | null;
+    /**
+     * Database and configured Redis are reachable.
+     */
+    healthy?: boolean;
+    /**
+     * True only when an independent finite cgroup memory limit applies.
+     */
+    memory_limited?: boolean;
+    /**
+     * Finite cgroup memory limit, or host RAM when no independent limit exists.
+     */
+    memory_total?: number | null;
+    /**
+     * Container working set bytes: cgroup usage minus inactive file cache, as in Docker stats.
+     */
+    memory_used?: number | null;
+    /**
+     * UTC sample time. Samples are shared and cached for 15 seconds.
+     */
+    sampled?: string;
+    /**
+     * Application process start, UTC; resets on restart.
+     */
+    started?: string;
+    /**
+     * Continuous application process runtime in seconds.
+     */
+    uptime_seconds?: number;
+    /**
+     * Running API build version.
+     */
+    version?: string;
 };
 
 export type StateWritable = {
@@ -11470,6 +11588,31 @@ export type SubscriptionsCreateResponses = {
 };
 
 export type SubscriptionsCreateResponse = SubscriptionsCreateResponses[keyof SubscriptionsCreateResponses];
+
+export type SystemStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/system/status';
+};
+
+export type SystemStatusErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type SystemStatusError = SystemStatusErrors[keyof SystemStatusErrors];
+
+export type SystemStatusResponses = {
+    /**
+     * OK
+     */
+    200: Snapshot;
+};
+
+export type SystemStatusResponse = SystemStatusResponses[keyof SystemStatusResponses];
 
 export type TasksListData = {
     body?: never;

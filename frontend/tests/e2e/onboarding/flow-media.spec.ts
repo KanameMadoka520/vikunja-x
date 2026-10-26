@@ -1,4 +1,5 @@
 import {test, expect} from '../../support/fixtures'
+import {TaskFactory} from '../../factories/task'
 import {createProjects} from '../project/prepareProjects'
 
 for (const width of [1440, 390]) {
@@ -56,3 +57,34 @@ test('mobile project cover retains original or real WebP and reports upload comp
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  }
 })
+
+for (const mode of ['converted', 'original']) {
+ test(`WebP ${mode} task attachment previews and remains a cover after reload`, async ({authenticatedPage: page}) => {
+  await createProjects(1)
+  await TaskFactory.create(1, {title: 'WebP cover regression'})
+  await page.goto('/tasks/1')
+  const type = mode === 'converted' ? 'image/png' : 'image/webp'
+  const image = await page.evaluate(type => {
+   const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 32
+   const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#1973ff'; ctx.fillRect(0, 0, 64, 32)
+   return canvas.toDataURL(type).split(',')[1]
+  }, type)
+  const chooser = page.waitForEvent('filechooser')
+  await page.locator('.task-view .action-buttons .button').filter({hasText: 'Add Attachments'}).click()
+  await (await chooser).setFiles({name: `cover.${mode === 'converted' ? 'png' : 'webp'}`, mimeType: type, buffer: Buffer.from(image, 'base64')})
+  const dialog = page.getByRole('dialog', {name: 'Choose how to upload images'})
+  if (mode === 'converted') await dialog.locator('input[value=webp]').check()
+  const uploaded = page.waitForResponse(r => r.url().includes('/tasks/1/attachments') && r.request().method() === 'POST')
+  await dialog.getByRole('button', {name: 'Upload images', exact: true}).click()
+  expect((await uploaded).ok()).toBe(true)
+  const cover = page.getByRole('button', {name: 'Make cover', exact: true})
+  await expect(cover).toBeVisible()
+  await expect(page.locator('.attachment-preview')).toBeVisible()
+  await cover.click()
+  await expect(page.getByRole('button', {name: 'Remove cover', exact: true})).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('button', {name: 'Remove cover', exact: true})).toBeVisible()
+  await expect(page.locator('.attachment-preview')).toBeVisible()
+  await expect.poll(async () => page.locator('img.attachment-preview').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true)
+ })
+}

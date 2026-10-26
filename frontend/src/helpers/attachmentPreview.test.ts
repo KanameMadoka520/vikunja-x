@@ -108,3 +108,13 @@ describe('previewKind', () => {
 		expect(previewKind(attachment('memo.mp3', 'audio/mpeg'))).toBeNull()
 	})
 })
+
+// WebP also goes through the shared task-cover eligibility helper.
+describe('WebP attachment previews', () => {
+ it('recognizes converted and original WebP while rejecting disguised HTML/SVG', () => {
+  expect(previewKind(attachment('converted.webp', 'image/webp'))).toBe('image')
+  expect(previewKind(attachment('ORIGINAL.WEBP', 'IMAGE/WEBP'))).toBe('image')
+  expect(previewKind(attachment('fake.webp', 'text/html'))).toBeNull()
+  expect(previewKind(attachment('fake.webp', 'image/svg+xml'))).toBeNull()
+ })
+})

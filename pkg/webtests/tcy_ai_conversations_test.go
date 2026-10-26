@@ -191,6 +191,20 @@ func TestTCYAIConversations(t *testing.T) {
 	assert.Equal(t, conversation.ID, branch.ParentID)
 	assert.Equal(t, 404, humaRequest(t, e, "DELETE", base+"/"+branch.ID, "", other, "").Code)
 	assert.Equal(t, 204, humaRequest(t, e, "DELETE", base+"/"+branch.ID, "", token, "").Code)
+	// Every new message in the same compacted conversation uses its own current
+	// settings; old read-only turns and summaries must not pin the execution mode.
+	for _, mode := range []string{"write", "read"} {
+		res := humaRequest(t, e, "POST", path+"/messages", fmt.Sprintf(`{"message":"Verify switched configuration","history":[],"project_id":0,"mode":%q,"approval":"review","allow_delete":false,"request_id":%q}`, mode, uuid.NewString()), token, "")
+		require.Equal(t, 201, res.Code, res.Body.String())
+		conversation = wait()
+		last := conversation.Turns[len(conversation.Turns)-1]
+		require.Equal(t, "completed", last.Status, last.Result.Error)
+		require.NotNil(t, last.Result.Configuration)
+		assert.Equal(t, mode, last.Result.Configuration.Mode)
+		assert.Equal(t, "review", last.Result.Configuration.Approval)
+		require.NotNil(t, conversation.Turns[0].Result.Configuration)
+		assert.Equal(t, "read", conversation.Turns[0].Result.Configuration.Mode)
+	}
 	require.Equal(t, 201, message("slow", uuid.NewString()).Code)
 	assert.Equal(t, 409, message("busy", uuid.NewString()).Code)
 	assert.Equal(t, 201, humaRequest(t, e, "POST", path+"/stop", "", token, "").Code)

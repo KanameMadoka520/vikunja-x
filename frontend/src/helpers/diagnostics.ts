@@ -80,7 +80,7 @@ export function openAgentDiagnostic(turn: ChatTurn) {
 		turn_id: turn.id, trace_id: r?.trace_id, status: turn.status, stage: r?.stage,
 		model: r?.model, requested_model: r?.requested_model, protocol: r?.protocol,
 		endpoint: safeDiagnosticURL(r?.endpoint ?? '/'), duration_ms: r?.duration_ms,
-		first_token_ms: r?.first_token_ms, first_text_ms: r?.first_text_ms, usage: r?.usage, budget: r?.budget,
+		first_token_ms: r?.first_token_ms, first_text_ms: r?.first_text_ms, usage: r?.usage, budget: r?.budget, configuration: r?.configuration,
 		steps: r?.steps?.map(step => ({round: step.round, context_window: step.context_window, max_output_tokens: step.max_output_tokens, stop_reason: step.stop_reason, model: step.model, http_status: step.http_status, request_id: step.request_id, duration_ms: step.duration_ms, first_token_ms: step.first_token_ms, first_text_ms: step.first_text_ms, usage: step.usage, loaded_tools: step.loaded_tools, tool_schema_bytes: step.tool_schema_bytes, catalog_schema_bytes: step.catalog_schema_bytes, catalog_tool_count: step.catalog_tool_count})),
 		operations: r?.operations?.map(op => ({id: op.id, tool: op.tool, status: op.status, error_code: op.error_code, approved: op.approved, verified: op.verified, units: op.units})),
 		actions: r?.actions?.map(a => ({tool: a.tool, round: a.round, success: a.success, duration_ms: a.duration_ms})),

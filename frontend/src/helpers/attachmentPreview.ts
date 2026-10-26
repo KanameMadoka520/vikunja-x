@@ -1,6 +1,6 @@
 import type {TaskAttachment as IAttachment} from '@/client/generated'
 
-export const SUPPORTED_IMAGE_SUFFIX = ['.jpeg', '.jpg', '.png', '.bmp', '.gif']
+export const SUPPORTED_IMAGE_SUFFIX = ['.jpeg', '.jpg', '.png', '.bmp', '.gif', '.webp']
 export const SUPPORTED_PDF_SUFFIX = ['.pdf']
 
 export function canPreviewImage(attachment: IAttachment): boolean {

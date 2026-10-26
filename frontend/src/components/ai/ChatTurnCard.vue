@@ -206,7 +206,12 @@ async function copy() {
 					{{ t('chat.requestDetails') }} · {{ seconds(result?.duration_ms) }}<template v-if="result?.usage?.reported">
 						· {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }} tokens
 					</template>
-				</summary>			<div
+				</summary><details
+					v-if="result?.configuration"
+					class="run-configuration"
+				>
+					<summary>{{ t('assistantUI.runConfiguration') }}</summary><pre>{{ JSON.stringify(result.configuration, null, 2) }}</pre>
+				</details>			<div
 					v-if="!running"
 					class="run-metrics"
 				>

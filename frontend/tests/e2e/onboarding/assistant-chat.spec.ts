@@ -28,7 +28,7 @@ async function chatServer(page: Page, withReview = false, live = false) {
 			sends++
 			c.title ||= body.message
 			c.turns.push({id: crypto.randomUUID(), prompt: body.message, status: 'completed', result: {
-				reply: '**Saved answer**', model: 'actual-fixture', requested_model: 'requested', protocol: 'anthropic', endpoint: 'https://fixture.example/v1/messages', system_prompt: 'Actual request prompt', duration_ms: 2000, first_token_ms: 125, first_text_ms: 500,
+				configuration: {connection_id: body.connection_id, project_id: body.project_id, mode: body.mode, approval: body.approval, allow_delete: body.allow_delete, write_project_ids: body.write_project_ids, max_rounds: body.max_rounds, max_operations: body.max_operations, timeout_seconds: body.timeout_seconds, token_budget: body.token_budget}, reply: '**Saved answer**', model: 'actual-fixture', requested_model: 'requested', protocol: 'anthropic', endpoint: 'https://fixture.example/v1/messages', system_prompt: 'Actual request prompt', duration_ms: 2000, first_token_ms: 125, first_text_ms: 500,
 				usage: {input: 30, output: 20, reported: true, cached: 5, cache_reported: true},
 				steps: [{round: 1, loaded_tools: ['list_projects', 'find_tools'], tool_schema_bytes: 1200, catalog_schema_bytes: 8000, catalog_tool_count: 20, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', duration_ms: 2000}],
 				actions: [{round: 1, tool: 'list_projects', arguments: '{}', result: '{"items":[]}', success: true, duration_ms: 10}],
@@ -258,4 +258,67 @@ test('failed compaction exposes provider termination and can retry without losin
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
 	expect(c.turns).toHaveLength(1)
 	expect(server.sends()).toBe(1)
+})
+
+for (const width of [320, 390]) {
+	test(`first mobile visit ${width}px keeps installation promotion out of the chat composer`, async ({authenticatedPage: page}) => {
+		await chatServer(page)
+		await page.setViewportSize({width, height: 844})
+		await page.addInitScript(() => localStorage.setItem('hideAddToHomeScreenMessage', 'false'))
+		await page.goto('/')
+		await expect(page.locator('.add-to-home-screen')).toBeVisible()
+		await page.goto('/ai')
+		await expect(page.getByLabel('Your request')).toBeVisible()
+		await expect(page.locator('.add-to-home-screen')).toHaveCount(0)
+		await page.getByLabel('Your request').fill('First visit draft')
+		const box = await page.locator('.composer').boundingBox()
+		expect(box!.y + box!.height).toBeLessThanOrEqual(844)
+		await page.getByLabel('Your request').press('Enter')
+		await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
+	})
+}
+
+test('permission switching survives reload, uses current request settings and restores each conversation', async ({authenticatedPage: page}) => {
+ const server = await chatServer(page)
+ await page.goto('/ai')
+ const profile = page.locator('.profile-switch select')
+ const send = async (text: string) => {
+  const request = page.waitForRequest(r => r.url().endsWith('/messages') && r.method() === 'POST')
+  await page.getByLabel('Your request').fill(text)
+  await page.getByLabel('Your request').press('Enter')
+  const body = (await request).postDataJSON()
+  await expect(page.getByLabel('Your request')).toHaveValue('')
+  return body
+ }
+ expect((await send('Read first')).mode).toBe('read')
+ const firstURL = page.url()
+ await profile.selectOption('assist')
+ await expect(page.getByRole('status').filter({hasText: 'Applied to the next message'})).toBeVisible()
+ await page.reload()
+ await expect(profile).toHaveValue('assist')
+ expect((await send('Now write')).mode).toBe('write')
+ const first = [...server.conversations.values()][0]
+ expect(first.turns[0].result.configuration.mode).toBe('read')
+ expect(first.turns[1].result.configuration.mode).toBe('write')
+ // A clean tab restores the server's last effective settings, not the account read-only default.
+ await page.evaluate(() => sessionStorage.clear())
+ await page.reload()
+ await expect(page.locator('.composer-hint')).toContainText('Next message:')
+ await expect(page.locator('.composer-hint')).toContainText('Execute')
+ await profile.selectOption('ask')
+ expect((await send('Read again')).mode).toBe('read')
+ const panelButton = page.getByRole('button', {name: 'Scenarios & preferences', exact: true})
+ await panelButton.click()
+ const panel = page.getByRole('dialog', {name: 'Scenarios & preferences'})
+ await panel.getByRole('button', {name: /Plan & review Turn ideas/}).click()
+ await panel.getByRole('button', {name: 'Use for upcoming messages'}).click()
+ const write = await send('Use reviewed writes')
+ expect(write.mode).toBe('write'); expect(write.approval).toBe('review')
+ await page.goto('/ai')
+ await expect(profile).toHaveValue('ask')
+ expect((await send('Separate read conversation')).mode).toBe('read')
+ await page.goto(firstURL)
+ await expect(page.locator('.composer-hint')).toContainText(/Review/i)
+ const restored = await send('Continue original')
+ expect(restored.mode).toBe('write'); expect(restored.approval).toBe('review')
 })

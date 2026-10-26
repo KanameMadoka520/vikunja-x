@@ -41,7 +41,7 @@
 				/>
 
 				<QuickActions />
-				<AddToHomeScreen />
+				<AddToHomeScreen v-if="route.name !== 'tcy-ai'" />
 
 				<RouterView
 					v-slot="{ Component }"

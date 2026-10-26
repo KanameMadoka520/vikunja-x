@@ -143,11 +143,9 @@
 			</nav>
 		</template>
 
-		<TcyBrand />
-		<PoweredByLink
-			class="mbs-auto"
-			utm-medium="navigation"
-		/>
+		<div class="mbs-auto">
+			<TcyBrand /><PoweredByLink utm-medium="navigation" /><SystemStatus />
+		</div>
 
 		<div
 			v-if="!isMobile"
@@ -162,6 +160,7 @@
 import {useI18n} from 'vue-i18n'
 const {t} = useI18n({useScope: 'global'})
 import {computed} from 'vue'
+import SystemStatus from '@/components/home/SystemStatus.vue'
 import TcyBrand from '@/components/home/TcyBrand.vue'
 
 import {SHORTCUTS} from '@/constants/shortcuts'

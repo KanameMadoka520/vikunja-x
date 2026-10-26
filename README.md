@@ -3,9 +3,19 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.10`
+- 版本：`v2.7.1-tcymc.11`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## WebP 封面与容器健康状态（tcymc.11）
+
+修复附件图片名单遗漏 WebP 导致无法预览／设为封面，原始 WebP 和上传转换的 WebP 均可复用。侧栏底部显示 CPU、内存、数据文件系统占用、应用运行时长和实际版本。指标读取 Linux cgroup v2/v1，采样方式参考 [Docker runtime metrics](https://docs.docker.com/engine/containers/runmetrics/) 与 [Netdata cgroups collector](https://github.com/netdata/netdata/tree/master/src/collectors/cgroups.plugin)，独立实现，不依赖 Docker socket、外部监控进程或目录扫描。服务端全局缓存 15 秒，侧栏和标签页可见时通常每 30 秒刷新；无独立内存配额时以主机内存为分母，磁盘明确为共享文件系统，不冒充容器配额。接口仅供登录用户会话使用，公开分享和 API token 不可读取。
+
+## 会话配置与手机首次访问修复（tcymc.11）
+
+AI 会话现在保留本标签页已应用的配置，刷新或重新打开会话时恢复；发送后，服务端保存每轮实际配置供其他设备恢复和调试。新会话使用默认模板。切换配置只影响下一条新消息，正在执行或暂停待审核的请求保持启动时配置。历史摘要和旧工具目录不能覆盖本轮权限，工具发现返回当前模式与范围，明确区别执行限制、缺少工具与账户权限失败。
+
+AI 对话页不展示「添加到主屏幕」安装提示，避免首次访问时提示条挤压聊天布局、把发送按钮推到屏幕外；其他页面保留安装提示。增加未关闭安装提示的 390px／320px 浏览器回归。本版保留 tcymc.10 的模型容量、压缩诊断和项目语境修复。
 
 ## 压缩可靠性与页面语境修复（tcymc.10）
 

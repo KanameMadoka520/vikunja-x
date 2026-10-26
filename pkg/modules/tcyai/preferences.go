@@ -89,6 +89,14 @@ func SavePreferences(uid int64, p AssistantPreferences) (AssistantPreferences, e
 	return p, err
 }
 
+func runOptions(input RunInput) *AssistantOptions {
+	in := normalizeRun(input)
+	return &AssistantOptions{ConnectionID: in.ConnectionID, ProjectID: in.ProjectID, Mode: in.Mode,
+		AllowDelete: in.AllowDelete && in.Mode == "write", Approval: in.Approval,
+		WriteProjectIDs: append([]int64{}, in.WriteProjectIDs...), MaxRounds: in.MaxRounds,
+		MaxOperations: in.MaxOperations, TimeoutSeconds: in.TimeoutSeconds, TokenBudget: in.TokenBudget}
+}
+
 func validAssistantOptions(o AssistantOptions) bool {
 	return (o.Mode == "read" || o.Mode == "write") &&
 		(o.Approval == "smart" || o.Approval == "review" || o.Approval == "auto") &&

@@ -9,7 +9,7 @@ import {useQuery} from '@tanstack/vue-query'
 import {aiSettingsQuery, useCleanupAI, useTranscribeAI} from '@/client/queries/tcyAi'
 import AssistantPreferences from '@/components/ai/AssistantPreferences.vue'
 import {assistantPreferencesQuery} from '@/client/queries/assistantPreferences'
-import {builtinProfileIDs, normalizeOptions, profileOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
+import {builtinProfileIDs, normalizeOptions, profileOptions, validOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {
@@ -26,7 +26,7 @@ import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
 import type {ReviewInput} from '@/client/generated'
 import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
-import {isRequestContextAbort} from '@/client/requestContext'
+import {captureClientRequestContext, isRequestContextAbort} from '@/client/requestContext'
 
 useTitle(() => t('tcymc.text.ai_task_assistant'))
 const route = useRoute()
@@ -73,26 +73,46 @@ const tokenBudget = ref(0)
 const preferences = useQuery(assistantPreferencesQuery())
 const preferencesOpen = ref(false)
 const selectedProfile = ref('ask')
-const preferencesInitialized = ref(false)
-const profileTouched = ref(false)
+const initializedChat = ref<string | null>(null)
+const optionsReady = computed(() => initializedChat.value === chatID.value)
 const currentOptions = computed<AssistantOptions>(() => ({connection_id: connectionID.value, project_id: projectID.value, mode: mode.value, allow_delete: allowDelete.value, approval: approval.value, write_project_ids: writeProjectIDs.value, max_rounds: maxRounds.value, max_operations: maxOperations.value, timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value}))
 const profiles = computed(() => [...builtinProfileIDs.map(id => ({id, name: t(`assistantUI.presets.${id}.name`)})), ...(preferences.data.value?.profiles ?? []).map(p => ({id: p.id!, name: p.name!}))])
-function applyOptions(o: AssistantOptions, profile: string) {
+function applyOptions(o: AssistantOptions, profile: string, remember = true) {
 	connectionID.value = o.connection_id; projectID.value = o.project_id; mode.value = o.mode; allowDelete.value = o.allow_delete; approval.value = o.approval
 	writeProjectIDs.value = [...o.write_project_ids]; maxRounds.value = o.max_rounds; maxOperations.value = o.max_operations; timeoutSeconds.value = o.timeout_seconds; tokenBudget.value = o.token_budget
-	selectedProfile.value = profile; profileTouched.value = true
+	selectedProfile.value = profile
+	if (remember) {
+		saveOptions(chatID.value, o, profile)
+		notice.value = t('assistantUI.applied')
+	}
+
 }
 function selectProfile(id: string) {
 	const custom = preferences.data.value?.profiles?.find(p => p.id === id)
 	const options = custom ? normalizeOptions(custom.options) : {...profileOptions(id), connection_id: connectionID.value, project_id: projectID.value}
 	applyOptions(options, id)
 }
-watch(() => preferences.data.value, value => {
-	if (!value || preferencesInitialized.value) return
-	preferencesInitialized.value = true
-	if (profileTouched.value) return
-	selectProfile(value.default_profile || 'ask')
-	if (Number(route.query.project)) projectID.value = Number(route.query.project)
+function optionsStorageKey(id: string) {
+	const context = captureClientRequestContext()
+	return `tcy-ai-options:${JSON.stringify([context.apiBaseUrl, context.identity, id])}`
+}
+function saveOptions(id: string, options: AssistantOptions, profile: string) {
+	try { sessionStorage.setItem(optionsStorageKey(id), JSON.stringify({options, profile})) } catch { /* The server still retains sent configurations. */ }
+}
+watch([() => preferences.data.value, active, chatID], ([value, conversation, id]) => {
+	if (!value || initializedChat.value === id || (id && conversation?.id !== id)) return
+	let saved: {options: AssistantOptions, profile: string} | undefined
+	try {
+		const candidate = JSON.parse(sessionStorage.getItem(optionsStorageKey(id)) || 'null')
+		if (candidate && validOptions(candidate.options) && ['read', 'write'].includes(candidate.options.mode)) saved = candidate
+	} catch { /* Ignore unavailable or obsolete browser preferences. */ }
+	const last = conversation?.turns?.at(-1)?.result?.configuration
+	const defaultID = value.default_profile || 'ask'
+	const custom = value.profiles?.find(p => p.id === defaultID)
+	const options = saved?.options ?? (last ? normalizeOptions(last) : custom ? normalizeOptions(custom.options) : profileOptions(defaultID))
+	if (Number(route.query.project)) options.project_id = Number(route.query.project)
+	applyOptions(options, saved?.profile ?? (last ? '' : defaultID), false)
+	initializedChat.value = id
 }, {immediate: true})
 watch(mode, value => {if (value === 'read') allowDelete.value = false})
 function resizeComposer() {
@@ -112,7 +132,7 @@ const recording = ref(false)
 const audioStage = ref('')
 const elapsed = ref(0)
 const editingBusy = computed(() => Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
-const busy = computed(() => editingBusy.value || activeRun.value || Boolean(paused.value))
+const busy = computed(() => !optionsReady.value || editingBusy.value || activeRun.value || Boolean(paused.value))
 const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
 let recorder: MediaRecorder | undefined
@@ -164,6 +184,7 @@ async function submit() {
 			const created = await create.mutateAsync()
 			target = created.id!
 			if (route.name !== 'tcy-ai' || route.fullPath !== location) return
+			saveOptions(target, currentOptions.value, selectedProfile.value)
 			await router.replace({name: 'tcy-ai', query: {...route.query, chat: target}})
 		}
 		await send.mutateAsync({id: target, body: request})
@@ -330,7 +351,8 @@ onBeforeUnmount(() => {
 			<div class="heading-actions">
 				<label class="model-switch"><span class="is-sr-only">{{ t('chat.model') }}</span><select
 					v-model="connectionID"
-					@change="profileTouched = true; selectedProfile = ''"
+					:disabled="!optionsReady"
+					@change="applyOptions(currentOptions, '')"
 				><option value="">{{ settings.data.value?.connections.find(c => c.id === settings.data.value?.assistant)?.name || t('chat.defaultModel') }}</option><option
 					v-for="c in chatModels"
 					:key="c.id"
@@ -677,6 +699,7 @@ onBeforeUnmount(() => {
 						<div class="composer-context">
 							<label class="profile-switch"><span class="is-sr-only">{{ t('assistantUI.scenarios') }}</span><select
 								:value="selectedProfile"
+								:disabled="!optionsReady"
 								:title="t('assistantUI.scenarios')"
 								@change="selectProfile(($event.target as HTMLSelectElement).value)"
 							><option
@@ -692,7 +715,8 @@ onBeforeUnmount(() => {
 								data-tour="ai-permissions"
 								:title="t('assistantUI.preferences')"
 								:aria-label="t('assistantUI.preferences')"
-								@click="profileTouched = true; preferencesOpen = true"
+								:disabled="!optionsReady"
+								@click="preferencesOpen = true"
 							>
 								<Icon icon="cog" />
 							</BaseButton>
@@ -727,7 +751,7 @@ onBeforeUnmount(() => {
 							<span class="is-sr-only">{{ send.isPending.value ? t('chat.sending') : t('tcymc.text.send_request') }}</span>
 						</XButton>
 					</div><p class="composer-hint">
-						{{ mode === 'read' ? t('assistantUI.readStatus') : t(`assistantUI.write_${approval}`) }}<template v-if="projectID">
+						{{ t('assistantUI.nextConfiguration') }} {{ mode === 'read' ? t('assistantUI.readStatus') : t(`assistantUI.write_${approval}`) }}<template v-if="projectID">
 							· {{ projectsArray.find(p => p.id === projectID)?.title || `#${projectID}` }}
 						</template> · {{ t('chat.enterHint') }}
 					</p><p
