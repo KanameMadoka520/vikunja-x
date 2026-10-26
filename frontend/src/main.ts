@@ -1,4 +1,5 @@
 import './client/inviteLink'
+import {captureBrowserDiagnostic} from '@/helpers/diagnostics'
 import {createApp} from 'vue'
 import {VueQueryPlugin} from '@tanstack/vue-query'
 
@@ -83,6 +84,7 @@ setLanguage(browserLanguage).then(() => {
 	app.component('Card', Card)
 
 	app.config.errorHandler = (err, vm, info) => {
+		captureBrowserDiagnostic(err, info)
 		if (import.meta.env.DEV) {
 			console.error(err, vm, info)
 		}

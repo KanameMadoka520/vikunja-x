@@ -61,6 +61,14 @@
 				/>
 			</nav>
 
+			<XButton
+				v-if="authStore.authUser"
+				variant="secondary"
+				icon="robot"
+				:to="{name: 'tcy-ai', query: {project: task.project_id, task: task.id}}"
+			>
+				{{ $t('agent.fromTask') }}
+			</XButton>
 			<ChecklistSummary :task="task" />
 
 			<!-- Content and buttons -->

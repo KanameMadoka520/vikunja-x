@@ -3,7 +3,7 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.4`
+- 版本：`v2.7.1-tcymc.5`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 ## 可重放的界面引导
@@ -32,6 +32,38 @@
 
 会话与完整模型上下文位于持久文件目录 `.tcymc-ai/conversations/<用户ID>/`，AES-GCM 加密、目录权限 0700、文件权限 0600。备份时连同 `VIKUNJA_SERVICE_SECRET` 保存。每账户最多 100 个会话、每会话 200 轮，单个加密记录上限 16 MiB；达到限制后新建或删除旧会话。每账户同时运行一个助手请求。切换模型或协议后以纯文字和真实操作记录续接，避免把旧服务商的签名上下文发给另一服务商。会话接口不接受 API Token、公开分享或机器人身份，也不暴露到 MCP。
 
+## 可审核、可继续的 Agent 执行
+
+在助手的“上下文与权限”里选择工作模式和审核策略：
+
+| 策略 | 普通单项修改 | 原子批量修改 | 删除、新建项目、评论、负责人变更 |
+| --- | --- | --- | --- |
+| 智能审核（默认） | 自动执行 | 展示整批预览 | 展示预览 |
+| 逐项审核 | 展示预览 | 展示整批预览 | 展示预览 |
+| 自主执行 | 自动执行 | 自动执行 | 展示预览 |
+
+默认仍为只读；删除工具需要另行勾选。审核由服务器控制，不依赖模型自行判断风险。卡片展示真实记录的修改前后值、具体参数和快照；可以批准、拒绝、编辑 JSON 并更新预览。编辑后必须审核新的预览编号。拒绝结果会反馈给模型，模型可继续完成其余部分。`ask_user` 用于真正缺少目标或日期等信息的澄清，支持候选选项与自由回答。
+
+“当前项目”提供上下文；“仅允许修改这些项目”才是硬性写入范围。选定范围后，后端逐次检查目标项目，跨范围修改和新建项目被拒绝。任务详情可通过“交给 AI 助手处理此任务”进入带任务 ID 的会话入口，不自动读取或发送任务正文。
+
+任务修改和删除会在事务内锁定记录，再检查实时权限与审核快照版本。只更新明确指定的字段，保留其余内容；任务状态在审核期间变化会生成新预览。批量修改最多 25 个不同任务，任一项失败整批回滚。返回业务层实际结果，包括重复任务完成时的日期处理；不会把拟修改值当成实际结果。
+
+默认每段允许 **16 轮模型请求、40 次操作、180 秒活动执行时间**；界面可分别配置 1–40 轮、1–100 次、1–600 秒及 token 软上限。批量按任务数计入操作预算，工具发现也计一次。到达预算会保存当前位置，可明确追加一段预算后继续；最多累计 200 轮、1000 次操作。token 仅按服务商报告的用量在请求之间检查，单次请求可能超过软上限。审核等待不占执行时限。
+
+暂停状态、原生模型上下文和每次操作收据均加密保存，审核后可从保存位置继续。刷新或正常审核续接不会重放已完成的工具。服务重启时正在执行的请求标为中断；未确认结果的写入标为未知，必须先核查真实记录。文件收据与数据库提交并非跨系统原子事务，因此不声称崩溃时能够保证恰好执行一次。
+
+工具定义、参数验证、能力发现共用同一份 JSON Schema；日期、范围和未知字段也由服务器校验。模型收到具体错误后可修正参数，权限与范围错误不会获得额外权限。模型理解仍可能出错，任务结果和操作收据才是判断执行情况的依据。
+
+## 报错与调试窗口
+
+入口：**头像菜单 → 报错与调试**，或助手页面顶部同名按钮；错误通知也提供打开入口。每条助手回复的“查看运行诊断”可打开该轮记录。支持 HTTP/代理错误、浏览器错误与助手执行记录，默认只在当前浏览器内存保留最近 30 条，重复请求错误合并计数，刷新、清空或切换账户后移除。保存在会话中的运行记录可重新打开诊断。
+
+报告提供版本、时间、页面路径、HTTP 状态、追踪编号、错误阶段、协议、请求及实际模型、真实端点、token、耗时、首字时间、预算和工具状态。复制和下载 JSON 都会先展示预览，不会自动上传。
+
+默认导出不含对话正文、工具参数或结果。需要定位模型参数等具体问题时，可勾选“附带具体报错、工具参数和结果”，检查预览后再分享。请求头、登录令牌和原始音频不收集；敏感字段、常见密钥格式以及 URL 凭据与查询参数会脱敏。自由文本仍可能含私人内容，分享详细报告前应自行检查。代理返回 HTML 拦截页时展示简明提示，不再把整页 HTML 塞进错误通知。
+
+执行设计参考了 [Home Assistant 的 LLM 工具边界](https://github.com/home-assistant/core/blob/d40f18cc477d3bd0c39dfdec331c0096f7dcdddd/homeassistant/helpers/llm.py)、[n8n 工具审核](https://github.com/n8n-io/n8n/blob/7fc63ed7f7ec9c619825b95e999cf9b968aa4823/packages/cli/src/tool-generation/hitl-tools.ts)、[OpenHands](https://github.com/OpenHands/software-agent-sdk)、[LibreChat](https://github.com/LibreChat-AI/LibreChat)、[CopilotKit](https://github.com/CopilotKit/CopilotKit) 与 [LangGraph](https://github.com/langchain-ai/langgraph) 的能力发现、交互式审核和暂停恢复思路，使用本项目现有 Vue、Go 与权限模型实现，没有引入这些项目的运行服务。
+
 ## AI 与语音
 
 登录后进入 **设置 → AI 与语音**，添加连接名称、HTTPS API 基础地址、API 密钥、模型 ID、用途与协议。基础地址包含服务商要求的版本路径，不要填写具体请求端点。例如 OpenAI/Anthropic 通常使用 `/v1`，Gemini 通常使用 `/v1beta`；代理服务以其文档为准。页面会展示完整的模型调用端点和模型列表端点，连接测试成功后也返回服务器实际使用的端点。
@@ -55,11 +87,11 @@
 
 Responses 的工具调用与推理上下文、Anthropic 的工具结果、Gemini 的函数调用和 thought signature 都按各自原生结构处理。历史版本的连接会自动按原来的 OpenAI 兼容协议读取。
 
-助手可查询项目与任务、读取任务、创建项目和任务、修改标题/描述/开始时间/结束时间/截止时间/优先级/完成状态。工作方式可选“直接执行”或“只读”，删除任务需另外勾选当次允许。每次最多 8 轮推理、20 次工具操作，并显示真实执行记录。所有工具操作继续经过 Vikunja 原有权限校验。内置助手不管理账户、密钥、分享权限或任意外部请求。
+助手支持项目、任务、绝对提醒、标签、评论、负责人、任务关系与原子批量排期。基础工具始终可用，扩展工具通过 `find_tools` 按需发现、加载；未加载或不在当前读写权限内的工具会被拒绝。所有操作继续调用 Vikunja 原有权限与业务规则。内置助手不管理账户、密钥、分享权限、任意 SQL 或任意外部请求。
 
 密钥仅写入，读取设置只返回是否已配置。模型配置按用户存储在 `files/.tcymc-ai/`，使用服务端 `service.secret` 派生密钥进行 AES-GCM 加密；**备份与恢复必须同时保留 files 和 service.secret**。默认限制模型地址为可公开路由的 HTTPS 服务，沿用上游出站请求 SSRF 防护。开发机如需访问私有模型，应由服务器管理者审查并配置上游 `outgoingrequests` 选项。
 
-AI 收到的是本次对话及工具查询到的任务数据，使用前应选择你信任的模型服务。调用失败可能已有部分操作完成，请先查看执行记录和任务状态。相同请求 ID 在当前进程内缓存 10 分钟，用于避免重复提交；这不是跨重启的持久事务。当前不预置任何真实模型账号或密钥。
+AI 收到的是本次对话及工具查询到的任务数据，使用前应选择你信任的模型服务。调用失败可能已有部分操作完成，请先查看执行记录和任务状态。会话请求编号和操作收据持久保存，用于防止相同消息重复提交。旧 `/ai/run` 兼容接口仅提供进程内 10 分钟缓存；新界面使用可保存会话的接口。当前不预置任何真实模型账号或密钥。
 
 上游 MCP 入口仍为 `/api/v2/mcp`。外部 agent 可在 **设置 → MCP** 创建具备所需权限的令牌；自定义 AI 设置和公开主页管理接口只允许本人登录会话使用，不向 MCP 提供。
 
@@ -107,7 +139,7 @@ pnpm vitest run src/i18n/coverage.test.ts src/helpers/tcyAudio.test.ts
 ```sh
 git clone https://github.com/KanameMadoka520/vikunja-x.git
 cd vikunja-x
-docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.4 -t vikunja-x:v2.7.1-tcymc.4 .
+docker build -f Dockerfile.tcymc --build-arg RELEASE_VERSION=v2.7.1-tcymc.5 -t vikunja-x:v2.7.1-tcymc.5 .
 ```
 
 `Dockerfile.tcymc` 固定基础镜像摘要，使用锁定依赖构建前端，并生成带 SQLite 支持的静态 Go 二进制，最终以 UID 1000 在最小镜像中运行。提供 CA 和时区数据。数据库支持沿用上游，包括 PostgreSQL。
@@ -125,12 +157,12 @@ docker run -d --name vikunja-x --restart unless-stopped \
   -e VIKUNJA_SERVICE_SECRET=替换为随机且持久保存的长密钥 \
   -e VIKUNJA_SERVICE_ENABLEREGISTRATION=false \
   -e VIKUNJA_SERVICE_TIMEZONE=Asia/Shanghai \
-  vikunja-x:v2.7.1-tcymc.4
+  vikunja-x:v2.7.1-tcymc.5
 ```
 
 通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 按上游 `VIKUNJA_MAILER_*` 配置，密码通过外部环境文件提供，勿提交源码。账号名中的 admin 不会绕过上游授权功能。
 
-Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.4-linux-amd64.docker.tar.gz` 导入镜像。
+Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.5-linux-amd64.docker.tar.gz` 导入镜像。
 
 ## 本地开发与验证
 

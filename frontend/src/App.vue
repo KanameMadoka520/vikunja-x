@@ -35,13 +35,16 @@
 		<Teleport to="body">
 			<UpdateNotification v-if="!isQuickAddMode" />
 			<Notification />
+			<DiagnosticWindow />
 			<DemoMode v-if="!isQuickAddMode" />
 		</Teleport>
 	</Ready>
 </template>
 
 <script lang="ts" setup>
-import {computed, watch} from 'vue'
+import {computed, watch, onBeforeUnmount} from 'vue'
+import DiagnosticWindow from '@/components/ai/DiagnosticWindow.vue'
+import {clearDiagnostics, installBrowserDiagnostics} from '@/helpers/diagnostics'
 import {useRoute, useRouter} from 'vue-router'
 import isTouchDevice from 'is-touch-device'
 
@@ -74,6 +77,8 @@ import {getSensitiveParam} from '@/helpers/sensitiveQueryParams'
 
 const authStore = useAuthStore()
 const baseStore = useBaseStore()
+watch(() => [authStore.session?.id, authStore.session?.type], clearDiagnostics)
+onBeforeUnmount(installBrowserDiagnostics())
 
 const {isQuickAddMode} = useQuickAddMode()
 

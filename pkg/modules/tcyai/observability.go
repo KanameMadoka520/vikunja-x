@@ -45,6 +45,8 @@ func (u *Usage) Add(v Usage) {
 }
 
 type ModelStep struct {
+	HTTPStatus   int    `json:"http_status" doc:"Actual upstream HTTP status, or zero when no response arrived."`
+	RequestID    string `json:"request_id" doc:"Provider response request ID when supplied; no request headers or credentials."`
 	Round        int    `json:"round" doc:"One-based model round, including rounds that request tools."`
 	Model        string `json:"model" doc:"Model name returned by the provider, falling back to the requested ID."`
 	Text         string `json:"text" doc:"Model text, distinct from its reasoning and actual tool execution."`

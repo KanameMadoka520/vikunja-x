@@ -78,6 +78,21 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 		return tcylocale.Error("e26")
 	}
 	defer resp.Body.Close()
+	if o := observe(ctx); o != nil {
+		o.step.HTTPStatus = resp.StatusCode
+		for _, header := range []string{"x-request-id", "request-id", "x-amzn-requestid"} {
+			if value := resp.Header.Get(header); value != "" {
+				if c.APIKey != "" {
+					value = strings.ReplaceAll(value, c.APIKey, "[redacted]")
+				}
+				if len(value) > 256 {
+					value = value[:256]
+				}
+				o.step.RequestID = value
+				break
+			}
+		}
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return upstreamError(resp.StatusCode, resp.Body, c.APIKey)
 	}

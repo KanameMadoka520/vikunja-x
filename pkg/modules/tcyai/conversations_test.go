@@ -50,12 +50,14 @@ func TestTCYAIConversationStorage(t *testing.T) {
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 	record, err := readConversation(1, c.ID)
 	require.NoError(t, err)
-	record.Turns = []ChatTurn{{ID: uuid.NewString(), RequestID: "request-1", Prompt: "private user text", Status: "completed", Started: time.Now(), Result: RunResult{RequestedModel: "model", Protocol: "anthropic", Endpoint: "https://example.com/messages", Reply: "answer"}}, {ID: uuid.NewString(), Status: "running"}}
+	record.Turns = []ChatTurn{{ID: uuid.NewString(), RequestID: "request-1", Prompt: "private user text", Status: "completed", Started: time.Now(), Result: RunResult{RequestedModel: "model", Protocol: "anthropic", Endpoint: "https://example.com/messages", Reply: "answer"}}, {ID: uuid.NewString(), Status: "running", Result: RunResult{Operations: []Operation{{ID: "uncertain", Status: "running", Tool: "create_task"}}}}}
 	record.Contexts = [][]storedMessage{{{Message: Message{Role: "assistant", Content: "answer"}, Native: json.RawMessage(`[{"type":"thinking","signature":"opaque-private"}]`)}}, {}}
 	require.NoError(t, writeConversation(1, record))
 	value, err := GetConversation(1, c.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "interrupted", value.Turns[1].Status)
+	assert.Equal(t, "unknown", value.Turns[1].Result.Operations[0].Status)
+	assert.Equal(t, "INTERRUPTED", value.Turns[1].Result.ErrorCode)
 	public, err := json.Marshal(value)
 	require.NoError(t, err)
 	assert.NotContains(t, string(public), "opaque-private")

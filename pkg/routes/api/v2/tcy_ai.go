@@ -73,7 +73,7 @@ func aiUser(ctx context.Context) (int64, error) {
 }
 
 func aiError(ctx context.Context, err error) error {
-	return huma.Error400BadRequest(tcylocale.Render(ctx, err))
+	return huma.Error400BadRequest(tcyai.ExplainError(ctx, err))
 }
 
 func RegisterTCYAIRoutes(api huma.API) {
@@ -317,9 +317,12 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 	caller := (*ec).Request().Clone(ctx)
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
-	result, err = tcyai.Run(ctx, c, in, func(ctx context.Context, name string, args json.RawMessage) (string, error) {
-		return dispatchAI(ctx, api, caller, name, args)
-	})
+	execution, executionErr := newAIExecution(ctx, api, caller, in)
+	if executionErr != nil {
+		return nil, executionErr
+	}
+	state := tcyai.NewAgentState(ctx, c, in)
+	result, err = tcyai.RunAgent(ctx, c, state, execution.execute, execution.prepare, nil)
 	if err != nil {
 		result.Reply = tcylocale.Text(ctx, "stopped", tcylocale.Render(ctx, err))
 	}
@@ -327,6 +330,9 @@ func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*si
 }
 
 func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name string, raw json.RawMessage) (string, error) {
+	if _, err := tcyai.ValidateTool(name, raw, tcyai.RunInput{Mode: "write", AllowDelete: true}); err != nil {
+		return "", err
+	}
 	var args map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &args); err != nil {
 		return "", tcylocale.Error("e21")
@@ -342,10 +348,13 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 	path, method := "", "GET"
 	query := url.Values{}
 	switch name {
-	case "list_projects", "list_tasks":
+	case "list_projects", "list_tasks", "list_labels":
 		path = "/projects"
 		if name == "list_tasks" {
 			path = "/tasks"
+		}
+		if name == "list_labels" {
+			path = "/labels"
 		}
 		if _, ok := args["project_id"]; ok && name == "list_tasks" {
 			n, e := id("project_id")
@@ -384,16 +393,24 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 		path = "/projects"
 		method = "POST"
 	default:
-		return "", tcylocale.Error("e18")
+		var routeErr error
+		path, method, routeErr = aiExtendedRoute(name, args, id, query)
+		if routeErr != nil {
+			return "", routeErr
+		}
 	}
-	if method == "PATCH" || method == "POST" {
-		allowed := map[string]bool{"title": true, "description": true, "due_date": true, "start_date": true, "end_date": true, "priority": true, "done": true}
+	if (method == "PATCH" || method == "POST") && (name == "create_task" || name == "update_task" || name == "create_project") {
+		allowed := map[string]bool{"title": true, "description": true, "due_date": true, "start_date": true, "end_date": true, "priority": true, "done": true, "reminders": true}
 		for k := range args {
 			if !allowed[k] {
 				return "", tcylocale.Error("e17", k)
 			}
 		}
 	}
+	return serveAITool(ctx, api, caller, name, path, method, args, query)
+}
+
+func serveAITool(ctx context.Context, api huma.API, caller *http.Request, name, path, method string, args map[string]json.RawMessage, query url.Values) (string, error) {
 	body, err := json.Marshal(args)
 	if err != nil {
 		return "", err
@@ -421,7 +438,10 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 		data = data[:64000] + tcylocale.Text(ctx, "resultTruncated")
 	}
 	if rec.Code >= 300 {
-		return "", tcylocale.Error("e25", rec.Code, data)
+		if rec.Code >= 500 && tcyai.IsWriteTool(name) {
+			return "", &tcyai.ToolError{Code: "WRITE_UNCERTAIN", Message: tcylocale.Render(ctx, tcylocale.Error("e25", rec.Code, data)), Uncertain: true}
+		}
+		return "", &tcyai.ToolError{Code: fmt.Sprintf("API_%d", rec.Code), Message: tcylocale.Render(ctx, tcylocale.Error("e25", rec.Code, data))}
 	}
 	if data == "" {
 		data = `{"success":true}`
@@ -453,4 +473,62 @@ func aiQuery(args map[string]json.RawMessage, query url.Values) error {
 	}
 	query.Set("per_page", "25")
 	return nil
+}
+
+func aiExtendedRoute(name string, args map[string]json.RawMessage, id func(string) (int64, error), query url.Values) (string, string, error) {
+	method := "GET"
+	switch name {
+	case "get_project":
+		n, err := id("id")
+		return fmt.Sprintf("/projects/%d", n), method, err
+	case "list_comments", "list_project_users":
+		key := "id"
+		if name == "list_project_users" {
+			key = "project_id"
+		}
+		n, err := id(key)
+		if err != nil {
+			return "", "", err
+		}
+		path := fmt.Sprintf("/tasks/%d/comments", n)
+		if name == "list_project_users" {
+			path = fmt.Sprintf("/projects/%d/users", n)
+		}
+		if err = aiQuery(args, query); err != nil {
+			return "", "", err
+		}
+		clear(args)
+		return path, method, nil
+	case "create_label":
+		return "/labels", "POST", nil
+	}
+	n, err := id("id")
+	if err != nil {
+		return "", "", err
+	}
+	suffixes := map[string]string{"add_comment": "comments", "assign_task": "assignees", "add_task_label": "labels", "relate_tasks": "relations"}
+	if suffix, ok := suffixes[name]; ok {
+		return fmt.Sprintf("/tasks/%d/%s", n, suffix), "POST", nil
+	}
+	key, suffix := "", ""
+	switch name {
+	case "unassign_task":
+		key = "user_id"
+		suffix = "assignees"
+	case "remove_task_label":
+		key = "label_id"
+		suffix = "labels"
+	case "unrelate_tasks":
+		key = "other_task_id"
+		var kind string
+		if err = json.Unmarshal(args["relation_kind"], &kind); err != nil {
+			return "", "", err
+		}
+		delete(args, "relation_kind")
+		suffix = "relations/" + url.PathEscape(kind)
+	default:
+		return "", "", tcylocale.Error("e18")
+	}
+	other, err := id(key)
+	return fmt.Sprintf("/tasks/%d/%s/%d", n, suffix, other), "DELETE", err
 }

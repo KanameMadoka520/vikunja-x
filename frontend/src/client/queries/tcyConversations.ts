@@ -1,3 +1,4 @@
+import {labelKeys} from './labels'
 import {queryOptions, useMutation, keepPreviousData} from '@tanstack/vue-query'
 import {
 	tcyAiConversationsList,
@@ -6,6 +7,8 @@ import {
 	tcyAiConversationsRename,
 	tcyAiConversationsDelete,
 	tcyAiConversationsSend,
+	tcyAiConversationsReview,
+	type ReviewInput,
 	tcyAiConversationsStop,
 	tcyAiConversationsFork,
 	tcyAiConversationsCompact,
@@ -109,7 +112,22 @@ export function useRefreshAgentChanges() {
 		onSettled: (_, client) => Promise.all([
 			client.invalidateQueries({queryKey: taskKeys.all}),
 			client.invalidateQueries({queryKey: projectKeys.all}),
+			client.invalidateQueries({queryKey: labelKeys.all}),
 			client.invalidateQueries({queryKey: conversationKeys.lists()}),
+		]),
+	}))
+}
+
+export function useReviewConversation() {
+	return useMutation(contextMutationOptions({
+		mutationFn: async (input: {id: string; body: ReviewInput}) => (await tcyAiConversationsReview({path: {id: input.id}, body: input.body})).data,
+		onSuccess: (data, input, client) => client.setQueryData(conversationKeys.detail(input.id), data),
+		onSettled: (input, client) => Promise.all([
+			client.invalidateQueries({queryKey: conversationKeys.detail(input.id)}),
+			client.invalidateQueries({queryKey: conversationKeys.lists()}),
+			client.invalidateQueries({queryKey: taskKeys.all}),
+			client.invalidateQueries({queryKey: projectKeys.all}),
+			client.invalidateQueries({queryKey: labelKeys.all}),
 		]),
 	}))
 }

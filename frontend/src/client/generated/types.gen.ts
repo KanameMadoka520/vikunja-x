@@ -513,7 +513,7 @@ export type ChatTurn = {
     /**
      * Execution state. Interrupted runs are never replayed automatically.
      */
-    readonly status?: 'running' | 'completed' | 'failed' | 'stopped' | 'interrupted';
+    readonly status?: 'running' | 'completed' | 'failed' | 'stopped' | 'interrupted' | 'awaiting_approval' | 'awaiting_input' | 'paused';
 };
 
 export type ColumnMapping = {
@@ -1438,6 +1438,10 @@ export type ModelStep = {
      */
     first_token_ms?: number | null;
     /**
+     * Actual upstream HTTP status, or zero when no response arrived.
+     */
+    http_status?: number;
+    /**
      * Model name returned by the provider, falling back to the requested ID.
      */
     model?: string;
@@ -1445,6 +1449,10 @@ export type ModelStep = {
      * Only reasoning or reasoning summaries explicitly returned by the provider.
      */
     reasoning?: string;
+    /**
+     * Provider response request ID when supplied; no request headers or credentials.
+     */
+    request_id?: string;
     /**
      * One-based model round, including rounds that request tools.
      */
@@ -1462,6 +1470,57 @@ export type ModelStep = {
 export type OpenIdAuthInfo = {
     enabled?: boolean;
     providers?: Array<Provider> | null;
+};
+
+export type Operation = {
+    /**
+     * Proposed changes as JSON, not a claim of execution.
+     */
+    after?: string;
+    /**
+     * This exact proposal was reviewed by the user.
+     */
+    approved?: boolean;
+    /**
+     * Validated arguments, including any user edits.
+     */
+    arguments?: string;
+    /**
+     * Actual pre-operation snapshot as JSON.
+     */
+    before?: string;
+    /**
+     * Stable failure code.
+     */
+    error_code?: string;
+    /**
+     * Server-generated receipt identifier.
+     */
+    id?: string;
+    /**
+     * Projects affected by this operation.
+     */
+    project_ids?: Array<number> | null;
+    /**
+     * running after a restart means the outcome is unknown, never safe to replay.
+     */
+    status?: 'prepared' | 'running' | 'succeeded' | 'failed' | 'rejected' | 'unknown';
+    /**
+     * Tool name.
+     */
+    tool?: string;
+    /**
+     * Operation units; bulk writes count each target.
+     */
+    units?: number;
+    /**
+     * The executor verified the committed task field changes.
+     */
+    verified?: boolean;
+    /**
+     * Fingerprint used to detect changes after review.
+     */
+    version?: string;
 };
 
 export type Overview = {
@@ -2294,9 +2353,63 @@ export type RenewTokenBodyBody = {
     readonly token?: string;
 };
 
+export type ReviewInput = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Human clarification or rejection explanation.
+     */
+    answer?: string;
+    /**
+     * JSON arguments for edit only.
+     */
+    arguments?: string;
+    /**
+     * Edit regenerates a preview without execution. Continue grants another bounded execution segment.
+     */
+    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue';
+    /**
+     * Exact pending receipt ID for review/edit/reject.
+     */
+    operation_id?: string;
+    /**
+     * Turn currently paused.
+     */
+    turn_id?: string;
+};
+
 export type RouteDetail = {
     method?: string;
     path?: string;
+};
+
+export type RunBudget = {
+    /**
+     * Granted operation units.
+     */
+    operation_limit?: number;
+    /**
+     * Operation units attempted.
+     */
+    operations?: number;
+    /**
+     * Granted model rounds, including explicit continuations.
+     */
+    round_limit?: number;
+    /**
+     * Model requests attempted.
+     */
+    rounds?: number;
+    /**
+     * Active time allowed per segment, excluding review waits.
+     */
+    timeout_seconds?: number;
+    /**
+     * Soft reported-token limit; zero disables.
+     */
+    token_limit?: number;
 };
 
 export type RunInput = {
@@ -2309,6 +2422,10 @@ export type RunInput = {
      */
     allow_delete?: boolean;
     /**
+     * smart reviews bulk/destructive/notification actions; review checks all writes; auto skips ordinary bulk review but still reviews destructive and notification actions.
+     */
+    approval?: 'smart' | 'review' | 'auto';
+    /**
      * Optional saved text connection. Empty uses the assigned assistant.
      */
     connection_id?: string;
@@ -2316,6 +2433,14 @@ export type RunInput = {
      * Recent conversation; no client-supplied tool results.
      */
     history?: Array<Turn> | null;
+    /**
+     * Tool operation budget per segment; zero uses 40.
+     */
+    max_operations?: number;
+    /**
+     * Model round budget per execution segment; zero uses 16.
+     */
+    max_rounds?: number;
     /**
      * Instruction from the user.
      */
@@ -2325,6 +2450,10 @@ export type RunInput = {
      */
     mode?: 'read' | 'write';
     /**
+     * User-visible page context, treated as untrusted data rather than instructions.
+     */
+    page_context?: string;
+    /**
      * Optional current project context.
      */
     project_id?: number;
@@ -2332,6 +2461,18 @@ export type RunInput = {
      * Unique request key; reuse only when retrying the exact same request.
      */
     request_id?: string;
+    /**
+     * Active execution seconds per segment; zero uses 180.
+     */
+    timeout_seconds?: number;
+    /**
+     * Soft limit checked between requests using reported usage; zero disables. A single request may exceed it.
+     */
+    token_budget?: number;
+    /**
+     * Optional explicit project scope for writes. Empty uses normal account access. Current project is context only.
+     */
+    write_project_ids?: Array<number> | null;
 };
 
 export type RunResult = {
@@ -2343,6 +2484,14 @@ export type RunResult = {
      * Operations attempted during this run.
      */
     actions?: Array<Action> | null;
+    /**
+     * Limits and observed consumption.
+     */
+    budget?: RunBudget;
+    /**
+     * Optional clarification choices.
+     */
+    choices?: Array<string> | null;
     /**
      * Elapsed wall-clock milliseconds.
      */
@@ -2356,6 +2505,10 @@ export type RunResult = {
      */
     error?: string;
     /**
+     * Machine-readable failure category.
+     */
+    error_code?: string;
+    /**
      * Milliseconds to first streamed answer text, excluding thinking; null without streaming evidence.
      */
     first_text_ms?: number | null;
@@ -2368,9 +2521,25 @@ export type RunResult = {
      */
     model?: string;
     /**
+     * Durable per-operation receipts. A running receipt after a crash is uncertain and must not be replayed.
+     */
+    operations?: Array<Operation> | null;
+    /**
+     * Reason execution paused.
+     */
+    pause?: 'review' | 'question' | 'budget';
+    /**
+     * Exact proposed operation awaiting human review.
+     */
+    pending?: Operation;
+    /**
      * Wire protocol used for this request.
      */
     protocol?: string;
+    /**
+     * A clarification awaiting user input.
+     */
+    question?: string;
     /**
      * Assistant response.
      */
@@ -2380,6 +2549,10 @@ export type RunResult = {
      */
     requested_model?: string;
     /**
+     * Current execution phase.
+     */
+    stage?: string;
+    /**
      * Observed model rounds and provider-returned thinking.
      */
     steps?: Array<ModelStep> | null;
@@ -2387,6 +2560,10 @@ export type RunResult = {
      * The exact system prompt used for this run.
      */
     system_prompt?: string;
+    /**
+     * Server-generated execution trace identifier for diagnostics.
+     */
+    trace_id?: string;
     /**
      * Provider-reported usage summed across model rounds.
      */
@@ -5296,11 +5473,38 @@ export type RegisterUserRequestWritable = {
     username?: string;
 };
 
+export type ReviewInputWritable = {
+    /**
+     * Human clarification or rejection explanation.
+     */
+    answer?: string;
+    /**
+     * JSON arguments for edit only.
+     */
+    arguments?: string;
+    /**
+     * Edit regenerates a preview without execution. Continue grants another bounded execution segment.
+     */
+    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue';
+    /**
+     * Exact pending receipt ID for review/edit/reject.
+     */
+    operation_id?: string;
+    /**
+     * Turn currently paused.
+     */
+    turn_id?: string;
+};
+
 export type RunInputWritable = {
     /**
      * Allow task deletion for this request, only in write mode.
      */
     allow_delete?: boolean;
+    /**
+     * smart reviews bulk/destructive/notification actions; review checks all writes; auto skips ordinary bulk review but still reviews destructive and notification actions.
+     */
+    approval?: 'smart' | 'review' | 'auto';
     /**
      * Optional saved text connection. Empty uses the assigned assistant.
      */
@@ -5310,6 +5514,14 @@ export type RunInputWritable = {
      */
     history?: Array<Turn> | null;
     /**
+     * Tool operation budget per segment; zero uses 40.
+     */
+    max_operations?: number;
+    /**
+     * Model round budget per execution segment; zero uses 16.
+     */
+    max_rounds?: number;
+    /**
      * Instruction from the user.
      */
     message?: string;
@@ -5318,6 +5530,10 @@ export type RunInputWritable = {
      */
     mode?: 'read' | 'write';
     /**
+     * User-visible page context, treated as untrusted data rather than instructions.
+     */
+    page_context?: string;
+    /**
      * Optional current project context.
      */
     project_id?: number;
@@ -5325,6 +5541,18 @@ export type RunInputWritable = {
      * Unique request key; reuse only when retrying the exact same request.
      */
     request_id?: string;
+    /**
+     * Active execution seconds per segment; zero uses 180.
+     */
+    timeout_seconds?: number;
+    /**
+     * Soft limit checked between requests using reported usage; zero disables. A single request may exceed it.
+     */
+    token_budget?: number;
+    /**
+     * Optional explicit project scope for writes. Empty uses normal account access. Current project is context only.
+     */
+    write_project_ids?: Array<number> | null;
 };
 
 export type RunResultWritable = {
@@ -5332,6 +5560,14 @@ export type RunResultWritable = {
      * Operations attempted during this run.
      */
     actions?: Array<Action> | null;
+    /**
+     * Limits and observed consumption.
+     */
+    budget?: RunBudget;
+    /**
+     * Optional clarification choices.
+     */
+    choices?: Array<string> | null;
     /**
      * Elapsed wall-clock milliseconds.
      */
@@ -5345,6 +5581,10 @@ export type RunResultWritable = {
      */
     error?: string;
     /**
+     * Machine-readable failure category.
+     */
+    error_code?: string;
+    /**
      * Milliseconds to first streamed answer text, excluding thinking; null without streaming evidence.
      */
     first_text_ms?: number | null;
@@ -5357,9 +5597,25 @@ export type RunResultWritable = {
      */
     model?: string;
     /**
+     * Durable per-operation receipts. A running receipt after a crash is uncertain and must not be replayed.
+     */
+    operations?: Array<Operation> | null;
+    /**
+     * Reason execution paused.
+     */
+    pause?: 'review' | 'question' | 'budget';
+    /**
+     * Exact proposed operation awaiting human review.
+     */
+    pending?: Operation;
+    /**
      * Wire protocol used for this request.
      */
     protocol?: string;
+    /**
+     * A clarification awaiting user input.
+     */
+    question?: string;
     /**
      * Assistant response.
      */
@@ -5369,6 +5625,10 @@ export type RunResultWritable = {
      */
     requested_model?: string;
     /**
+     * Current execution phase.
+     */
+    stage?: string;
+    /**
      * Observed model rounds and provider-returned thinking.
      */
     steps?: Array<ModelStep> | null;
@@ -5376,6 +5636,10 @@ export type RunResultWritable = {
      * The exact system prompt used for this run.
      */
     system_prompt?: string;
+    /**
+     * Server-generated execution trace identifier for diagnostics.
+     */
+    trace_id?: string;
     /**
      * Provider-reported usage summed across model rounds.
      */
@@ -6861,6 +7125,36 @@ export type TcyAiConversationsSendResponses = {
 };
 
 export type TcyAiConversationsSendResponse = TcyAiConversationsSendResponses[keyof TcyAiConversationsSendResponses];
+
+export type TcyAiConversationsReviewData = {
+    body: ReviewInputWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/review';
+};
+
+export type TcyAiConversationsReviewErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsReviewError = TcyAiConversationsReviewErrors[keyof TcyAiConversationsReviewErrors];
+
+export type TcyAiConversationsReviewResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsReviewResponse = TcyAiConversationsReviewResponses[keyof TcyAiConversationsReviewResponses];
 
 export type TcyAiConversationsStopData = {
     body?: never;

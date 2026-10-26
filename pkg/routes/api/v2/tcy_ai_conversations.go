@@ -52,6 +52,9 @@ func conversationError(ctx context.Context, err error) error {
 	if errors.Is(err, tcyai.ErrConversationRequest) {
 		return huma.Error409Conflict(tcylocale.Render(ctx, tcylocale.Error("chatRequestChanged")))
 	}
+	if errors.Is(err, tcyai.ErrAgentReview) {
+		return huma.Error409Conflict(tcylocale.Render(ctx, tcylocale.Error("chatReviewChanged")))
+	}
 	if errors.Is(err, tcyai.ErrConversationBusy) {
 		return huma.Error409Conflict(tcylocale.Render(ctx, tcylocale.Error("chatBusy")))
 	}
@@ -182,9 +185,36 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 		// Copy request headers before Echo returns its context to the pool. Permission checks still run per tool.
 		ec := humabridge.EchoContextFrom(ctx)
 		caller := (*ec).Request().Clone(context.Background()) //nolint:contextcheck // Only cloned HTTP fields survive Echo pooling.
-		value, err := tcyai.StartConversation(ctx, uid, in.ID, in.Body, connection, func(jobCtx context.Context, name string, args json.RawMessage) (string, error) {
-			return dispatchAI(jobCtx, api, caller, name, args)
-		})
+		execution, err := newAIExecution(ctx, api, caller, in.Body)
+		if err != nil {
+			return nil, err
+		}
+		value, err := tcyai.StartConversation(ctx, uid, in.ID, in.Body, connection, execution.execute, execution.prepare)
+		return conversationOut(ctx, value, err)
+	})
+	Register(api, op("tcy-ai-conversations-review", "POST", "/ai/conversations/{id}/review", "Review or edit a real operation preview, answer a clarification, or grant another bounded execution segment"), func(ctx context.Context, in *struct {
+		ID   string `path:"id" format:"uuid" doc:"Conversation owned by the signed-in human user."`
+		Body tcyai.ReviewInput
+	}) (*conversationResponse, error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		policy, err := tcyai.PendingConnection(uid, in.ID)
+		if err != nil {
+			return nil, conversationError(ctx, err)
+		}
+		connection, err := conversationModel(uid, policy.ConnectionID)
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		ec := humabridge.EchoContextFrom(ctx)
+		caller := (*ec).Request().Clone(context.Background()) //nolint:contextcheck // Only copied HTTP fields survive the request.
+		execution, err := newAIExecution(ctx, api, caller, policy)
+		if err != nil {
+			return nil, err
+		}
+		value, err := tcyai.ReviewConversation(ctx, uid, in.ID, in.Body, connection, execution.execute, execution.prepare)
 		return conversationOut(ctx, value, err)
 	})
 	Register(api, op("tcy-ai-conversations-stop", "POST", "/ai/conversations/{id}/stop", "Stop generation; already completed task changes remain in effect"), func(ctx context.Context, in *conversationPathInput) (*emptyBody, error) {
@@ -239,7 +269,7 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 			}
 		}{CacheControl: "no-store"}
 		body.Body.SystemPrompt = tcyai.SystemPrompt(ctx, tcyai.RunInput{ProjectID: in.ProjectID, Mode: in.Mode, AllowDelete: in.AllowDelete})
-		raw, err := json.MarshalIndent(tcyai.Tools(in.Mode, in.AllowDelete), "", "  ")
+		raw, err := json.MarshalIndent(tcyai.AllTools(in.Mode, in.AllowDelete), "", "  ")
 		if err != nil {
 			return nil, err
 		}

@@ -4,14 +4,18 @@ import {useI18n} from 'vue-i18n'
 import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
-import type {ChatTurn} from '@/client/generated'
+import {openAgentDiagnostic} from '@/helpers/diagnostics'
+import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
+import type {ChatTurn, ReviewInput} from '@/client/generated'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	turn: ChatTurn
 	busy: boolean
-}>()
+ reviewBusy?: boolean
+}>(), {reviewBusy: false})
 const emit = defineEmits<{
 	fork: [id: string]
+ review: [input: ReviewInput]
 }>()
 const {t} = useI18n({useScope: 'global'})
 const copied = ref(false)
@@ -27,6 +31,7 @@ const labels = computed<Record<string, string>>(() => ({
 	create_task: t('tcymc.text.create_task'),
 	update_task: t('tcymc.text.update_task'),
 	delete_task: t('tcymc.text.delete_task'),
+	...Object.fromEntries(['find_tools','ask_user','get_project','list_labels','list_comments','list_project_users','bulk_update_tasks','create_label','add_task_label','remove_task_label','add_comment','assign_task','unassign_task','relate_tasks','unrelate_tasks'].map(name => [name, t(`agent.tools.${name}`)])),
 }))
 function seconds(value?: number | null) {
 	return value == null ? t('chat.unavailable') : t('chat.seconds', {value: (value / 1000).toFixed(2)})
@@ -70,6 +75,12 @@ async function copy() {
 					class="model-step"
 				>
 					<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ seconds(step.duration_ms) }}</span></header>
+					<p
+						v-if="step.http_status"
+						class="step-note"
+					>
+						HTTP {{ step.http_status }}<span v-if="step.request_id"> · {{ t('debug.upstreamID') }}: {{ step.request_id }}</span>
+					</p>
 					<details
 						v-if="step.reasoning"
 						class="reasoning"
@@ -99,6 +110,17 @@ async function copy() {
 					</details>
 				</section>
 			</details>
+			<AgentReviewCard
+				:turn="turn"
+				:busy="reviewBusy || running"
+				@review="emit('review', $event)"
+			/>
+			<p
+				v-if="result?.budget?.round_limit"
+				class="step-note"
+			>
+				{{ t('agent.budgetProgress', {rounds: result.budget.rounds, roundLimit: result.budget.round_limit, operations: result.budget.operations, operationLimit: result.budget.operation_limit}) }}
+			</p>
 			<div
 				v-if="answer"
 				class="chat-markdown content"
@@ -147,6 +169,12 @@ async function copy() {
 				<summary>{{ t('chat.requestDetails') }}</summary><p>{{ t('chat.requestedModel') }}: {{ result.requested_model }} · {{ result.protocol }}</p><code>{{ result.endpoint }}</code><pre>{{ result.system_prompt }}</pre><p>{{ t('chat.metricNotes') }}</p>
 			</details>
 			<div class="message-actions">
+				<BaseButton
+					class="message-action"
+					@click="openAgentDiagnostic(turn)"
+				>
+					<Icon icon="code" /> {{ t('debug.openRun') }}
+				</BaseButton>
 				<BaseButton
 					v-if="answer"
 					class="message-action"

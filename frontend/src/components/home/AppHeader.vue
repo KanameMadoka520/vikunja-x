@@ -130,6 +130,12 @@
 					{{ $t('navigation.privacy') }}
 				</DropdownItem>
 				<DropdownItem
+					icon="code"
+					@click="openDiagnostics"
+				>
+					{{ t('debug.title') }}<span v-if="diagnostics.length"> ({{ diagnostics.length }})</span>
+				</DropdownItem>
+				<DropdownItem
 					icon="compass"
 					@click="tour.show()"
 				>
@@ -160,6 +166,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import {diagnostics, openDiagnostics} from '@/helpers/diagnostics'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 

@@ -15,21 +15,27 @@ import {
 	useCreateConversation,
 	useConversationAction,
 	useSendConversation,
+	useReviewConversation,
 	useRefreshAgentChanges,
 } from '@/client/queries/tcyConversations'
 import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
+import type {ReviewInput} from '@/client/generated'
+import {openDiagnostics} from '@/helpers/diagnostics'
 import {isRequestContextAbort} from '@/client/requestContext'
 
 useTitle(() => t('tcymc.text.ai_task_assistant'))
 const route = useRoute()
 const projectID = ref(Number(route.query.project) || 0)
+const contextTaskID = computed(() => Number(route.query.task) || 0)
 const {projectsArray} = useProjects()
 const settings = useQuery(aiSettingsQuery())
 const router = useRouter()
 const create = useCreateConversation()
 const action = useConversationAction()
 const send = useSendConversation()
+const review = useReviewConversation()
+const paused = computed(() => active.value?.turns?.at(-1)?.result?.pause)
 const refreshChanges = useRefreshAgentChanges()
 const listPage = ref(1)
 const sessions = useQuery(computed(() => conversationsQuery(listPage.value)))
@@ -52,6 +58,12 @@ const cleanup = useCleanupAI()
 const prompt = ref('')
 const mode = ref<'read' | 'write'>('read')
 const allowDelete = ref(false)
+const approval = ref<'smart' | 'review' | 'auto'>('smart')
+const writeProjectIDs = ref<number[]>([])
+const maxRounds = ref(16)
+const maxOperations = ref(40)
+const timeoutSeconds = ref(180)
+const tokenBudget = ref(0)
 const effectivePrompt = useQuery(computed(() => promptQuery(projectID.value, mode.value, allowDelete.value, showSystemPrompt.value)))
 const tidy = ref(true)
 const original = ref('')
@@ -59,8 +71,8 @@ const notice = ref('')
 const audioInput = ref<HTMLInputElement>()
 const recording = ref(false)
 const elapsed = ref(0)
-const editingBusy = computed(() => create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
-const busy = computed(() => editingBusy.value || activeRun.value)
+const editingBusy = computed(() => review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
+const busy = computed(() => editingBusy.value || activeRun.value || Boolean(paused.value))
 const hasAssistant = computed(() => Boolean(selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
 let recorder: MediaRecorder | undefined
@@ -99,6 +111,10 @@ async function submit() {
 		project_id: projectID.value,
 		mode: mode.value,
 		allow_delete: allowDelete.value && mode.value === 'write',
+		approval: approval.value,
+		write_project_ids: [...writeProjectIDs.value], max_rounds: maxRounds.value, max_operations: maxOperations.value,
+		timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value,
+		page_context: JSON.stringify({page: route.name, project_id: projectID.value, task_id: Number(route.query.task) || undefined}),
 		request_id: crypto.randomUUID(),
 		connection_id: selectedConnection.value,
 	}
@@ -146,6 +162,11 @@ async function manage(kind: 'rename' | 'delete' | 'stop' | 'compact' | 'fork', t
 			await router.replace({name: 'tcy-ai', query: {project: route.query.project}})
 		}
 	} catch { return }
+}
+
+async function reviewOperation(body: ReviewInput) {
+	if (!chatID.value || review.isPending.value) return
+	try { await review.mutateAsync({id: chatID.value, body}) } catch { return }
 }
 
 function composerKeydown(event: KeyboardEvent) {
@@ -253,7 +274,15 @@ onBeforeUnmount(() => {
 			<div class="heading-actions">
 				<XButton
 					variant="secondary"
+					icon="code"
+					@click="openDiagnostics"
+				>
+					{{ t('debug.title') }}
+				</XButton>
+				<XButton
+					variant="secondary"
 					icon="history"
+					class="history-toggle"
 					:aria-expanded="sidebarOpen"
 					@click="sidebarOpen = !sidebarOpen"
 				>
@@ -267,6 +296,14 @@ onBeforeUnmount(() => {
 				</XButton>
 			</div>
 		</header>
+		<p
+			v-if="contextTaskID > 0"
+			class="summary-banner"
+		>
+			{{ t('agent.currentTask') }} <RouterLink :to="{name: 'task.detail', params: {id: contextTaskID}}">
+				#{{ contextTaskID }}
+			</RouterLink>
+		</p>
 		<div class="chat-shell">
 			<aside
 				class="chat-sidebar"
@@ -431,6 +468,8 @@ onBeforeUnmount(() => {
 						:key="turn.id"
 						:turn="turn"
 						:busy="busy"
+						:review-busy="review.isPending.value || action.isPending.value"
+						@review="reviewOperation"
 						@fork="manage('fork', $event)"
 					/>
 				</div>
@@ -470,8 +509,57 @@ onBeforeUnmount(() => {
 							type="checkbox"
 							:disabled="mode === 'read'"
 						>{{ t('tcymc.text.allow_task_deletion_for_this_request') }}</label>
+						<label>{{ t('agent.approvalPolicy') }}<select
+							v-model="approval"
+							class="input"
+						><option value="smart">{{ t('agent.smart') }}</option><option value="review">{{ t('agent.reviewAll') }}</option><option value="auto">{{ t('agent.auto') }}</option></select></label>
+						<label>{{ t('agent.writeScope') }}<select
+							v-model="writeProjectIDs"
+							class="input"
+							multiple
+						><option
+							v-for="project in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
+							:key="project.id"
+							:value="project.id"
+						>{{ project.title }}</option></select><small>{{ t('agent.scopeHelp') }}</small></label>
+						<label>{{ t('agent.roundLimit') }}<input
+							v-model.number="maxRounds"
+							class="input"
+							type="number"
+							min="1"
+							max="40"
+						></label>
+						<label>{{ t('agent.operationLimit') }}<input
+							v-model.number="maxOperations"
+							class="input"
+							type="number"
+							min="1"
+							max="100"
+						></label>
+						<label>{{ t('agent.timeLimit') }}<input
+							v-model.number="timeoutSeconds"
+							class="input"
+							type="number"
+							min="1"
+							max="600"
+						></label>
+						<label>{{ t('agent.tokenLimit') }}<input
+							v-model.number="tokenBudget"
+							class="input"
+							type="number"
+							min="0"
+							max="1000000"
+						><small>{{ t('agent.tokenHelp') }}</small></label>
 					</section>
 				</details>
+				<p
+					v-if="paused"
+					class="summary-banner"
+				>
+					{{ t('agent.waitingReview') }} <BaseButton @click="manage('stop')">
+						{{ t('chat.stop') }}
+					</BaseButton>
+				</p>
 				<form
 					class="composer"
 					@submit.prevent="submit"
@@ -863,7 +951,7 @@ summary {
 	opacity: .5;
 	cursor: default;
 }
-@media (width >= 1100px) {.heading-actions > .button:first-child {
+@media (width >= 1100px) {.heading-actions > .history-toggle {
 	display: none;
 }
 }

@@ -1,7 +1,8 @@
 import {test, expect} from '../../support/fixtures'
 import type {Page} from '@playwright/test'
 
-async function chatServer(page: Page) {
+async function chatServer(page: Page, withReview = false) {
+ const reviews: any[] = []
 	const conversations = new Map<string, any>()
 	let sends = 0
 	await page.route('**/api/v2/ai/settings', route => route.fulfill({json: {
@@ -31,6 +32,24 @@ async function chatServer(page: Page) {
 				actions: [{round: 1, tool: 'list_projects', arguments: '{}', result: '{"items":[]}', success: true, duration_ms: 10}],
 			}})
 		}
+        if (withReview && action === 'messages') {
+            const turn = c.turns.at(-1)
+            turn.status = 'awaiting_approval'; turn.result.reply = ''
+            turn.result.trace_id = 'fixture-trace-123'; turn.result.pause = 'review'
+            turn.result.budget = {rounds: 1, round_limit: 16, operations: 0, operation_limit: 40}
+            turn.result.pending = {id: crypto.randomUUID(), tool: 'update_task', units: 1, arguments: '{"id":1,"title":"Private proposed title"}', before: '[{"id":1,"title":"Private old title"}]'}
+        }
+        if (action === 'review') {
+            reviews.push(body)
+            const turn = c.turns.at(-1)
+            if (body.decision === 'edit') {
+                turn.result.pending.id = crypto.randomUUID(); turn.result.pending.arguments = body.arguments
+            } else {
+                turn.status = 'completed'; turn.result.pause = ''; turn.result.reply = 'Saved after review'
+                turn.result.actions = [{tool: 'update_task', round: 1, success: true, arguments: turn.result.pending.arguments, result: '{"description":"Private tool result","api_key":"never-share-this-credential"}', duration_ms: 12}]
+                turn.result.pending = null
+            }
+        }
 		if (action === 'title') c.title = body.title
 		if (action === 'compact') c.compactions.push({through: c.turns.length - 4, summary: 'Kept compact summary', model: 'actual-fixture', usage: {input: 100, output: 20, reported: true}})
 		if (action === 'fork') {
@@ -45,7 +64,7 @@ async function chatServer(page: Page) {
 		if (request.method() === 'DELETE') { conversations.delete(id); return route.fulfill({status: 204}) }
 		return route.fulfill({status: request.method() === 'GET' ? 200 : 201, json: c})
 	})
-	return {conversations, sends: () => sends}
+	return {conversations, reviews, sends: () => sends}
 }
 
 test('chat persists, exposes real run details, compacts and branches without replay', async ({authenticatedPage: page}) => {
@@ -137,3 +156,51 @@ for (const width of [320, 390]) {
 		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 	})
 }
+
+test('review can be edited and resumed; diagnostic export defaults to metadata on mobile', async ({authenticatedPage: page}) => {
+    const server = await chatServer(page, true)
+    await page.setViewportSize({width: 390, height: 844})
+    await page.goto('/ai')
+    await page.getByLabel('Your request').fill('Review me')
+    await page.getByRole('button', {name: 'Send request', exact: true}).click()
+    await expect(page.getByRole('heading', {name: 'Review this operation'})).toBeVisible()
+    await expect(page.locator('.change-table')).toContainText('Private old title')
+    await page.getByRole('button', {name: 'Edit this operation', exact: true}).click()
+    await page.getByLabel('Edit arguments (JSON)').fill('{"id":1,"title":"Private edited title"}')
+    await page.getByRole('button', {name: 'Update preview', exact: true}).click()
+    await expect(page.locator('.change-table')).toContainText('Private edited title')
+    expect(server.reviews.map(r => r.decision)).toEqual(['edit'])
+    await page.getByRole('button', {name: 'Approve and continue', exact: true}).click()
+    await expect(page.locator('.chat-markdown')).toHaveText('Saved after review')
+    expect(server.reviews.map(r => r.decision)).toEqual(['edit', 'approve'])
+    expect(server.sends()).toBe(1)
+    await page.getByRole('button', {name: 'Inspect run diagnostics', exact: true}).click()
+    const dialog = page.getByRole('dialog', {name: 'Errors and diagnostics'})
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('pre')).toContainText('fixture-trace-123')
+    await expect(dialog.locator('pre')).not.toContainText('Private edited title')
+    await expect(dialog.locator('pre')).not.toContainText('Private tool result')
+    await dialog.getByLabel('Include error details, tool arguments and results (may contain private content)').check()
+    await expect(dialog.locator('pre')).toContainText('Private edited title')
+    await expect(dialog.locator('pre')).not.toContainText('never-share-this-credential')
+    await dialog.getByRole('button', {name: 'Copy diagnostic report', exact: true}).click()
+    await expect(dialog.getByRole('button', {name: 'Copied', exact: true})).toBeVisible()
+    const copied = await page.evaluate(() => navigator.clipboard.readText())
+    expect(JSON.parse(copied).entry.metadata.trace_id).toBe('fixture-trace-123')
+    expect(copied).not.toContain('never-share-this-credential')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible()
+    await page.reload(); await expect(page.locator('.chat-markdown')).toHaveText('Saved after review')
+    expect(server.sends()).toBe(1)
+})
+test('proxy HTML errors produce a useful diagnostic instead of rendering the block page', async ({authenticatedPage: page}) => {
+    await chatServer(page)
+    await page.route('**/api/v2/ai/settings', route => route.fulfill({status: 403, contentType: 'text/html', body: '<!DOCTYPE html><html><title>Blocked</title><body>private-block-page-token</body></html>'}))
+    await page.goto('/ai')
+    await page.locator('.heading-actions').getByRole('button', {name: 'Errors and diagnostics', exact: true}).click()
+    const dialog = page.getByRole('dialog', {name: 'Errors and diagnostics'})
+    await expect(dialog.locator('pre')).toContainText('PROXY_HTML')
+    await expect(dialog.locator('pre')).toContainText('/api/v2/ai/settings')
+    await expect(dialog.locator('pre')).not.toContainText('private-block-page-token')
+    await expect(dialog.locator('pre')).not.toContainText('<!DOCTYPE')
+})

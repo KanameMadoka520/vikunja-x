@@ -1,3 +1,4 @@
+import {captureHttpDiagnostic} from '@/helpers/diagnostics'
 import {i18n} from '@/i18n'
 import {client} from '@/client/generated/client.gen'
 import type {ResolvedRequestOptions} from '@/client/generated/client/types.gen'
@@ -159,5 +160,11 @@ export function configureApiClient(): void {
 		return fenceResponseBody(retryResponse, context, options)
 	})
 
-	client.interceptors.error.use((error, response) => normalizeProblemBody(error, response))
+	client.interceptors.error.use((error, response, request) => {
+		captureHttpDiagnostic(error, response, request)
+		const problem = typeof error === 'string' && /<!doctype|<html/i.test(error)
+			? {detail: i18n.global.t('debug.proxyError')}
+			: error
+		return normalizeProblemBody(problem, response)
+	})
 }

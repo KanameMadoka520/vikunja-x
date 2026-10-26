@@ -42,6 +42,16 @@
 							×{{ item.duplicates + 1 }}
 						</span>
 					</div>
+					<XButton
+						v-if="item.type === 'error' && diagnostics.length"
+						variant="secondary"
+						class="is-small mbs-2"
+						:shadow="false"
+						icon="code"
+						@click.stop="openDiagnostics(); close()"
+					>
+						{{ $t('debug.title') }}
+					</XButton>
 					<div
 						v-if="item.data?.actions?.length > 0"
 						class="mbs-2 tw:flex tw:justify-end tw:gap-2"
@@ -65,6 +75,7 @@
 
 <script lang="ts" setup>
 import {onBeforeUnmount, onMounted, ref} from 'vue'
+import {diagnostics, openDiagnostics} from '@/helpers/diagnostics'
 
 const teleportTarget = ref<string | HTMLElement>('body')
 let observer: MutationObserver | null = null

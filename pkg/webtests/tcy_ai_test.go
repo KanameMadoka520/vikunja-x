@@ -171,7 +171,7 @@ func TestTCYAIIntegration(t *testing.T) {
 	assert.Contains(t, denied.Body.String(), `"success":false`)
 	mode = "escalate"
 	escalation := run("escalate-001", "read", token)
-	assert.Contains(t, escalation.Body.String(), "unauthorized")
+	assert.Contains(t, escalation.Body.String(), "TOOL_NOT_ALLOWED")
 	assert.Equal(t, 200, humaRequest(t, e, "GET", fmt.Sprintf("/api/v2/tasks/%d", createdID), "", token, "").Code)
 	mode = "text"
 	audio := fmt.Sprintf(`{"audio":%q,"filename":"test.wav","cleanup":true}`, base64.StdEncoding.EncodeToString([]byte("RIFF test audio")))

@@ -39,7 +39,7 @@ type ChatTurn struct {
 	ID        string     `json:"id" readOnly:"true" doc:"Server-generated identifier."`
 	Prompt    string     `json:"prompt" readOnly:"true" doc:"Original user message."`
 	RequestID string     `json:"request_id" readOnly:"true" doc:"Retry key for the exact same request; does not authorize replay."`
-	Status    string     `json:"status" enum:"running,completed,failed,stopped,interrupted" readOnly:"true" doc:"Execution state. Interrupted runs are never replayed automatically."`
+	Status    string     `json:"status" enum:"running,completed,failed,stopped,interrupted,awaiting_approval,awaiting_input,paused" readOnly:"true" doc:"Execution state. Interrupted runs are never replayed automatically."`
 	Started   time.Time  `json:"started" readOnly:"true" doc:"UTC run start timestamp."`
 	Finished  *time.Time `json:"finished,omitempty" readOnly:"true" doc:"UTC completion timestamp when finished."`
 	Result    RunResult  `json:"result" readOnly:"true" doc:"Saved answer, actual tool results and request metadata."`
@@ -75,6 +75,7 @@ type storedMessage struct {
 	Native json.RawMessage `json:"native,omitempty"`
 }
 type conversationFile struct {
+	States []*AgentState `json:"states,omitempty"`
 	Conversation
 	Contexts [][]storedMessage `json:"contexts"`
 	Requests map[string]string `json:"requests,omitempty"`
@@ -136,6 +137,15 @@ func readConversation(uid int64, id string) (*conversationFile, error) {
 	for i := range record.Turns {
 		if record.Turns[i].Status == "running" {
 			record.Turns[i].Status = "interrupted"
+			record.Turns[i].Result.ErrorCode = "INTERRUPTED"
+			for j := range record.Turns[i].Result.Operations {
+				if record.Turns[i].Result.Operations[j].Status == "running" {
+					record.Turns[i].Result.Operations[j].Status = "unknown"
+				}
+			}
+			if i < len(record.States) && record.States[i] != nil {
+				record.States[i] = nil
+			}
 		}
 	}
 	return &record, nil
@@ -191,6 +201,12 @@ func cloneConversation(record *conversationFile) Conversation {
 		result.Context = nil
 		result.Steps = append([]ModelStep{}, result.Steps...)
 		result.Actions = append([]Action{}, result.Actions...)
+		result.Operations = append([]Operation{}, result.Operations...)
+		result.Choices = append([]string{}, result.Choices...)
+		if result.Pending != nil {
+			proposal := *result.Pending
+			result.Pending = &proposal
+		}
 	}
 	return out
 }
@@ -328,6 +344,14 @@ func ForkConversation(uid int64, id, turnID string) (Conversation, error) {
 	record.Turns = record.Turns[:until]
 	record.Contexts = record.Contexts[:until]
 	record.Compactions = []Compaction{}
+	record.States = nil
+	for i := range record.Turns {
+		if pausedTurn(record.Turns[i]) {
+			record.Turns[i].Status = "stopped"
+			record.Turns[i].Result.Pause = ""
+			record.Turns[i].Result.Pending = nil
+		}
+	}
 	if err = writeConversation(uid, record); err != nil {
 		return Conversation{}, err
 	}
@@ -346,7 +370,7 @@ func conversationHistory(record *conversationFile, c Connection) ([]Message, str
 	for i := through; i < len(record.Contexts); i++ {
 		turn := record.Turns[i]
 		if turn.Status != "completed" || turn.Result.Protocol != c.EffectiveProtocol() || turn.Result.Endpoint != AgentEndpoint(c) || turn.Result.RequestedModel != c.Model {
-			detail, err := json.Marshal(turn.Result.Actions)
+			detail, err := json.Marshal(map[string]any{"actions": turn.Result.Actions, "receipts": turn.Result.Operations, "error_code": turn.Result.ErrorCode})
 			if err != nil {
 				return nil, "", err
 			}
@@ -363,7 +387,7 @@ func conversationHistory(record *conversationFile, c Connection) ([]Message, str
 }
 
 //nolint:contextcheck // Async jobs deliberately copy language only; inheriting a pooled Echo context is unsafe.
-func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c Connection, execute Executor) (Conversation, error) {
+func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c Connection, execute Executor, preparers ...Preparer) (Conversation, error) {
 	conversations.Lock()
 	defer conversations.Unlock()
 	record, err := getConversationLocked(uid, id)
@@ -384,6 +408,9 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 		}
 	}
 	if conversations.live[uid] != nil {
+		return Conversation{}, ErrConversationBusy
+	}
+	if len(record.Turns) > 0 && pausedTurn(record.Turns[len(record.Turns)-1]) {
 		return Conversation{}, ErrConversationBusy
 	}
 	if len(record.Turns) >= 200 {
@@ -408,7 +435,13 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 	in.ServerHistory = history
 	in.Summary = summary
 	index := len(record.Turns)
-	record.Turns = append(record.Turns, ChatTurn{ID: uuid.NewString(), RequestID: in.RequestID, Prompt: in.Message, Status: "running", Started: time.Now().UTC(), Result: RunResult{Actions: []Action{}, Steps: []ModelStep{}}})
+	state := NewAgentState(ctx, c, in)
+	// Older conversations predate durable engine state.
+	for len(record.States) < index {
+		record.States = append(record.States, nil)
+	}
+	record.States = append(record.States, state)
+	record.Turns = append(record.Turns, ChatTurn{ID: uuid.NewString(), RequestID: in.RequestID, Prompt: in.Message, Status: "running", Started: time.Now().UTC(), Result: publicResult(state.Result)})
 	record.Contexts = append(record.Contexts, []storedMessage{})
 	if record.Title == "" {
 		runes := []rune(in.Message)
@@ -421,52 +454,158 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 	if err = writeConversation(uid, record); err != nil {
 		return Conversation{}, err
 	}
-	jobCtx, cancel := context.WithTimeout(tcylocale.WithLanguage(context.Background(), tcylocale.Language(ctx)), 3*time.Minute)
-	live := &liveConversation{uid: uid, id: id, record: record, cancel: cancel}
+
+	var prepare Preparer
+	if len(preparers) > 0 {
+		prepare = preparers[0]
+	}
+	launchConversation(ctx, uid, record, index, c, execute, prepare)
+	return cloneConversation(record), nil
+}
+
+func pausedTurn(turn ChatTurn) bool {
+	return turn.Status == "awaiting_approval" || turn.Status == "awaiting_input" || turn.Status == "paused"
+}
+func publicResult(result RunResult) RunResult {
+	out := result
+	out.Context = nil
+	out.Steps = append([]ModelStep{}, result.Steps...)
+	out.Actions = append([]Action{}, result.Actions...)
+	out.Choices = append([]string{}, result.Choices...)
+	out.Operations = append([]Operation{}, result.Operations...)
+	for i := range out.Operations {
+		out.Operations[i].ProjectIDs = append([]int64{}, out.Operations[i].ProjectIDs...)
+	}
+	if result.Pending != nil {
+		proposal := *result.Pending
+		proposal.ProjectIDs = append([]int64{}, proposal.ProjectIDs...)
+		out.Pending = &proposal
+	}
+	return out
+}
+
+//nolint:contextcheck // Durable jobs copy only language and cloned HTTP fields, never pooled Echo context.
+func launchConversation(ctx context.Context, uid int64, record *conversationFile, index int, c Connection, execute Executor, prepare Preparer) {
+	state := record.States[index]
+	jobCtx, cancel := context.WithTimeout(tcylocale.WithLanguage(context.Background(), tcylocale.Language(ctx)), time.Duration(state.Input.TimeoutSeconds)*time.Second)
+	live := &liveConversation{uid: uid, id: record.ID, record: record, cancel: cancel}
 	conversations.live[uid] = live
 	go func() {
 		defer cancel()
-		result, runErr := RunObserved(jobCtx, c, in, execute, func(result RunResult) {
+		result, runErr := RunAgent(jobCtx, c, state, execute, prepare, func(state *AgentState) error {
+			snapshot := publicResult(state.Result)
 			conversations.Lock()
 			defer conversations.Unlock()
-			checkpoint := len(result.Actions) > len(record.Turns[index].Result.Actions)
-			record.Turns[index].Result = result
-			if checkpoint {
-				if checkpointErr := writeConversation(uid, record); checkpointErr != nil {
-					cancel()
-				}
+			record.Turns[index].Result = snapshot
+			if state.Streaming {
+				return nil
 			}
+			return writeConversation(uid, record)
 		})
 		conversations.Lock()
 		defer conversations.Unlock()
 		turn := &record.Turns[index]
-		turn.Result = result
+		turn.Result = publicResult(result)
 		finished := time.Now().UTC()
 		turn.Finished = &finished
 		record.Updated = finished
 		turn.Status = "completed"
-		if runErr != nil {
+		if errors.Is(runErr, ErrAgentPaused) {
+			turn.Status = "paused"
+			if result.Pause == "review" {
+				turn.Status = "awaiting_approval"
+			}
+			if result.Pause == "question" {
+				turn.Status = "awaiting_input"
+			}
+			turn.Finished = nil
+		} else if runErr != nil {
 			turn.Status = "failed"
-			turn.Result.Error = tcylocale.Render(jobCtx, runErr)
+			// A timed-out model request has not executed a new tool and can safely resume.
+			if errors.Is(jobCtx.Err(), context.DeadlineExceeded) && result.Stage == "model" {
+				state.Result.Pause = "budget"
+				turn.Result.Pause = "budget"
+				turn.Status = "paused"
+				turn.Finished = nil
+			}
 			if errors.Is(jobCtx.Err(), context.Canceled) {
 				turn.Status = "stopped"
 				turn.Result.Error = ""
 			}
 		}
+		record.Contexts[index] = nil
 		for _, m := range result.Context {
 			record.Contexts[index] = append(record.Contexts[index], storedMessage{Message: m, Native: m.Native})
 		}
+		if !pausedTurn(*turn) {
+			record.States[index] = nil
+		}
 		if err := writeConversation(uid, record); err != nil {
-			// Preserve the live record so a storage failure cannot masquerade as a saved answer.
 			turn.Status = "failed"
 			turn.Result.Error = tcylocale.Render(jobCtx, tcylocale.Error("chatSaveFailed"))
+			turn.Result.ErrorCode = "SAVE_FAILED"
 			live.cancel = nil
 			return
 		}
 		delete(conversations.live, uid)
 	}()
+}
+
+func ReviewConversation(ctx context.Context, uid int64, id string, in ReviewInput, c Connection, execute Executor, prepare Preparer) (Conversation, error) {
+	conversations.Lock()
+	defer conversations.Unlock()
+	if conversations.live[uid] != nil {
+		return Conversation{}, ErrConversationBusy
+	}
+	record, err := readConversation(uid, id)
+	if err != nil {
+		return Conversation{}, err
+	}
+	index := len(record.Turns) - 1
+	if index < 0 || record.Turns[index].ID != in.TurnID || !pausedTurn(record.Turns[index]) || index >= len(record.States) || record.States[index] == nil {
+		return Conversation{}, ErrAgentReview
+	}
+	state := record.States[index]
+	if state.Result.Endpoint != AgentEndpoint(c) || state.Result.Protocol != c.EffectiveProtocol() || state.Result.RequestedModel != c.Model {
+		return Conversation{}, ToolFailure("MODEL_CHANGED", "The saved model connection changed. Stop this run and start a new message.")
+	}
+	if err = ReviewAgent(ctx, state, in, prepare); err != nil {
+		return Conversation{}, err
+	}
+	record.Turns[index].Result = publicResult(state.Result)
+	record.Updated = time.Now().UTC()
+	if in.Decision != "edit" {
+		record.Turns[index].Status = "running"
+	}
+	if err = writeConversation(uid, record); err != nil {
+		return Conversation{}, err
+	}
+	if in.Decision != "edit" {
+		launchConversation(ctx, uid, record, index, c, execute, prepare)
+	}
 	return cloneConversation(record), nil
 }
+
+// PendingConnection returns only the connection ID and policy, never credentials or server messages.
+func PendingConnection(uid int64, id string) (RunInput, error) {
+	conversations.Lock()
+	defer conversations.Unlock()
+	record, err := getConversationLocked(uid, id)
+	if err != nil {
+		return RunInput{}, err
+	}
+	n := len(record.Turns) - 1
+	if n < 0 || n >= len(record.States) || record.States[n] == nil {
+		return RunInput{}, ErrAgentReview
+	}
+	in := record.States[n].Input
+	in.ServerHistory = nil
+	in.History = nil
+	in.Summary = ""
+	in.Message = ""
+	return in, nil
+}
+
 func StopConversation(uid int64, id string) error {
 	conversations.Lock()
 	defer conversations.Unlock()
@@ -476,8 +615,22 @@ func StopConversation(uid int64, id string) error {
 		}
 		return nil
 	}
-	_, err := readConversation(uid, id)
-	return err
+	record, err := readConversation(uid, id)
+	if err != nil {
+		return err
+	}
+	n := len(record.Turns) - 1
+	if n >= 0 && pausedTurn(record.Turns[n]) {
+		record.Turns[n].Status = "stopped"
+		record.Turns[n].Result.Pending = nil
+		record.Turns[n].Result.Pause = ""
+		now := time.Now().UTC()
+		record.Turns[n].Finished = &now
+		record.Updated = now
+		record.States[n] = nil
+		return writeConversation(uid, record)
+	}
+	return nil
 }
 func CompactConversation(ctx context.Context, uid int64, id string, c Connection) (Conversation, error) {
 	conversations.Lock()
@@ -489,6 +642,10 @@ func CompactConversation(ctx context.Context, uid int64, id string, c Connection
 	if err != nil {
 		conversations.Unlock()
 		return Conversation{}, err
+	}
+	if len(record.Turns) > 0 && pausedTurn(record.Turns[len(record.Turns)-1]) {
+		conversations.Unlock()
+		return Conversation{}, ErrConversationBusy
 	}
 	through := len(record.Turns) - 4
 	if through <= 0 {
