@@ -252,6 +252,7 @@ import ProgressBar from '@/components/misc/ProgressBar.vue'
 import Loading from '@/components/misc/Loading.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
+import {runUploadQueue} from '@/helpers/uploadQueue'
 import {useUploadAttachmentsMutation, useDeleteAttachmentMutation} from '@/client/queries/attachments'
 import {canPreviewAudio, canPreviewImage, previewKind, type PreviewKind} from '@/helpers/attachmentPreview'
 import {getDisplayName} from '@/helpers/user'
@@ -306,6 +307,9 @@ const {t} = useI18n({useScope: 'global'})
 
 const attachments = computed(() => props.task.attachments ?? [])
 const uploadMutation = useUploadAttachmentsMutation()
+let uploadController: AbortController | undefined
+onBeforeUnmount(() => uploadController?.abort())
+watch(() => props.task.id, () => uploadController?.abort())
 const deleteMutation = useDeleteAttachmentMutation()
 const uploadBatch = ref<{
 	completed: number,
@@ -472,18 +476,14 @@ async function uploadFilesToTask(files: File[] | FileList) {
 		completed: 0,
 		total: batch.length,
 	}
-	for (const [index, file] of batch.entries()) {
-		try {
-			const result = await uploadMutation.mutateAsync({taskId, files: [file]})
+	uploadController = new AbortController()
+	await runUploadQueue(batch, uploadController.signal,
+		(file, signal) => uploadMutation.mutateAsync({taskId, files: [file], signal}),
+		result => {
 			for (const err of result.errors ?? []) error(err)
-		} catch {
-			// mutation already toasts; keep uploading the remaining files
-		}
-		uploadBatch.value = {
-			completed: index + 1,
-			total: batch.length,
-		}
-	}
+			if (uploadBatch.value) uploadBatch.value.completed++
+		},
+	)
 	// render the finished bar before it disappears
 	await nextTick()
 	uploadBatch.value = null

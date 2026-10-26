@@ -20,7 +20,7 @@ import type {DriveEntry} from '@/client/queries/drive'
 import {drivePreviewQuery} from '@/client/queries/drive'
 const props = defineProps<{file: DriveEntry}>()
 const image = computed(() => /^image\/(png|jpeg|webp|gif)$/.test(props.file.file?.mime ?? '') && (props.file.file?.size ?? 0) < 50 * 1024 * 1024)
-const query = useQuery(computed(() => ({...drivePreviewQuery(props.file.file_id), enabled: image.value})))
+const query = useQuery(computed(() => ({...drivePreviewQuery(props.file.file_id), enabled: image.value && !props.file.purging})))
 const url = useObjectUrl(computed(() => image.value ? query.data.value : undefined))
 </script>
 

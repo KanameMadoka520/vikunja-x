@@ -35,7 +35,7 @@ export function driveBlobQuery(id: number) {
 }
 export function useUploadDriveMutation() {
 	return useMutation(contextMutationOptions({
-		mutationFn: async (file: File) => (await driveUpload({body: {file}})).data,
+		mutationFn: async ({file, signal}: {file: File, signal?: AbortSignal}) => (await driveUpload({body: {file}, signal})).data,
 		onSettled: (_file, client) => invalidateDrive(client),
 	}))
 }

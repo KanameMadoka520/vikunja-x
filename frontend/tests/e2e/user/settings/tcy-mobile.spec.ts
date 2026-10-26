@@ -29,7 +29,7 @@ for (const width of [360, 390]) {
 		await page.getByLabel('API base URL').fill('https://provider.example.com/a-long-custom-proxy-path/v1')
 		await page.getByLabel('Model ID').fill('manual-model')
 		await page.getByLabel('API key', {exact: true}).fill('test-key')
-		for (const [protocol, suffix] of [['openai-chat', '/chat/completions'], ['openai-responses', '/responses'], ['anthropic', '/messages'], ['gemini', '/models/manual-model:generateContent']]) {
+		for (const [protocol, suffix] of [['openai-chat', '/chat/completions'], ['openai-responses', '/responses'], ['anthropic', '/messages'], ['gemini', '/models/manual-model:streamGenerateContent?alt=sse']]) {
 			await page.getByLabel('Request protocol').selectOption(protocol)
 			await expect(page.locator('.endpoint-info code').first()).toHaveText('https://provider.example.com/a-long-custom-proxy-path/v1' + suffix)
 			await fitsScreen(page)

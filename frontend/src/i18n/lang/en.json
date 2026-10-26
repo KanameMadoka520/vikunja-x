@@ -2355,6 +2355,10 @@
     "jumpLatest": "Jump to latest message"
   },
   "drive": {
+    "noMatches": "No files match these filters.",
+    "emptyTrash": "The recycle bin is empty.",
+    "clearFilters": "Clear filters",
+    "uploadCount": "Uploaded {count} of {total} files to My Drive.",
     "title": "My Drive",
     "subtitle": "Upload once and reuse in tasks, descriptions and covers. Your library is private; attachments in shared tasks are visible to project members.",
     "choose": "Choose from Drive",

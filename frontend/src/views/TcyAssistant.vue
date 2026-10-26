@@ -311,7 +311,9 @@ onBeforeUnmount(() => {
 			</RouterLink>
 		</p>
 		<p class="live-connection">
-			<span :class="{connected: events.connected.value}" />{{ events.connected.value ? t('flow.liveConnected') : t('flow.reconnecting') }} · {{ t('flow.backgroundNote') }}
+			<template v-if="chatID">
+				<span :class="{connected: events.connected.value}" />{{ events.connected.value ? t('flow.liveConnected') : t('flow.reconnecting') }} ·
+			</template>{{ t('flow.backgroundNote') }}
 		</p>
 		<div class="chat-shell">
 			<aside
@@ -1046,7 +1048,7 @@ summary {
  }
  .conversation {
   flex: 1 1 0;
-  min-block-size: 0;
+  min-block-size: 15rem;
   max-block-size: none;
  }
  .conversation-toolbar, .composer, .context-options, .system-prompt, .summary-banner, .chat-error, .setup-note {

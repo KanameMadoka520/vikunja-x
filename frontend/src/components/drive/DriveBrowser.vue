@@ -7,7 +7,8 @@
 			<div><h2>{{ picker ? t('drive.choose') : t('drive.title') }}</h2><p>{{ t('drive.subtitle') }}</p></div>
 			<XButton
 				icon="cloud-upload-alt"
-				:loading="upload.isPending.value"
+				:loading="batchActive"
+				:disabled="busy"
 				@click="input?.click()"
 			>
 				{{ t('drive.upload') }}
@@ -62,6 +63,20 @@
 		>
 			{{ t('drive.trashNote') }}
 		</p>
+		<p
+			v-if="batchTotal"
+			class="drive-upload-status"
+			role="status"
+		>
+			{{ t('drive.uploadCount', {count: batchUploaded, total: batchTotal}) }}
+			<XButton
+				v-if="batchActive"
+				variant="tertiary"
+				@click="uploadController?.abort()"
+			>
+				{{ t('misc.cancel') }}
+			</XButton>
+		</p>
 		<p class="drive-summary">
 			{{ t('drive.stats', {count: query.data.value?.total ?? 0, size: formatSize(query.data.value?.bytes ?? 0)}) }}
 		</p>
@@ -83,7 +98,14 @@
 			v-else-if="!query.data.value?.files?.length"
 			class="drive-empty"
 		>
-			{{ t('drive.empty') }}
+			{{ hasFilters ? t('drive.noMatches') : trash ? t('drive.emptyTrash') : t('drive.empty') }}
+			<XButton
+				v-if="hasFilters"
+				variant="secondary"
+				@click="clearFilters"
+			>
+				{{ t('drive.clearFilters') }}
+			</XButton>
 		</p>
 		<div class="drive-grid">
 			<article
@@ -148,6 +170,7 @@
 			</XButton>
 		</div>
 		<Modal
+			class="drive-dialog"
 			:enabled="selected !== null"
 			:wide="true"
 			:aria-label="t('drive.details')"
@@ -157,7 +180,22 @@
 				v-if="selected"
 				class="drive-details"
 			>
-				<h2>{{ t('drive.details') }}</h2>
+				<header class="drive-details-heading">
+					<h2>{{ t('drive.details') }}</h2>
+					<XButton
+						icon="times"
+						variant="tertiary"
+						:aria-label="t('misc.closeDialog')"
+						:disabled="change.isPending.value"
+						@click="closeDetails"
+					/>
+				</header>
+				<div
+					v-if="!selected.purging"
+					class="drive-detail-preview"
+				>
+					<DriveThumbnail :file="selected" />
+				</div>
 				<label>{{ t('drive.name') }}<input
 					v-model="name"
 					class="input"
@@ -242,6 +280,7 @@
 					<XButton
 						variant="secondary"
 						:loading="downloading"
+						:disabled="selected.purging"
 						@click="download(selected)"
 					>
 						{{ t('drive.download') }}
@@ -284,7 +323,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, ref, watch, onBeforeUnmount} from 'vue'
+import {runUploadQueue} from '@/helpers/uploadQueue'
 import {useQuery, useQueryClient} from '@tanstack/vue-query'
 import {useI18n} from 'vue-i18n'
 import {refDebounced} from '@vueuse/core'
@@ -302,6 +342,14 @@ const search = ref(''), category = ref(''), pinned = ref(false), trash = ref(fal
 const debouncedSearch = refDebounced(search, 250)
 watch([debouncedSearch, category, pinned, trash], () => {page.value = 1})
 const query = useQuery(computed(() => driveQuery({page: page.value, search: debouncedSearch.value, category: category.value, pinned: pinned.value, trash: trash.value, images: props.images})))
+watch(() => query.data.value?.total, total => {
+	if (total !== undefined) page.value = Math.min(page.value, Math.max(1, Math.ceil(total / 60)))
+})
+const hasFilters = computed(() => Boolean(search.value || category.value || pinned.value))
+function clearFilters() {search.value = ''; category.value = ''; pinned.value = false; page.value = 1}
+const batchActive = ref(false), batchUploaded = ref(0), batchTotal = ref(0)
+let uploadController: AbortController | undefined
+onBeforeUnmount(() => uploadController?.abort())
 const upload = useUploadDriveMutation(), change = useChangeDriveMutation()
 const input = ref<HTMLInputElement | null>(null)
 const selected = ref<DriveEntry | null>(null), name = ref(''), editCategory = ref(''), editPinned = ref(false)
@@ -312,8 +360,20 @@ function formatSize(size: number) {return size < 1024 ? `${size} B` : size < 104
 function inspect(file: DriveEntry, mode: 'edit' | 'trash' | 'purge' = 'edit') {selected.value = file; name.value = file.file?.name ?? ''; editCategory.value = file.category; editPinned.value = file.pinned; action.value = mode; confirmed.value = false; confirmName.value = ''}
 function closeDetails() {if (!change.isPending.value) selected.value = null}
 async function uploadFiles() {
-	for (const file of Array.from(input.value?.files ?? [])) {await upload.mutateAsync(file).catch(() => undefined)}
-	if (input.value) input.value.value = ''
+	if (batchActive.value || props.busy) return
+	const files = Array.from(input.value?.files ?? [])
+	if (!files.length) return
+	uploadController = new AbortController()
+	batchActive.value = true; batchUploaded.value = 0; batchTotal.value = files.length
+	try {
+		await runUploadQueue(files, uploadController.signal,
+			(file, signal) => upload.mutateAsync({file, signal}),
+			() => {batchUploaded.value++; clearFilters(); trash.value = false},
+		)
+	} finally {
+		batchActive.value = false
+		if (input.value) input.value.value = ''
+	}
 }
 async function restore(file: DriveEntry) {await change.mutateAsync({id: file.file_id, body: {revision: file.revision, action: 'restore', name: '', category: '', pinned: false, confirm: false, confirm_name: ''}}).catch(() => undefined)}
 async function apply(mode: DriveChangeWritable['action']) {
@@ -345,6 +405,8 @@ justify-content: space-between;
 margin-block-end: 1.25rem;
 }
 .drive-heading h2 {
+font-size: 1.5rem;
+font-weight: 600;
 margin-block-end: .35rem;
 }
 .drive-heading p, .drive-summary, small {
@@ -414,10 +476,35 @@ text-align: center;
 color: var(--grey-600);
 }
 .drive-details {
-padding: 1.5rem;
+background: var(--site-background);
+color: var(--text);
+border: 1px solid var(--grey-200);
+border-radius: 1.25rem;
+box-shadow: 0 24px 80px rgb(0 0 0 / 20%);
+padding: clamp(1rem, 3vw, 1.5rem);
 text-align: start;
 overflow-wrap: anywhere;
 }
+.drive-details-heading, .drive-upload-status {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: .75rem;
+}
+.drive-details-heading h2 {
+font-size: 1.25rem;
+font-weight: 600;
+}
+.drive-detail-preview {
+block-size: 12rem;
+background: var(--grey-100);
+border-radius: .75rem;
+overflow: hidden;
+margin-block: 1rem;
+}
+.drive-detail-preview :deep(img) {object-fit: contain;}
+.drive-empty :deep(.button) {margin: 1rem auto 0;
+display: flex;}
 .drive-details > label {
 display: block;
 margin-block: .9rem;
@@ -437,4 +524,20 @@ transition: none;
 } .drive-card:hover {
 transform: none;
 } }
+.drive-details :deep(.input) {
+background: var(--site-background);
+color: var(--text);
+}
+.drive-details :deep(.input::placeholder) {
+color: var(--text-light);
+opacity: 1;
+}
+.drive-details :deep(.button.is-text) {
+color: var(--text);
+}
+@media (width <= 600px) {
+:global(.drive-dialog .modal-container .modal-content.is-wide) {
+margin: 1rem auto;
+}
+}
 </style>

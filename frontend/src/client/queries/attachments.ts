@@ -49,13 +49,15 @@ export async function attachmentBlob(attachment: AttachmentIdentity, size?: Prev
 
 export function uploadAttachmentsMutationOptions(shouldNotify: () => boolean = () => true) {
 	return contextMutationOptions({
-		mutationFn: async ({taskId, files}: {
+		mutationFn: async ({taskId, files, signal}: {
 			taskId: number,
 			files: File[],
+			signal?: AbortSignal,
 		}) =>
 			(await taskAttachmentsUpload({
 				path: {task: taskId},
 				body: {files},
+				signal,
 			})).data,
 		onSuccess: (result, {taskId}, client) => {
 			const uploaded = result.success ?? []

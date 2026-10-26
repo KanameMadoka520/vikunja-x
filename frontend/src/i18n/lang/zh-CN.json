@@ -2355,6 +2355,10 @@
     "jumpLatest": "回到最新消息"
   },
 	"drive": {
+		"noMatches": "没有符合当前筛选条件的文件。",
+		"emptyTrash": "回收站里还没有文件。",
+		"clearFilters": "清除筛选",
+		"uploadCount": "本次已上传 {count}/{total} 个文件到我的网盘。",
 		"title": "我的网盘",
 		"subtitle": "上传一次，在任务、正文和封面中重复使用。文件仅对你可见，附加到共享任务后，项目成员可以访问该附件。",
 		"choose": "从网盘选择",

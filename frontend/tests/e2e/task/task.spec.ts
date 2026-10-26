@@ -81,6 +81,9 @@ async function uploadAttachmentAndVerify(page: Page, taskId: number, file = 'tes
 	await page.locator('.task-view .action-buttons .button').filter({hasText: 'Add Attachments'}).click()
 	const fileChooser = await fileChooserPromise
 	await fileChooser.setFiles(file)
+	if (/\.(jpe?g|png|webp|gif)$/i.test(file)) {
+		await page.getByRole('dialog', {name: 'Choose how to upload images'}).getByRole('button', {name: 'Upload images', exact: true}).click()
+	}
 	await uploadAttachmentPromise
 
 	await expect(page.locator('.attachments .attachments .files .attachment')).toBeVisible()
@@ -1173,6 +1176,7 @@ test.describe('Task', () => {
 			const editor = page.locator('.task-view .details.content.description .tiptap__editor .tiptap.ProseMirror')
 			await expect(editor).toBeVisible({timeout: 30_000})
 			await pasteFile(editor, 'image.jpg', 'image/jpeg')
+			await page.getByRole('dialog', {name: 'Choose how to upload images'}).getByRole('button', {name: 'Upload images', exact: true}).click()
 
 			await uploadAttachmentPromise
 
