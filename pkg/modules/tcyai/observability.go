@@ -45,6 +45,10 @@ func (u *Usage) Add(v Usage) {
 }
 
 type ModelStep struct {
+	LoadedTools        []string   `json:"loaded_tools" doc:"Actual tool names supplied in this model request."`
+	ToolSchemaBytes    int        `json:"tool_schema_bytes" doc:"UTF-8 bytes of canonical JSON definitions, not billable tokens or provider wire bytes."`
+	CatalogSchemaBytes int        `json:"catalog_schema_bytes" doc:"Canonical JSON bytes if all permitted tool definitions had been loaded."`
+	CatalogToolCount   int        `json:"catalog_tool_count" doc:"Number of tools available to discover under current permissions."`
 	Started            time.Time  `json:"started" doc:"Upstream request start time, for live elapsed time."`
 	RequestedStreaming bool       `json:"requested_streaming" doc:"Whether streaming was explicitly requested from this provider."`
 	Streaming          bool       `json:"streaming" doc:"Whether the provider actually responded with an event stream."`

@@ -190,6 +190,83 @@ export type AiTextResponseBody = {
     warning?: string;
 };
 
+export type AssistantOptions = {
+    /**
+     * Enable task deletion; destructive actions still require review.
+     */
+    allow_delete?: boolean;
+    /**
+     * Review policy; destructive and notification operations always require review.
+     */
+    approval?: 'smart' | 'review' | 'auto';
+    /**
+     * Empty follows the configured assistant connection.
+     */
+    connection_id?: string;
+    /**
+     * Tool operations per execution segment.
+     */
+    max_operations?: number;
+    /**
+     * Model requests per execution segment.
+     */
+    max_rounds?: number;
+    /**
+     * Read only or execute writes within existing account permissions.
+     */
+    mode?: 'read' | 'write';
+    /**
+     * Context project only, not a permission boundary.
+     */
+    project_id?: number;
+    /**
+     * Execution segment deadline in seconds.
+     */
+    timeout_seconds?: number;
+    /**
+     * Provider reported token soft limit; zero disables it.
+     */
+    token_budget?: number;
+    /**
+     * Optional additional write restriction, never a permission grant.
+     */
+    write_project_ids?: Array<number> | null;
+};
+
+export type AssistantPreferences = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Built-in ask, plan, assist, batch, or custom profile ID; empty means ask.
+     */
+    default_profile?: string;
+    /**
+     * Account-owned custom scenario templates.
+     */
+    profiles?: Array<AssistantProfile> | null;
+    /**
+     * Optimistic concurrency revision; stale writes return 409.
+     */
+    revision?: number;
+};
+
+export type AssistantProfile = {
+    /**
+     * Stable custom profile ID, prefixed custom-.
+     */
+    id?: string;
+    /**
+     * Personal display name.
+     */
+    name?: string;
+    /**
+     * Options applied to future requests when selected.
+     */
+    options?: AssistantOptions;
+};
+
 export type AttachmentUploadError = {
     /**
      * Vikunja numeric error code, when the failure carries one.
@@ -1511,6 +1588,14 @@ export type ModelList = {
 
 export type ModelStep = {
     /**
+     * Canonical JSON bytes if all permitted tool definitions had been loaded.
+     */
+    catalog_schema_bytes?: number;
+    /**
+     * Number of tools available to discover under current permissions.
+     */
+    catalog_tool_count?: number;
+    /**
      * Elapsed wall-clock milliseconds.
      */
     duration_ms?: number;
@@ -1526,6 +1611,10 @@ export type ModelStep = {
      * Actual upstream HTTP status, or zero when no response arrived.
      */
     http_status?: number;
+    /**
+     * Actual tool names supplied in this model request.
+     */
+    loaded_tools?: Array<string> | null;
     /**
      * Model name returned by the provider, falling back to the requested ID.
      */
@@ -1566,6 +1655,10 @@ export type ModelStep = {
      * Provider tool-call drafts; never executable until the model round completes and validation succeeds.
      */
     tool_calls?: Array<ToolCall> | null;
+    /**
+     * UTF-8 bytes of canonical JSON definitions, not billable tokens or provider wire bytes.
+     */
+    tool_schema_bytes?: number;
     /**
      * Provider-reported usage for this model round.
      */
@@ -2801,6 +2894,10 @@ export type Settings = {
      * Connections owned by the current user.
      */
     connections?: Array<Connection> | null;
+    /**
+     * Personal assistant profiles; updated separately to avoid overwriting connection secrets.
+     */
+    readonly preferences?: AssistantPreferences;
     /**
      * Connection used for speech recognition.
      */
@@ -4614,6 +4711,21 @@ export type AiTextResponseBodyWritable = {
      * Non-fatal cleanup failure, if any.
      */
     warning?: string;
+};
+
+export type AssistantPreferencesWritable = {
+    /**
+     * Built-in ask, plan, assist, batch, or custom profile ID; empty means ask.
+     */
+    default_profile?: string;
+    /**
+     * Account-owned custom scenario templates.
+     */
+    profiles?: Array<AssistantProfile> | null;
+    /**
+     * Optimistic concurrency revision; stale writes return 409.
+     */
+    revision?: number;
 };
 
 export type AttachmentUploadResultWritable = {
@@ -7421,6 +7533,56 @@ export type TcyAiModelsResponses = {
 };
 
 export type TcyAiModelsResponse = TcyAiModelsResponses[keyof TcyAiModelsResponses];
+
+export type TcyAiPreferencesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/ai/preferences';
+};
+
+export type TcyAiPreferencesErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiPreferencesError = TcyAiPreferencesErrors[keyof TcyAiPreferencesErrors];
+
+export type TcyAiPreferencesResponses = {
+    /**
+     * OK
+     */
+    200: AssistantPreferences;
+};
+
+export type TcyAiPreferencesResponse = TcyAiPreferencesResponses[keyof TcyAiPreferencesResponses];
+
+export type TcyAiSavePreferencesData = {
+    body: AssistantPreferencesWritable;
+    path?: never;
+    query?: never;
+    url: '/ai/preferences';
+};
+
+export type TcyAiSavePreferencesErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiSavePreferencesError = TcyAiSavePreferencesErrors[keyof TcyAiSavePreferencesErrors];
+
+export type TcyAiSavePreferencesResponses = {
+    /**
+     * OK
+     */
+    200: AssistantPreferences;
+};
+
+export type TcyAiSavePreferencesResponse = TcyAiSavePreferencesResponses[keyof TcyAiSavePreferencesResponses];
 
 export type TcyAiPromptData = {
     body?: never;

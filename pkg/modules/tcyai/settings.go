@@ -49,10 +49,11 @@ type Connection struct {
 }
 
 type Settings struct {
-	Connections   []Connection `json:"connections" maxItems:"20" doc:"Connections owned by the current user."`
-	Assistant     string       `json:"assistant" doc:"Connection used by the task agent."`
-	Transcription string       `json:"transcription" doc:"Connection used for speech recognition."`
-	Cleanup       string       `json:"cleanup" doc:"Optional chat connection for cleaning up transcripts. Empty disables cleanup."`
+	Preferences   AssistantPreferences `json:"preferences" readOnly:"true" doc:"Personal assistant profiles; updated separately to avoid overwriting connection secrets."`
+	Connections   []Connection         `json:"connections" maxItems:"20" doc:"Connections owned by the current user."`
+	Assistant     string               `json:"assistant" doc:"Connection used by the task agent."`
+	Transcription string               `json:"transcription" doc:"Connection used for speech recognition."`
+	Cleanup       string               `json:"cleanup" doc:"Optional chat connection for cleaning up transcripts. Empty disables cleanup."`
 }
 
 var settingsLock sync.Mutex
@@ -154,6 +155,11 @@ func Save(uid int64, s Settings) (Settings, error) {
 			}
 		}
 	}
+	s.Preferences = old.Preferences
+	return writeSettings(uid, s)
+}
+
+func writeSettings(uid int64, s Settings) (Settings, error) {
 	plain, err := json.Marshal(s)
 	if err != nil {
 		return s, err

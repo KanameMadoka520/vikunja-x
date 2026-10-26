@@ -175,7 +175,7 @@ func (state *AgentState) messages() []Message {
 		result[i] = stored.Message
 		result[i].Native = stored.Native
 	}
-	return result
+	return compactDiscoveryMessages(result)
 }
 func (state *AgentState) tools() []map[string]any {
 	result := []map[string]any{}
@@ -185,32 +185,6 @@ func (state *AgentState) tools() []map[string]any {
 		}
 	}
 	return result
-}
-
-func (state *AgentState) discover(raw json.RawMessage) (string, error) {
-	var args struct {
-		Query string `json:"query"`
-	}
-	_ = json.Unmarshal(raw, &args)
-	terms := strings.Fields(strings.ToLower(args.Query))
-	selected := []map[string]any{}
-	for _, t := range AllTools(state.Input.Mode, state.Input.AllowDelete) {
-		raw, err := json.Marshal(t)
-		if err != nil {
-			return "", err
-		}
-		for _, term := range terms {
-			if strings.Contains(strings.ToLower(string(raw)), term) {
-				selected = append(selected, t)
-				if !slices.Contains(state.Available, toolName(t)) {
-					state.Available = append(state.Available, toolName(t))
-				}
-				break
-			}
-		}
-	}
-	data, err := json.Marshal(map[string]any{"tools": selected, "note": "These tools are loaded for subsequent rounds. Missing matches do not grant other tools. Use simple keywords such as labels, comments, assignees, relations or bulk."})
-	return string(data), err
 }
 
 func RunAgent(ctx context.Context, c Connection, state *AgentState, execute Executor, prepare Preparer, save func(*AgentState) error) (result RunResult, runErr error) {
@@ -272,7 +246,24 @@ func (state *AgentState) modelRound(ctx context.Context, c Connection, started t
 		state.Streaming = false
 		state.Result.Steps = live.Steps
 	})
-	message, err := Chat(observed, c, state.messages(), state.tools())
+	state.trimTools()
+	loaded := state.tools()
+	catalog := AllTools(state.Input.Mode, state.Input.AllowDelete)
+	loadedJSON, marshalErr := json.Marshal(loaded)
+	if marshalErr != nil {
+		return false, marshalErr
+	}
+	catalogJSON, marshalErr := json.Marshal(catalog)
+	if marshalErr != nil {
+		return false, marshalErr
+	}
+	o.step.ToolSchemaBytes = len(loadedJSON)
+	o.step.CatalogSchemaBytes = len(catalogJSON)
+	o.step.CatalogToolCount = len(catalog)
+	for _, tool := range loaded {
+		o.step.LoadedTools = append(o.step.LoadedTools, toolName(tool))
+	}
+	message, err := Chat(observed, c, state.messages(), loaded)
 	o.step.DurationMS = time.Since(o.start).Milliseconds()
 	state.Result.Steps = append(state.Result.Steps, o.step)
 	state.Result.Usage.Add(o.step.Usage)

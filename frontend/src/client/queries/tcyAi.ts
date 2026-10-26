@@ -20,7 +20,7 @@ const settingsKey = ['tcymc-ai', 'settings'] as const
 export function aiSettingsQuery() {
 	return queryOptions({queryKey: settingsKey, queryFn: async ({signal}): Promise<AISettings> => {
 		const s = (await tcyAiSettings({signal})).data
-		return {connections: (s.connections ?? []).map(c => ({protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
+		return {connections: (s.connections ?? []).map(c => ({non_streaming: c.non_streaming, protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
 	}})
 }
 

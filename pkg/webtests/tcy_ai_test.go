@@ -73,7 +73,8 @@ func TestTCYAIIntegration(t *testing.T) {
 		}
 		assert.Equal(t, "/v1/chat/completions", r.URL.Path)
 		var input struct {
-			Model    string `json:"model"`
+			Model    string           `json:"model"`
+			Tools    []map[string]any `json:"tools"`
 			Messages []struct {
 				Role    string `json:"role"`
 				Content string `json:"content"`
@@ -84,7 +85,7 @@ func TestTCYAIIntegration(t *testing.T) {
 		}
 		modelCalls++
 		last := input.Messages[len(input.Messages)-1]
-		if last.Role == "tool" || mode == "text" {
+		if (last.Role == "tool" && !strings.Contains(last.Content, `"note":"These tools`)) || mode == "text" {
 			_, err := fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"已完成处理"}}]}`)
 			assert.NoError(t, err)
 			return
@@ -101,6 +102,19 @@ func TestTCYAIIntegration(t *testing.T) {
 		if mode == "escalate" {
 			name = "delete_task"
 			args = fmt.Sprintf(`{"id":%d}`, createdID)
+		}
+		if mode == "create" || mode == "update" {
+			loaded := false
+			for _, tool := range input.Tools {
+				fn, _ := tool["function"].(map[string]any)
+				if fn["name"] == name {
+					loaded = true
+				}
+			}
+			if !loaded {
+				args = fmt.Sprintf(`{"query":%q}`, name)
+				name = "find_tools"
+			}
 		}
 		response := map[string]any{"choices": []any{map[string]any{"message": map[string]any{"role": "assistant", "content": "", "tool_calls": []any{map[string]any{"id": "call-1", "type": "function", "function": map[string]string{"name": name, "arguments": args}}}}}}}
 		assert.NoError(t, json.NewEncoder(w).Encode(response))
@@ -147,12 +161,12 @@ func TestTCYAIIntegration(t *testing.T) {
 		} `json:"actions"`
 	}
 	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &result))
-	require.Len(t, result.Actions, 1)
-	require.True(t, result.Actions[0].Success, result.Actions[0].Result)
+	require.Len(t, result.Actions, 2)
+	require.True(t, result.Actions[1].Success, result.Actions[1].Result)
 	var task struct {
 		ID int64 `json:"id"`
 	}
-	require.NoError(t, json.Unmarshal([]byte(result.Actions[0].Result), &task))
+	require.NoError(t, json.Unmarshal([]byte(result.Actions[1].Result), &task))
 	createdID = task.ID
 	require.Positive(t, createdID)
 	calls := modelCalls

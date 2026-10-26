@@ -3,7 +3,7 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.8`
+- 版本：`v2.7.1-tcymc.9`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 
@@ -108,6 +108,17 @@
 默认导出不含对话正文、工具参数或结果。需要定位模型参数等具体问题时，可勾选“附带具体报错、工具参数和结果”，检查预览后再分享。请求头、登录令牌和原始音频不收集；敏感字段、常见密钥格式以及 URL 凭据与查询参数会脱敏。自由文本仍可能含私人内容，分享详细报告前应自行检查。代理返回 HTML 拦截页时展示简明提示，不再把整页 HTML 塞进错误通知。
 
 执行设计参考了 [Home Assistant 的 LLM 工具边界](https://github.com/home-assistant/core/blob/d40f18cc477d3bd0c39dfdec331c0096f7dcdddd/homeassistant/helpers/llm.py)、[n8n 工具审核](https://github.com/n8n-io/n8n/blob/7fc63ed7f7ec9c619825b95e999cf9b968aa4823/packages/cli/src/tool-generation/hitl-tools.ts)、[OpenHands](https://github.com/OpenHands/software-agent-sdk)、[LibreChat](https://github.com/LibreChat-AI/LibreChat)、[CopilotKit](https://github.com/CopilotKit/CopilotKit) 与 [LangGraph](https://github.com/langchain-ai/langgraph) 的能力发现、交互式审核和暂停恢复思路，使用本项目现有 Vue、Go 与权限模型实现，没有引入这些项目的运行服务。
+
+## 对话场景与按需工具加载
+
+助手采用居中的对话阅读区、底部自适应输入框、可收起的历史记录，以及独立的“场景与偏好”面板。输入区直接切换查询与建议、计划与审核、日常管理和批量整理；每项权限、预算都有说明。可保存最多 20 个个人模板并设为账户默认，模板不含密钥或对话内容。取消设置不影响当前选项；修改仅作用于下一次发送，正在运行的后台任务保持原设置。模板保存在服务器加密设置中，独立接口和 revision 冲突检测防止覆盖模型密钥及其他窗口的更新。
+
+工具发现参考 [Anthropic 的高级工具使用设计](https://www.anthropic.com/research/advanced-tool-use) 与 [Tool Search 文档](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool)。本项目在执行层实现跨协议的按需加载，不要求兼容服务实现 Anthropic 专属工具搜索 API，也没有引入其他 agent 运行服务：
+
+- 每次新请求从 5 个常驻工具开始（项目查询、任务查询、任务读取、能力发现、询问用户），写入及扩展能力通过 `find_tools` 加载。
+- 优先匹配精确工具名，仅搜索能力名称和说明，每次最多 5 个；保留最近 8 个扩展工具及尚未执行完的调用。工具缺失时可再次发现，权限和参数仍由服务端验证。
+- 发现结果只返回简短目录，完整参数定义仅放进后续请求的工具声明。重放旧会话时也会精简旧版发现结果中的重复定义，原始记录保持不变。
+- 每轮记录实际加载的工具名、数量和规范 JSON 的 UTF-8 字节数，供步骤详情和诊断使用。字节数不是 token 估计，也不能直接推算账单；实际 token 仍以服务商报告为准。
 
 ## AI 与语音
 

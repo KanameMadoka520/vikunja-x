@@ -2117,11 +2117,11 @@
       },
       "permissions": {
         "title": "Choose what AI may do",
-        "text": "Expand model, project and permissions to choose a project. Start in read-only mode to check results, then allow changes only when needed. Deletion requires a separate switch."
+        "text": "Choose a scenario beside the composer. Open Scenarios & preferences to see what each mode allows, adjust budgets, and save your own default template. Start with Ask & explore if you only want suggestions."
       },
       "voice": {
         "title": "Speak, review, then send",
-        "text": "Record or upload audio after assigning a speech model. Optionally clean up the transcript, review and edit it, then send it yourself. Recording needs microphone permission; the guide never turns it on."
+        "text": "Open the microphone menu for recording, audio upload and text cleanup. Transcripts remain editable before you send."
       },
       "send": {
         "title": "Describe the result you want",
@@ -2420,5 +2420,68 @@
       "drive_purge_retry": "The file is marked for permanent deletion, but storage cleanup failed. Please retry from the recycle bin."
     },
     "retryPurge": "Retry permanent deletion"
+  },
+  "assistantUI": {
+    "preferences": "Scenarios & preferences",
+    "nextRequest": "Changes apply to your next message. Running tasks keep the settings they started with.",
+    "scenarios": "Scenario",
+    "default": "Default",
+    "myTemplates": "My templates",
+    "chooseTemplate": "Choose a personal template",
+    "makeDefault": "Make my default",
+    "deleteTemplate": "Delete this template",
+    "defaultHelp": "Your default applies when you reopen the assistant. Deleting a template does not delete chats or change running tasks.",
+    "contextHelp": "The project to focus on. The assistant can still read other accessible projects; restrict writes separately below.",
+    "modeHelp": "Read only looks up information and offers suggestions. Execute allows creation and changes. Your account permissions always apply.",
+    "approval_smart": "Ordinary individual edits run directly. Bulk edits, deletion, project creation, comments and assignment actions require review.",
+    "approval_review": "Preview and review every write before execution. Useful for planning and first attempts.",
+    "approval_auto": "Ordinary and bulk edits run directly. Deletion, project creation, comments and assignment actions still require review.",
+    "unavailableProject": "Unavailable or archived (restriction retained)",
+    "missingModel": "Connection unavailable; choose another",
+    "advanced": "Advanced execution budget",
+    "budgetHelp": "Budgets apply to one execution segment. Round, operation or token limits pause it with completed work preserved; you can continue. A timeout ends the segment. Higher limits support complex work but can increase time and cost.",
+    "max_rounds": "Model requests (1–40)",
+    "max_roundsHelp": "Each model request after reading tool results is another round. Use 8 for lookups or 16–24 for multi-step work.",
+    "max_operations": "Tool operations (1–100)",
+    "max_operationsHelp": "Lookups and tool discovery count too. Bulk edits count the affected tasks. Try 20 for lookups or 40 for daily work.",
+    "timeout_seconds": "Segment time limit (seconds, 1–600)",
+    "timeout_secondsHelp": "120 seconds suits simple lookups. Try 180–300 for slower reasoning or longer work. Leaving the page does not stop the timer.",
+    "token_budget": "Segment token soft limit (0 = unlimited)",
+    "token_budgetHelp": "Provider-reported input plus output, checked between requests. A single request can exceed it; unreported usage cannot be counted. This is not a hard spending cap.",
+    "templateName": "Save a personal template",
+    "nameExample": "For example: Weekly work review",
+    "updateTemplate": "Update this template",
+    "saveTemplate": "Save as new template",
+    "templateHelp": "Up to 20 templates. Saves model selection, project scope, permissions and budgets, without messages or keys. Update a template or save a separate copy.",
+    "saved": "Saved to your account.",
+    "saveFailed": "Could not save. Another window may have changed your preferences. Reload and try again; your current inputs are retained.",
+    "loadFailed": "Could not load personal templates. Please retry.",
+    "apply": "Use for upcoming messages",
+    "custom": "Custom",
+    "voiceTools": "Voice & text cleanup",
+    "placeholder": "What would you like to work on?",
+    "readStatus": "Read only · No task changes",
+    "write_smart": "Execute · Review important actions",
+    "write_review": "Execute · Review every change",
+    "write_auto": "Execute · Ordinary and bulk edits run directly",
+    "toolFootprint": "Loaded {count}/{total} tools: {size} KiB of definitions (full catalog: {full} KiB). These are definition bytes, not billable tokens.",
+    "presets": {
+      "ask": {
+        "name": "Ask & explore",
+        "description": "Check schedules, progress and ideas. Reads only. 8 rounds / 20 operations / 120 seconds."
+      },
+      "plan": {
+        "name": "Plan & review",
+        "description": "Turn ideas into tasks. Review every change first. 12 rounds / 30 operations / 180 seconds."
+      },
+      "assist": {
+        "name": "Daily assistant",
+        "description": "Create and update clear tasks. Ordinary edits run directly; important actions need review. 16 rounds / 40 operations / 180 seconds."
+      },
+      "batch": {
+        "name": "Organize in bulk",
+        "description": "More room for multi-step or cross-project work. Review every write. 24 rounds / 80 operations / 300 seconds."
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@ import {test, expect} from '../../support/fixtures'
 import type {Page} from '@playwright/test'
 
 async function chatServer(page: Page, withReview = false, live = false) {
+ await page.route('**/api/v2/ai/preferences', route => route.fulfill({json: {revision: 0, default_profile: 'ask', profiles: []}}))
  const reviews: any[] = []
 	const conversations = new Map<string, any>()
 	let sends = 0
@@ -29,7 +30,7 @@ async function chatServer(page: Page, withReview = false, live = false) {
 			c.turns.push({id: crypto.randomUUID(), prompt: body.message, status: 'completed', result: {
 				reply: '**Saved answer**', model: 'actual-fixture', requested_model: 'requested', protocol: 'anthropic', endpoint: 'https://fixture.example/v1/messages', system_prompt: 'Actual request prompt', duration_ms: 2000, first_token_ms: 125, first_text_ms: 500,
 				usage: {input: 30, output: 20, reported: true, cached: 5, cache_reported: true},
-				steps: [{round: 1, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', duration_ms: 2000}],
+				steps: [{round: 1, loaded_tools: ['list_projects', 'find_tools'], tool_schema_bytes: 1200, catalog_schema_bytes: 8000, catalog_tool_count: 20, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', duration_ms: 2000}],
 				actions: [{round: 1, tool: 'list_projects', arguments: '{}', result: '{"items":[]}', success: true, duration_ms: 10}],
 			}})
 		}
@@ -77,7 +78,7 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	const server = await chatServer(page)
 	await page.goto('/ai')
 	await page.setViewportSize({width: 1440, height: 900})
-	await expect(page.getByLabel('Working mode')).toHaveValue('read')
+	await expect(page.locator('.profile-switch select')).toHaveValue('ask')
 	await page.getByLabel('Your request').fill('First message')
 	await page.getByLabel('Your request').press('Enter')
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
@@ -113,6 +114,7 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	await expect(page.locator('.chat-turn')).toHaveCount(1)
 	expect(server.sends()).toBe(5)
 	expect(server.conversations.size).toBe(2)
+	await page.getByRole('button', {name: 'Conversations', exact: true}).click()
 	await page.locator('.system-prompt > summary').click()
 	await expect(page.locator('.system-prompt')).toContainText('Actual built-in fixture prompt')
 })
@@ -130,9 +132,10 @@ test('send keeps the clicked permissions and preserves a new draft while creatio
  const creating = page.waitForRequest(r => r.url().endsWith('/ai/conversations') && r.method() === 'POST')
  await page.getByRole('button', {name: 'Send request', exact: true}).click()
  await creating
- await page.locator('.context-options > summary').click()
+ await page.getByRole('button', {name: 'Scenarios & preferences', exact: true}).click()
  await page.getByLabel('Working mode').selectOption('write')
  await page.getByLabel('Allow task deletion for this request').check()
+ await page.getByRole('button', {name: 'Use for upcoming messages'}).click()
  await page.getByLabel('Your request').fill('New draft for later')
  const sent = page.waitForRequest(r => r.url().endsWith('/messages'))
  release()
@@ -184,6 +187,7 @@ test('review can be edited and resumed; diagnostic export defaults to metadata o
     const dialog = page.getByRole('dialog', {name: 'Errors and diagnostics'})
     await expect(dialog).toBeVisible()
     await expect(dialog.locator('pre')).toContainText('fixture-trace-123')
+    await expect(dialog.locator('pre')).toContainText('tool_schema_bytes')
     await expect(dialog.locator('pre')).not.toContainText('Private edited title')
     await expect(dialog.locator('pre')).not.toContainText('Private tool result')
     await dialog.getByLabel('Include error details, tool arguments and results (may contain private content)').check()

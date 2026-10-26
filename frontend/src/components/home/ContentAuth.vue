@@ -260,13 +260,24 @@ onBeforeUnmount(() => {
 	position: fixed;
 	inset-block-end: calc(1rem - 4px);
 	inset-inline-end: 1rem;
-	z-index: 4500; // The modal has a z-index of 4000
+	z-index: 4500;
+// The modal has a z-index of 4000
 	color: var(--grey-500);
 	transition: color $transition;
 
 	@media screen and (max-width: $tablet) {
 		display: none;
 	}
+}
+
+.app-content.tcy-ai {
+ block-size: 100dvh;
+ padding: $navbar-height 0 0;
+ @media screen and (max-width: $tablet) {
+block-size: calc(100dvh - #{$navbar-height});
+min-block-size: 0;
+padding: 0;
+}
 }
 
 .content-auth {

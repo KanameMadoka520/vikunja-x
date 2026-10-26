@@ -7,6 +7,9 @@ import {computed, onBeforeUnmount, ref, watch, nextTick} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useQuery} from '@tanstack/vue-query'
 import {aiSettingsQuery, useCleanupAI, useTranscribeAI} from '@/client/queries/tcyAi'
+import AssistantPreferences from '@/components/ai/AssistantPreferences.vue'
+import {assistantPreferencesQuery} from '@/client/queries/assistantPreferences'
+import {builtinProfileIDs, normalizeOptions, profileOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {
@@ -63,10 +66,43 @@ const mode = ref<'read' | 'write'>('read')
 const allowDelete = ref(false)
 const approval = ref<'smart' | 'review' | 'auto'>('smart')
 const writeProjectIDs = ref<number[]>([])
-const maxRounds = ref(16)
-const maxOperations = ref(40)
-const timeoutSeconds = ref(180)
+const maxRounds = ref(8)
+const maxOperations = ref(20)
+const timeoutSeconds = ref(120)
 const tokenBudget = ref(0)
+const preferences = useQuery(assistantPreferencesQuery())
+const preferencesOpen = ref(false)
+const selectedProfile = ref('ask')
+const preferencesInitialized = ref(false)
+const profileTouched = ref(false)
+const currentOptions = computed<AssistantOptions>(() => ({connection_id: connectionID.value, project_id: projectID.value, mode: mode.value, allow_delete: allowDelete.value, approval: approval.value, write_project_ids: writeProjectIDs.value, max_rounds: maxRounds.value, max_operations: maxOperations.value, timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value}))
+const profiles = computed(() => [...builtinProfileIDs.map(id => ({id, name: t(`assistantUI.presets.${id}.name`)})), ...(preferences.data.value?.profiles ?? []).map(p => ({id: p.id!, name: p.name!}))])
+function applyOptions(o: AssistantOptions, profile: string) {
+	connectionID.value = o.connection_id; projectID.value = o.project_id; mode.value = o.mode; allowDelete.value = o.allow_delete; approval.value = o.approval
+	writeProjectIDs.value = [...o.write_project_ids]; maxRounds.value = o.max_rounds; maxOperations.value = o.max_operations; timeoutSeconds.value = o.timeout_seconds; tokenBudget.value = o.token_budget
+	selectedProfile.value = profile; profileTouched.value = true
+}
+function selectProfile(id: string) {
+	const custom = preferences.data.value?.profiles?.find(p => p.id === id)
+	const options = custom ? normalizeOptions(custom.options) : {...profileOptions(id), connection_id: connectionID.value, project_id: projectID.value}
+	applyOptions(options, id)
+}
+watch(() => preferences.data.value, value => {
+	if (!value || preferencesInitialized.value) return
+	preferencesInitialized.value = true
+	if (profileTouched.value) return
+	selectProfile(value.default_profile || 'ask')
+	if (Number(route.query.project)) projectID.value = Number(route.query.project)
+}, {immediate: true})
+watch(mode, value => {if (value === 'read') allowDelete.value = false})
+function resizeComposer() {
+	const el = document.getElementById('ai-prompt') as HTMLTextAreaElement | null
+	if (!el) return
+	el.style.height = 'auto'
+	el.style.height = `${Math.min(el.scrollHeight, 180)}px`
+}
+watch(prompt, async () => {await nextTick(); resizeComposer()})
+const voiceOpen = ref(false)
 const effectivePrompt = useQuery(computed(() => promptQuery(projectID.value, mode.value, allowDelete.value, showSystemPrompt.value)))
 const tidy = ref(true)
 const original = ref('')
@@ -77,7 +113,7 @@ const audioStage = ref('')
 const elapsed = ref(0)
 const editingBusy = computed(() => Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
 const busy = computed(() => editingBusy.value || activeRun.value || Boolean(paused.value))
-const hasAssistant = computed(() => Boolean(selectedConnection.value))
+const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
 let recorder: MediaRecorder | undefined
 let stream: MediaStream | undefined
@@ -183,7 +219,7 @@ function composerKeydown(event: KeyboardEvent) {
 watch(() => active.value?.turns?.at(-1)?.status, (status, previous) => {
 	if (previous === 'running' && status !== 'running') refreshChanges.mutate()
 })
-watch(() => JSON.stringify(active.value?.turns?.at(-1)?.result), async () => {
+watch(() => active.value?.turns?.at(-1)?.result, async () => {
 	await nextTick()
 	if (stickToBottom.value && thread.value) thread.value.scrollTo({top: thread.value.scrollHeight, behavior: 'instant'})
 })
@@ -272,34 +308,45 @@ onBeforeUnmount(() => {
 <template>
 	<div class="tcy-assistant">
 		<header class="assistant-heading">
-			<div>
-				<p class="eyebrow">
-					{{ t('tcymc.assistantEyebrow') }}
-				</p><h1><Icon icon="robot" /> {{ t('tcymc.text.ai_task_assistant') }}</h1>
-			</div>
 			<div class="heading-actions">
-				<XButton
-					variant="secondary"
-					icon="code"
-					@click="openDiagnostics"
-				>
-					{{ t('debug.title') }}
-				</XButton>
-				<XButton
-					variant="secondary"
-					icon="history"
-					class="history-toggle"
+				<BaseButton
+					class="toolbar-button"
+					:aria-label="t('chat.conversations')"
 					:aria-expanded="sidebarOpen"
 					@click="sidebarOpen = !sidebarOpen"
 				>
-					{{ t('chat.conversations') }}
-				</XButton><XButton
-					variant="secondary"
-					icon="cog"
-					:to="{name: 'user.settings.ai'}"
+					<Icon icon="history" />
+				</BaseButton>
+				<h1>{{ t('tcymc.text.ai_task_assistant') }}</h1>
+				<BaseButton
+					class="toolbar-button"
+					:aria-label="t('chat.new')"
+					:aria-disabled="editingBusy"
+					@click="newConversation"
 				>
-					{{ t('tcymc.text.ai_and_voice_settings') }}
-				</XButton>
+					<Icon icon="pen" />
+				</BaseButton>
+			</div>
+			<div class="heading-actions">
+				<label class="model-switch"><span class="is-sr-only">{{ t('chat.model') }}</span><select
+					v-model="connectionID"
+					@change="profileTouched = true; selectedProfile = ''"
+				><option value="">{{ settings.data.value?.connections.find(c => c.id === settings.data.value?.assistant)?.name || t('chat.defaultModel') }}</option><option
+					v-for="c in chatModels"
+					:key="c.id"
+					:value="c.id"
+				>{{ c.name }}</option><option
+					v-if="connectionID && !chatModels.some(c => c.id === connectionID)"
+					:value="connectionID"
+				>{{ t('assistantUI.missingModel') }}</option></select></label>
+				<BaseButton
+					class="toolbar-button"
+					:title="t('debug.title')"
+					:aria-label="t('debug.title')"
+					@click="openDiagnostics"
+				>
+					<Icon icon="code" />
+				</BaseButton>
 			</div>
 		</header>
 		<p
@@ -315,8 +362,12 @@ onBeforeUnmount(() => {
 				<span :class="{connected: events.connected.value}" />{{ events.connected.value ? t('flow.liveConnected') : t('flow.reconnecting') }} ·
 			</template>{{ t('flow.backgroundNote') }}
 		</p>
-		<div class="chat-shell">
+		<div
+			class="chat-shell"
+			:class="{'with-history': sidebarOpen}"
+		>
 			<aside
+				v-if="sidebarOpen"
 				class="chat-sidebar"
 				:class="{'is-open': sidebarOpen}"
 				:aria-label="t('chat.conversations')"
@@ -372,6 +423,18 @@ onBeforeUnmount(() => {
 				<p class="muted session-note">
 					<Icon icon="lock" /> {{ t('chat.savedOnServer') }}
 				</p>
+				<details
+					class="system-prompt"
+					@toggle="showSystemPrompt = ($event.target as HTMLDetailsElement).open"
+				>
+					<summary><Icon icon="code" /> {{ t('chat.systemPrompt') }}</summary><p v-if="effectivePrompt.isPending.value">
+						{{ t('misc.loading') }}
+					</p><template v-else>
+						<pre>{{ effectivePrompt.data.value?.system_prompt }}</pre><details><summary>{{ t('chat.availableTools') }}</summary><pre>{{ effectivePrompt.data.value?.tool_schema }}</pre></details><p class="muted">
+							{{ t('chat.promptNote') }}
+						</p>
+					</template>
+				</details>
 			</aside>
 			<section
 				class="chat-main"
@@ -472,7 +535,7 @@ onBeforeUnmount(() => {
 						v-if="!active?.turns?.length"
 						class="welcome"
 					>
-						<span class="welcome-symbol"><Icon icon="robot" /></span><h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
+						<h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
 							<XButton
 								variant="secondary"
 								@click="prompt = t('tcymc.text.list_my_unfinished_tasks_and_suggest_a_plan')"
@@ -480,7 +543,7 @@ onBeforeUnmount(() => {
 								{{ t('tcymc.text.what_should_i_do_today') }}
 							</XButton><XButton
 								variant="secondary"
-								@click="prompt = t('tcymc.text.create_a_task_in_this_project_to_write')"
+								@click="selectProfile('plan'); prompt = t('tcymc.text.create_a_task_in_this_project_to_write')"
 							>
 								{{ t('tcymc.text.create_a_task_with_one_sentence') }}
 							</XButton>
@@ -511,81 +574,11 @@ onBeforeUnmount(() => {
 					v-if="!hasAssistant && !settings.isPending.value"
 					class="setup-note"
 				>
-					{{ t('tcymc.text.add_a_connection_in_ai_and_voice_settings') }}
+					<RouterLink :to="{name: 'user.settings.ai'}">
+						{{ t('tcymc.text.add_a_connection_in_ai_and_voice_settings') }}
+					</RouterLink>
 				</div>
-				<details
-					class="context-options"
-					data-tour="ai-permissions"
-				>
-					<summary>{{ t('chat.contextAndPermissions') }}</summary><section
-						class="assistant-options"
-						:aria-label="t('tcymc.text.assistant_permissions')"
-					>
-						<label>{{ t('chat.model') }}<select
-							v-model="connectionID"
-							class="input"
-						><option value="">{{ t('chat.defaultModel') }}{{ settings.data.value?.connections.find(c => c.id === settings.data.value?.assistant)?.model ? ` · ${settings.data.value.connections.find(c => c.id === settings.data.value?.assistant)?.model}` : '' }}</option><option
-							v-for="connection in chatModels"
-							:key="connection.id"
-							:value="connection.id"
-						>{{ connection.name }} · {{ connection.model }}</option></select></label><label>{{ t('tcymc.text.current_project') }}<select
-							v-model.number="projectID"
-							class="input"
-						><option :value="0">{{ t('tcymc.text.all_accessible_projects') }}</option><option
-							v-for="project in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
-							:key="project.id"
-							:value="project.id"
-						>{{ project.title }}</option></select></label><label>{{ t('tcymc.text.working_mode') }}<select
-							v-model="mode"
-							class="input"
-						><option value="read">{{ t('tcymc.text.read_only_look_up_tasks_and_suggest_changes') }}</option><option value="write">{{ t('tcymc.text.execute_allow_creation_and_changes') }}</option></select></label><label class="checkbox"><input
-							v-model="allowDelete"
-							type="checkbox"
-							:disabled="mode === 'read'"
-						>{{ t('tcymc.text.allow_task_deletion_for_this_request') }}</label>
-						<label>{{ t('agent.approvalPolicy') }}<select
-							v-model="approval"
-							class="input"
-						><option value="smart">{{ t('agent.smart') }}</option><option value="review">{{ t('agent.reviewAll') }}</option><option value="auto">{{ t('agent.auto') }}</option></select></label>
-						<label>{{ t('agent.writeScope') }}<select
-							v-model="writeProjectIDs"
-							class="input"
-							multiple
-						><option
-							v-for="project in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
-							:key="project.id"
-							:value="project.id"
-						>{{ project.title }}</option></select><small>{{ t('agent.scopeHelp') }}</small></label>
-						<label>{{ t('agent.roundLimit') }}<input
-							v-model.number="maxRounds"
-							class="input"
-							type="number"
-							min="1"
-							max="40"
-						></label>
-						<label>{{ t('agent.operationLimit') }}<input
-							v-model.number="maxOperations"
-							class="input"
-							type="number"
-							min="1"
-							max="100"
-						></label>
-						<label>{{ t('agent.timeLimit') }}<input
-							v-model.number="timeoutSeconds"
-							class="input"
-							type="number"
-							min="1"
-							max="600"
-						></label>
-						<label>{{ t('agent.tokenLimit') }}<input
-							v-model.number="tokenBudget"
-							class="input"
-							type="number"
-							min="0"
-							max="1000000"
-						><small>{{ t('agent.tokenHelp') }}</small></label>
-					</section>
-				</details>
+
 				<p
 					v-if="paused"
 					class="summary-banner"
@@ -600,25 +593,19 @@ onBeforeUnmount(() => {
 				>
 					<label
 						for="ai-prompt"
-						class="composer-label"
+						class="composer-label is-sr-only"
 					>{{ t('tcymc.text.your_request') }}</label><textarea
 						id="ai-prompt"
 						v-model="prompt"
 						data-tour="ai-prompt"
 						class="textarea"
-						rows="3"
+						rows="1"
 						maxlength="12000"
-						:placeholder="t('tcymc.text.for_example_move_the_due_dates_of_unfinished')"
+						:placeholder="t('assistantUI.placeholder')"
 						@keydown="composerKeydown"
-					/><p
-						v-if="audioStage || cleanup.isPending.value"
-						class="audio-progress"
-						role="status"
-					>
-						<progress :aria-label="t(`flow.${audioStage || 'audioProcessing'}`)" /> {{ t(`flow.${audioStage || 'audioProcessing'}`) }}
-					</p><div
-						class="composer-tools"
-						data-tour="ai-voice"
+					/><div
+						v-if="voiceOpen"
+						class="voice-tools"
 					>
 						<XButton
 							variant="secondary"
@@ -650,7 +637,51 @@ onBeforeUnmount(() => {
 							@click="tidyText"
 						>
 							{{ t('tcymc.text.clean_up_text') }}
-						</XButton><XButton
+						</XButton>
+					</div><p
+						v-if="audioStage || cleanup.isPending.value"
+						class="audio-progress"
+						role="status"
+					>
+						<progress :aria-label="t(`flow.${audioStage || 'audioProcessing'}`)" /> {{ t(`flow.${audioStage || 'audioProcessing'}`) }}
+					</p><div
+						class="composer-tools"
+						data-tour="ai-voice"
+					>
+						<div class="composer-context">
+							<label class="profile-switch"><span class="is-sr-only">{{ t('assistantUI.scenarios') }}</span><select
+								:value="selectedProfile"
+								:title="t('assistantUI.scenarios')"
+								@change="selectProfile(($event.target as HTMLSelectElement).value)"
+							><option
+								v-if="!selectedProfile"
+								value=""
+							>{{ t('assistantUI.custom') }}</option><option
+								v-for="p in profiles"
+								:key="p.id"
+								:value="p.id"
+							>{{ p.name }}</option></select></label>
+							<BaseButton
+								class="toolbar-button preferences-toggle"
+								data-tour="ai-permissions"
+								:title="t('assistantUI.preferences')"
+								:aria-label="t('assistantUI.preferences')"
+								@click="profileTouched = true; preferencesOpen = true"
+							>
+								<Icon icon="cog" />
+							</BaseButton>
+							<BaseButton
+								class="toolbar-button"
+								:title="recording ? t('tcymc.stopRecording', {seconds: elapsed}) : t('assistantUI.voiceTools')"
+								:aria-label="recording ? t('tcymc.stopRecording', {seconds: elapsed}) : t('assistantUI.voiceTools')"
+								:aria-expanded="voiceOpen"
+								:class="{'is-recording': recording}"
+								@click="recording ? toggleRecording() : (voiceOpen = !voiceOpen)"
+							>
+								<Icon :icon="recording ? 'stop' : 'microphone'" />
+							</BaseButton>
+						</div>
+						<XButton
 							v-if="activeRun"
 							variant="primary"
 							icon="stop"
@@ -658,7 +689,7 @@ onBeforeUnmount(() => {
 							:aria-disabled="action.isPending.value"
 							@click="manage('stop')"
 						>
-							{{ t('chat.stop') }}
+							<span class="is-sr-only">{{ t('chat.stop') }}</span>
 						</XButton><XButton
 							v-else
 							variant="primary"
@@ -667,10 +698,12 @@ onBeforeUnmount(() => {
 							type="submit"
 							:aria-disabled="busy || !hasAssistant || !prompt.trim()"
 						>
-							{{ send.isPending.value ? t('chat.sending') : t('tcymc.text.send_request') }}
+							<span class="is-sr-only">{{ send.isPending.value ? t('chat.sending') : t('tcymc.text.send_request') }}</span>
 						</XButton>
 					</div><p class="composer-hint">
-						{{ t('chat.enterHint') }}
+						{{ mode === 'read' ? t('assistantUI.readStatus') : t(`assistantUI.write_${approval}`) }}<template v-if="projectID">
+							· {{ projectsArray.find(p => p.id === projectID)?.title || `#${projectID}` }}
+						</template> · {{ t('chat.enterHint') }}
 					</p><p
 						v-if="notice"
 						role="status"
@@ -683,431 +716,443 @@ onBeforeUnmount(() => {
 						</p>
 					</details>
 				</form>
-				<details
-					class="system-prompt"
-					@toggle="showSystemPrompt = ($event.target as HTMLDetailsElement).open"
-				>
-					<summary><Icon icon="code" /> {{ t('chat.systemPrompt') }}</summary><p v-if="effectivePrompt.isPending.value">
-						{{ t('misc.loading') }}
-					</p><template v-else>
-						<pre>{{ effectivePrompt.data.value?.system_prompt }}</pre><details><summary>{{ t('chat.availableTools') }}</summary><pre>{{ effectivePrompt.data.value?.tool_schema }}</pre></details><p class="muted">
-							{{ t('chat.promptNote') }}
-						</p>
-					</template>
-				</details>
 			</section>
 		</div>
+		<AssistantPreferences
+			v-if="preferencesOpen"
+			:options="currentOptions"
+			:profile="selectedProfile"
+			@close="preferencesOpen = false"
+			@apply="applyOptions"
+		/>
 	</div>
 </template>
 
 <style scoped lang="scss">
-.jump-latest { align-self: center;
-margin-block: -.75rem .5rem;
-font-size: .75rem;
-}
-
-.audio-progress { display: flex;
-gap: .75rem;
-align-items: center;
-font-size: .8rem;
-}
-.audio-progress progress { inline-size: 4rem;
-block-size: .35rem;
-}
-
 .tcy-assistant {
-	max-inline-size: 1450px;
-	margin-inline: auto;
-	padding: .5rem;
-	min-inline-size: 0;
+font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+display: flex;
+flex-direction: column;
+block-size: 100%;
+min-block-size: 0;
+color: var(--text);
+background: var(--white);
 }
 .assistant-heading {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: .75rem;
-	margin-block-end: 1rem;
-}
-.eyebrow {
-	color: var(--primary);
-	font-size: .7rem;
-	letter-spacing: .1em;
+display: flex;
+align-items: center;
+justify-content: space-between;
+flex-wrap: wrap;
+gap: .5rem;
+padding: .6rem 1rem;
+flex-shrink: 0;
 }
 h1 {
-	font-size: 1.6rem;
-	margin-block: .375rem;
+font-family: inherit;
+font-size: 1.1rem;
+font-weight: 600;
+margin: 0;
 }
-.heading-actions, .toolbar-actions {
-	display: flex;
-	align-items: center;
-	gap: .5rem;
-	flex-wrap: wrap;
-}
-.chat-shell {
-	display: grid;
-	grid-template-columns: 220px minmax(0, 1fr);
-	gap: 1rem;
-	min-inline-size: 0;
-}
-.chat-sidebar {
-	padding: 1rem;
-	background: var(--white);
-	border: 1px solid var(--grey-200);
-	border-radius: 1rem;
-	align-self: start;
-}
-.chat-sidebar > .button {
-	inline-size: 100%;
-	margin-block-end: .75rem;
-}
-.chat-sidebar ul {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	max-block-size: 65dvh;
-	overflow-y: auto;
-}
-.session-link {
-	display: flex;
-	align-items: center;
-	gap: .625rem;
-	inline-size: 100%;
-	text-align: start;
-	padding: .75rem .5rem;
-	border-radius: .5rem;
-	color: var(--text);
-}
-.session-link > span {
-	min-inline-size: 0;
-}
-.session-link strong {
-	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	font-size: .85rem;
-}
-.session-link small {
-	display: block;
-	font-size: .75rem;
-	color: var(--text-light);
-	margin-block-start: .25rem;
-}
-.session-link.is-selected, .session-link:hover {
-	background: var(--grey-100);
-}
-.session-link.is-selected {
-	box-shadow: inset 3px 0 var(--primary);
-}
-.session-note {
-	border-block-start: 1px solid var(--grey-200);
-	padding-block-start: .75rem;
-	margin-block-start: .75rem;
-	font-size: .75rem;
-}
-.session-pagination {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: .5rem;
-	margin-block: .75rem;
-	font-size: .8rem;
-}
-.session-pagination button {
-	min-block-size: 44px;
-}
-.chat-main {
-	min-inline-size: 0;
-	padding: 1rem;
-	border: 1px solid var(--grey-200);
-	border-radius: 1rem;
-	background: var(--white);
-}
-.conversation-toolbar {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: .5rem;
-	padding-block-end: .75rem;
-	border-block-end: 1px solid var(--grey-200);
-}
-.conversation-title {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	min-inline-size: 0;
-}
-.toolbar-actions {
-	flex-shrink: 0;
+.heading-actions, .toolbar-actions, .composer-context {
+display: flex;
+align-items: center;
+gap: .35rem;
+min-inline-size: 0;
 }
 .toolbar-button {
-	display: inline-flex;
-	align-items: center;
-	gap: .375rem;
-	min-block-size: 44px;
-	min-inline-size: 32px;
-	justify-content: center;
-	font-size: .8rem;
-	color: var(--text-light);
-}
-.rename-form {
-	display: flex;
-	flex-wrap: wrap;
-	gap: .5rem;
-}
-.rename-form input {
-	max-inline-size: 15rem;
-}
-.conversation {
-	min-block-size: 240px;
-	max-block-size: 65dvh;
-	overflow-y: auto;
-	padding-inline: .5rem;
-	overscroll-behavior: contain;
-	scrollbar-gutter: stable;
-}
-.welcome {
-	padding: 2.5rem .5rem;
-	text-align: center;
-}
-.welcome-symbol {
-	display: inline-flex;
-	padding: 1rem;
-	border-radius: 1rem;
-	background: var(--grey-100);
-	color: var(--primary);
-	font-size: 2rem;
-	margin-block-end: 1rem;
-}
-.welcome h2 {
-	font-size: 1.4rem;
-	margin-block-end: .75rem;
-}
-.welcome p, .muted {
-	color: var(--text-light);
-	font-size: .85rem;
-	line-height: 1.6;
-}
-.suggestions {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: .625rem;
-	margin-block-start: 1rem;
-}
-.context-options {
-	margin-block: .75rem;
-	font-size: .8rem;
-}
-summary {
-	cursor: pointer;
-	min-block-size: 32px;
-}
-.assistant-options {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	align-items: end;
-	gap: .75rem;
-	padding: .75rem;
-	background: var(--grey-100);
-	border-radius: .75rem;
-}
-.assistant-options > label {
-	display: grid;
-	gap: .375rem;
-	font-size: .8rem;
-	min-inline-size: 0;
-}
-.assistant-options select {
-	inline-size: 100%;
-	min-inline-size: 0;
-}
-.assistant-options > .checkbox {
-	display: flex;
-	align-items: center;
-	gap: .4rem;
-	grid-column: 1 / -1;
-}
-.composer {
-	padding: 1rem;
-	border: 1px solid var(--grey-300);
-	border-radius: .875rem;
-	background: var(--white);
-}
-.composer-label {
-	display: block;
-	margin-block-end: .5rem;
-	font-size: .85rem;
-	font-weight: 600;
-}
-.composer .textarea {
-	min-block-size: 5rem;
-	resize: vertical;
-	border: 0;
-	box-shadow: none;
-}
-.composer-tools {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: .5rem;
-	margin-block-start: .75rem;
-}
-.composer-tools .checkbox {
-	font-size: .75rem;
-}
-.composer-tools :deep(.button) {
-	font-size: .75rem;
-}
-.send {
-	margin-inline-start: auto;
-}
-.audio-upload {
-	display: none;
-}
-.composer-hint {
-	margin-block: .5rem 0;
-	color: var(--text-light);
-	font-size: .75rem;
-}
-.notice, .original, .summary-text {
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	margin-block-start: .5rem;
-}
-.notice, .setup-note, .chat-error {
-	padding: .75rem;
-	background: var(--grey-100);
-	border-inline-start: 3px solid var(--primary);
-	margin-block: .75rem;
-	font-size: .85rem;
-}
-.summary-banner {
-	padding: .75rem;
-	background: var(--grey-100);
-	border-radius: .75rem;
-	margin-block: .75rem;
-	font-size: .85rem;
-}
-.system-prompt {
-	font-size: .8rem;
-	color: var(--text-light);
-	margin-block-start: .75rem;
-}
-.system-prompt pre {
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	max-block-size: 20rem;
-	overflow-y: auto;
-}
-[aria-disabled="true"] {
-	opacity: .5;
-	cursor: default;
-}
-@media (width >= 1100px) {.heading-actions > .history-toggle {
-	display: none;
-}
-}
-@media (width < 1100px) {.chat-shell {
-	grid-template-columns: minmax(0, 1fr);
-}.chat-sidebar {
-	display: none;
-}.chat-sidebar.is-open {
-	display: block;
-}
-}
-@media (width <= 600px) {.tcy-assistant {
-	padding: 0;
-}h1 {
-	font-size: 1.3rem;
-}
-.chat-main {
-	padding: .75rem;
-}
-.assistant-options {
-	grid-template-columns: minmax(0, 1fr);
-}
-.conversation-toolbar {
-	flex-wrap: wrap;
-}
-.conversation-title {
-	inline-size: 100%;
-}
-.conversation {
-	padding-inline: 0;
-}
-}
-@media (width >= 1100px) {
- .chat-main {
-  display: flex;
-  flex-direction: column;
-  block-size: calc(100dvh - 13rem);
-  min-block-size: 34rem;
-  overflow-y: auto;
- }
- .conversation {
-  flex: 1 1 0;
-  min-block-size: 15rem;
-  max-block-size: none;
- }
- .conversation-toolbar, .composer, .context-options, .system-prompt, .summary-banner, .chat-error, .setup-note {
-  flex-shrink: 0;
- }
- .system-prompt[open], .summary-banner[open] {
-  max-block-size: 12rem;
-  overflow-y: auto;
- }
- .composer .textarea {
-  min-block-size: 3.5rem;
-  max-block-size: 10rem;
- }
-}
-
-.live-connection { display: flex;
+display: inline-flex;
 align-items: center;
-flex-wrap: wrap;
+justify-content: center;
 gap: .4rem;
+padding: .6rem;
+min-block-size: 40px;
+min-inline-size: 40px;
+border-radius: .65rem;
 color: var(--text-light);
-font-size: .75rem;
-margin-block: 0 .75rem;
-}
-.live-connection span { inline-size: .45rem;
-block-size: .45rem;
-border-radius: 50%;
-background: var(--grey-400);
-}
-.live-connection span.connected { background: var(--success);
-box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 15%, transparent);
-}
-.compact-progress { padding: .9rem 1rem;
-background: var(--grey-100);
-border-radius: .8rem;
-margin: .5rem;
 font-size: .8rem;
 }
-.compact-progress progress { display: block;
-inline-size: 100%;
-block-size: .3rem;
-margin-block: .5rem;
+.toolbar-button:hover {
+background: var(--grey-100);
+color: var(--text);
 }
-.compact-progress pre { max-block-size: 10rem;
+.model-switch select, .profile-switch select {
+color: var(--text);
+background: transparent;
+border: 0;
+font: inherit;
+font-size: .85rem;
+padding: .5rem .25rem;
+max-inline-size: 14rem;
+cursor: pointer;
+}
+.live-connection {
+font-size: .7rem;
+color: var(--text-light);
+margin: 0;
+text-align: center;
+padding: .25rem 1rem;
+}
+.live-connection span {
+display: inline-block;
+inline-size: .35rem;
+block-size: .35rem;
+margin-inline-end: .35rem;
+background: var(--grey-400);
+border-radius: 50%;
+}
+.live-connection span.connected {
+background: var(--success);
+}
+.chat-shell {
+display: grid;
+grid-template-columns: minmax(0, 1fr);
+flex: 1;
+min-block-size: 0;
+position: relative;
+}
+.chat-shell.with-history {
+grid-template-columns: 230px minmax(0, 1fr);
+}
+.chat-sidebar {
+background: var(--grey-50, var(--grey-100));
+overflow-y: auto;
+padding: 1rem;
+min-block-size: 0;
+border-inline-end: 1px solid var(--grey-100);
+}
+.chat-sidebar > .button {
+inline-size: 100%;
+margin-block-end: 1rem;
+}
+.chat-sidebar ul {
+list-style: none;
+margin: 0;
+padding: 0;
+}
+.session-link {
+display: flex;
+gap: .6rem;
+align-items: center;
+inline-size: 100%;
+padding: .7rem .5rem;
+border-radius: .6rem;
+color: var(--text);
+text-align: start;
+}
+.session-link > span {
+min-inline-size: 0;
+}
+.session-link strong {
+display: block;
+font-weight: 500;
+font-size: .85rem;
+white-space: nowrap;
+text-overflow: ellipsis;
+overflow: hidden;
+}
+.session-link small {
+display: block;
+color: var(--text-light);
+font-size: .7rem;
+margin-block-start: .25rem;
+}
+.session-link:hover, .session-link.is-selected {
+background: var(--grey-200);
+}
+.session-pagination {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-block: .5rem;
+font-size: .8rem;
+}
+.session-pagination button {
+min-block-size: 44px;
+}
+.session-note {
+margin-block-start: 1rem;
+font-size: .7rem;
+}
+.chat-main {
+display: flex;
+flex-direction: column;
+min-inline-size: 0;
+min-block-size: 0;
+position: relative;
+}
+.conversation-toolbar {
+display: flex;
+align-items: center;
+gap: .5rem;
+justify-content: space-between;
+padding: .25rem 1.5rem;
+min-inline-size: 0;
+}
+.conversation-title {
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+font-size: .8rem;
+color: var(--text-light);
+font-weight: 400;
+}
+.rename-form {
+display: flex;
+gap: .5rem;
+align-items: center;
+min-inline-size: 0;
+flex: 1;
+}
+.conversation {
+flex: 1;
+min-block-size: 0;
+overflow-y: auto;
+overscroll-behavior: contain;
+scrollbar-gutter: stable;
+padding: 1.5rem max(1.5rem, calc((100% - 48rem) / 2));
+scroll-padding-block-end: 2rem;
+}
+.welcome {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+min-block-size: 100%;
+text-align: center;
+padding: 2rem 0;
+}
+.welcome h2 {
+font-family: inherit;
+font-size: clamp(1.6rem, 3vw, 2rem);
+font-weight: 550;
+letter-spacing: -.03em;
+margin-block-end: 1rem;
+}
+.welcome p {
+color: var(--text-light);
+font-size: .95rem;
+max-inline-size: 32rem;
+line-height: 1.7;
+}
+.suggestions {
+display: flex;
+flex-wrap: wrap;
+justify-content: center;
+gap: .75rem;
+margin-block-start: 1rem;
+}
+.suggestions :deep(.button) {
+border: 1px solid var(--grey-200);
+border-radius: 2rem;
+background: transparent;
+color: var(--text);
+box-shadow: none;
+font-weight: 400;
+font-size: .85rem;
+}
+.composer {
+flex-shrink: 0;
+inline-size: calc(100% - 3rem);
+max-inline-size: 48rem;
+margin: .5rem auto 1.75rem;
+position: relative;
+padding: .85rem 1rem .65rem;
+border: 1px solid var(--grey-200);
+border-radius: 1.6rem;
+background: var(--grey-100);
+box-shadow: 0 2px 8px #00000005;
+}
+.composer:focus-within {
+border-color: var(--grey-400);
+}
+.composer .textarea {
+resize: none;
+border: 0;
+box-shadow: none;
+background: transparent;
+padding: .25rem .1rem .75rem;
+min-block-size: 2.75rem;
+max-block-size: 180px;
+border-radius: 0;
+font-size: 1rem;
+line-height: 1.6;
+color: var(--text);
+}
+.composer-tools {
+display: flex;
+gap: .5rem;
+align-items: center;
+justify-content: space-between;
+}
+.composer .send.is-primary {
+flex-shrink: 0;
+border-radius: 50%;
+inline-size: 40px;
+block-size: 40px;
+padding: 0;
+background: var(--text);
+color: var(--white);
+border: 0;
+box-shadow: none;
+}
+.composer .send.is-primary:hover {
+background: var(--grey-700);
+}
+.composer-hint {
+font-size: .65rem;
+color: var(--text-light);
+margin: 0;
+position: absolute;
+inset-block-start: calc(100% + .3rem);
+inset-inline: 0;
+text-align: center;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.voice-tools {
+display: flex;
+align-items: center;
+flex-wrap: wrap;
+gap: .5rem;
+padding-block: .5rem;
+border-block-end: 1px solid var(--grey-200);
+margin-block-end: .5rem;
+}
+.voice-tools :deep(.button), .voice-tools label {
+font-size: .75rem;
+}
+.audio-upload {
+display: none;
+}
+.audio-progress {
+display: flex;
+align-items: center;
+gap: .5rem;
+font-size: .8rem;
+}
+.audio-progress progress {
+inline-size: 4rem;
+block-size: .3rem;
+}
+.muted {
+color: var(--text-light);
+}
+.notice {
+color: var(--danger);
+font-size: .8rem;
+margin: .5rem 0 0;
+}
+.original {
+white-space: pre-wrap;
+max-block-size: 8rem;
 overflow: auto;
+}
+.jump-latest {
+position: absolute;
+inset-inline-start: 50%;
+inset-block-end: 9rem;
+transform: translateX(-50%);
+z-index: 2;
+border: 1px solid var(--grey-200);
+box-shadow: 0 2px 10px #00000011;
+border-radius: 2rem;
+font-size: .75rem;
+}
+.summary-banner, .compact-progress, .setup-note, .chat-error {
+padding: .6rem 1rem;
+margin: .25rem 1rem;
+font-size: .8rem;
+background: var(--grey-100);
+border-radius: .6rem;
+max-block-size: 8rem;
+overflow: auto;
+flex-shrink: 0;
+}
+.summary-text {
 white-space: pre-wrap;
 }
-.message-reveal-enter-active { transition: opacity .32s ease, transform .42s cubic-bezier(.2,.85,.25,1.15);
+.system-prompt {
+font-size: .75rem;
+margin-block: 1rem;
 }
-.message-reveal-enter-from { opacity: 0;
-transform: translateY(14px) scale(.985);
+.system-prompt pre, .compact-progress pre {
+white-space: pre-wrap;
+overflow-wrap: anywhere;
+max-block-size: 12rem;
+overflow: auto;
 }
-.tcy-assistant :deep(.button), .toolbar-button, .message-action { transition: transform .2s cubic-bezier(.2,.8,.25,1.3), background-color .2s, box-shadow .2s;
+summary {
+cursor: pointer;
 }
-.tcy-assistant :deep(.button:active), .toolbar-button:active { transform: scale(.96);
+.message-reveal-enter-active {
+transition: opacity .2s ease, transform .2s ease;
 }
-.composer:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+.message-reveal-enter-from {
+opacity: 0;
+transform: translateY(5px);
 }
-@media (prefers-reduced-motion: reduce) { .message-reveal-enter-active, .tcy-assistant :deep(*) { transition: none !important;
-animation: none !important;
-scroll-behavior: auto !important;
+@media (width <= 800px) {
+ .chat-shell.with-history {
+grid-template-columns: minmax(0, 1fr);
+}
+ .chat-sidebar {
+position: absolute;
+inset: 0 auto 0 0;
+inline-size: min(300px, 88%);
+z-index: 5;
+box-shadow: 8px 0 40px #00000022;
+}
+ .assistant-heading {
+padding: .5rem .75rem;
+}
+ .model-switch select {
+max-inline-size: 10rem;
+}
+ .conversation {
+padding: 1rem;
+}
+ .conversation-toolbar {
+padding-inline: 1rem;
+}
+ .composer {
+inline-size: calc(100% - 1.5rem);
+padding: .65rem .8rem;
+margin-block-end: calc(1.75rem + env(safe-area-inset-bottom, 0px));
+}
+ .welcome h2 {
+font-size: 1.5rem;
+}
+ .live-connection {
+font-size: .6rem;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.message-reveal-enter-active {
+transition: none;
 } }
+
+@media (height <= 600px) {
+ .welcome { display: none; }
+ .composer .textarea { max-block-size: min(180px, 30dvh);
+}
+ .conversation { padding-block: .25rem;
+}
+ .live-connection { display: none;
+}
+ .setup-note { max-block-size: 3rem;
+}
+}
+@media (width <= 540px) {
+ .assistant-heading { flex-wrap: nowrap;
+}
+ .assistant-heading h1 { position: absolute;
+inline-size: 1px;
+block-size: 1px;
+overflow: hidden;
+clip-path: inset(50%);
+white-space: nowrap;
+}
+}
+.toolbar-button.is-recording { color: var(--danger); }
 </style>

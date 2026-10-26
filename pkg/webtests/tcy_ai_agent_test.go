@@ -170,7 +170,7 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	require.Equal(t, 201, review(path, edit, "approve", "").Code)
 	finished := wait(path)
 	require.Equal(t, "completed", finished.Turns[0].Status)
-	assert.True(t, finished.Turns[0].Result.Operations[0].Verified)
+	assert.True(t, finished.Turns[0].Result.Operations[1].Verified)
 	assert.Equal(t, 200, finished.Turns[0].Result.Steps[0].HTTPStatus)
 	assert.Equal(t, "fixture-provider-request", finished.Turns[0].Result.Steps[0].RequestID)
 	assert.Contains(t, readTask(one), `"title":"edited"`)
@@ -189,11 +189,11 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	assert.Contains(t, readTask(one), "external edit")
 	require.Equal(t, 201, review(path, fresh, "reject", "").Code)
 	finished = wait(path)
-	assert.Equal(t, "rejected", finished.Turns[0].Result.Operations[0].Status)
+	assert.Equal(t, "rejected", finished.Turns[0].Result.Operations[1].Status)
 	assert.Contains(t, readTask(one), "external edit")
 	// A selected project is an enforced write boundary, not just a prompt suggestion.
 	_, denied := start("update_task", map[string]any{"id": one, "title": "must not write"}, "auto", []int64{project.ID + 9999}, 0)
-	assert.Contains(t, denied.Turns[0].Result.Actions[0].Result, "SCOPE_DENIED")
+	assert.Contains(t, denied.Turns[0].Result.Actions[1].Result, "SCOPE_DENIED")
 	assert.Contains(t, readTask(one), "external edit")
 	// Bulk writes are one transaction. A later invalid date rolls back earlier valid changes.
 	_, bulk := start("bulk_update_tasks", map[string]any{"updates": []any{map[string]any{"id": one, "changes": map[string]any{"title": "must roll back"}}, map[string]any{"id": two, "changes": map[string]any{"start_date": "2026-11-01T12:00:00+08:00", "end_date": "2026-11-01T10:00:00+08:00"}}}}, "auto", nil, 0)

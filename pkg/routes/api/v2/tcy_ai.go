@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -41,6 +42,11 @@ import (
 )
 
 func init() { AddRouteRegistrar(RegisterTCYAIRoutes) }
+
+type aiPreferencesResponse struct {
+	CacheControl string `header:"Cache-Control"`
+	Body         tcyai.AssistantPreferences
+}
 
 type aiSettingsResponse struct {
 	CacheControl string `header:"Cache-Control"`
@@ -102,6 +108,7 @@ func RegisterTCYAIRoutes(api huma.API) {
 		}
 		return &aiSettingsResponse{CacheControl: "no-store", Body: s}, nil
 	})
+	registerAIPreferences(api, op)
 	Register(api, op("tcy-ai-models", "POST", "/ai/models", "List models for a draft connection without saving its credentials"), func(ctx context.Context, in *struct {
 		Body struct {
 			ID       string `json:"id" minLength:"1" maxLength:"80"`
@@ -531,4 +538,32 @@ func aiExtendedRoute(name string, args map[string]json.RawMessage, id func(strin
 	}
 	other, err := id(key)
 	return fmt.Sprintf("/tasks/%d/%s/%d", n, suffix, other), "DELETE", err
+}
+
+func registerAIPreferences(api huma.API, op func(string, string, string, string) huma.Operation) {
+	Register(api, op("tcy-ai-preferences", "GET", "/ai/preferences", "Read account-owned assistant profiles and default scenario"), func(ctx context.Context, _ *struct{}) (*aiPreferencesResponse, error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		s, err := tcyai.Load(uid)
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		return &aiPreferencesResponse{CacheControl: "no-store", Body: s.Preferences}, nil
+	})
+	Register(api, op("tcy-ai-save-preferences", "POST", "/ai/preferences", "Replace personal assistant profiles using an optimistic revision; stale writes return 409, connection secrets are preserved"), func(ctx context.Context, in *struct{ Body tcyai.AssistantPreferences }) (*aiPreferencesResponse, error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		p, err := tcyai.SavePreferences(uid, in.Body)
+		if errors.Is(err, tcyai.ErrPreferencesConflict) {
+			return nil, huma.Error409Conflict(err.Error())
+		}
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		return &aiPreferencesResponse{CacheControl: "no-store", Body: p}, nil
+	})
 }

@@ -1,0 +1,43 @@
+{
+  "rules": [
+    {
+      "state": "on",
+      "code": 403,
+      "action": "allow",
+      "type": "acl",
+      "res": "",
+      "ipBlock": "off",
+      "ipBlockTime": 600,
+      "expireTime": 24,
+      "unit": "h",
+      "name": "Vikunja 个人助手模板请求兼容",
+      "conditions": [
+        {
+          "field": "Method",
+          "rule": "^POST$",
+          "pattern": "regex",
+          "name": ""
+        },
+        {
+          "field": "URL",
+          "rule": "^/api/v2/ai/preferences(?:[?]|$)",
+          "pattern": "regex",
+          "name": ""
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^application/(?:json|merge-patch[+]json|json-patch[+]json)(?:[; ]|$)",
+          "pattern": "regex",
+          "name": "content-type"
+        },
+        {
+          "field": "Header",
+          "rule": "(?i)^Bearer[ ]+[A-Za-z0-9._~+/-]+=*$",
+          "pattern": "regex",
+          "name": "authorization"
+        }
+      ],
+      "description": "仅 task.tcymc.space 的 POST /api/v2/ai/preferences、JSON 与 Bearer 请求；服务端继续验证登录身份、模板字段、预算及 revision。"
+    }
+  ]
+}
