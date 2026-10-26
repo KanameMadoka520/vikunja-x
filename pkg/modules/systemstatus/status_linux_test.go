@@ -27,33 +27,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTCYSystemStatusCounters(t *testing.T) {
-	assert.Equal(t, 8, cpuCount("0-3,6-9"))
-	assert.Equal(t, 0, cpuCount(""))
-	assert.Equal(t, 0, cpuCount("4-2"))
-	assert.InDelta(t, 0.5, quota("50000 100000"), 0.00001)
-	assert.Zero(t, quota("max 100000"))
-	assert.Zero(t, quota("-1 100000"))
-	assert.Equal(t, uint64(600), workingSet(1000, 400))
-	assert.Equal(t, uint64(1000), workingSet(1000, 1500))
-	sample, _, _ := measure(t.TempDir())
-	assert.NotNil(t, sample.DiskTotal)
+func TestTCYSystemStatusHost(t *testing.T) {
+	proc := t.TempDir()
+	for name, value := range map[string]string{"stat": "cpu 100 20 40 800 30 5 5 0 50 10\ncpu0 1\ncpu1 1\n", "meminfo": "MemTotal: 20000 kB\nMemAvailable: 12000 kB\nMemFree: 1000 kB\n", "loadavg": "1.25 0.75 0.50 1/234 123", "uptime": "90061.25 80000.00"} {
+		require.NoError(t, os.WriteFile(filepath.Join(proc, name), []byte(value), 0600))
+	}
+	out, cpu := measureHost(proc)
+	assert.True(t, out.HostMetricsAvailable)
+	assert.Equal(t, "host", out.Scope)
+	assert.Equal(t, uint64(1000), cpu.total)
+	assert.InDelta(t, 2, out.CPUCores, 0.001)
+	require.NotNil(t, out.MemoryUsed)
+	assert.Equal(t, uint64(8000*1024), *out.MemoryUsed)
+	assert.Equal(t, uint64(12000*1024), *out.MemoryAvailable)
+	assert.Equal(t, int64(90061), *out.HostUptimeSeconds)
+	assert.InDeltaSlice(t, []float64{1.25, .75, .5}, out.LoadAverage, .001)
+	missing, _ := measureHost(t.TempDir())
+	assert.False(t, missing.HostMetricsAvailable)
+	assert.Nil(t, missing.MemoryUsed)
+	assert.Empty(t, missing.LoadAverage)
+	sample, _ := measure(t.TempDir())
+	require.NotNil(t, sample.DiskTotal)
 	assert.Positive(t, *sample.DiskTotal)
 	assert.LessOrEqual(t, *sample.DiskUsed, *sample.DiskTotal)
 }
-
-func TestTCYSystemStatusLimitedCgroup(t *testing.T) {
-	base := t.TempDir()
-	for name, value := range map[string]string{"memory.current": "10000000", "memory.max": "20000000", "memory.stat": "inactive_file 2000000", "cpu.stat": "usage_usec 2000000", "cpu.max": "50000 100000", "cpuset.cpus.effective": "0-3"} {
-		require.NoError(t, os.WriteFile(filepath.Join(base, name), []byte(value), 0600))
-	}
-	var sample Snapshot
-	cpu, ok := measureCgroup(base, &sample)
-	assert.True(t, ok)
-	assert.InDelta(t, 2, cpu, 0.00001)
-	assert.InDelta(t, 0.5, sample.CPUCores, 0.00001)
-	assert.True(t, sample.CPULimited)
-	assert.True(t, sample.MemoryLimited)
-	assert.Equal(t, uint64(8000000), *sample.MemoryUsed)
-	assert.Equal(t, uint64(20000000), *sample.MemoryTotal)
+func TestTCYSystemStatusCPUDelta(t *testing.T) {
+	before := cpuCounters{total: 1000, idle: 800, ioWait: 30, steal: 0, valid: true}
+	after := cpuCounters{total: 1200, idle: 900, ioWait: 50, steal: 10, valid: true}
+	busy, wait, steal := cpuUsage(before, after)
+	require.NotNil(t, busy)
+	assert.InDelta(t, 40, *busy, .001)
+	assert.InDelta(t, 10, *wait, .001)
+	assert.InDelta(t, 5, *steal, .001)
+	b, _, _ := cpuUsage(cpuCounters{}, after)
+	assert.Nil(t, b)
+	b, _, _ = cpuUsage(after, before)
+	assert.Nil(t, b)
+	after.ioWait = 20
+	b, _, _ = cpuUsage(before, after)
+	assert.Nil(t, b, "counter regression resets the sample instead of spiking")
+	assert.Nil(t, parseNumbers("NaN 1 2", 3))
+	assert.Nil(t, parseNumbers("1 2", 3))
 }

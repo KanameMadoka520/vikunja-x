@@ -259,16 +259,45 @@ var maxFileSizeInBytes uint64
 
 // GetString returns a string config value
 func (k Key) GetString() string {
+	if c := mailerRuntime.Load(); c != nil {
+		//nolint:exhaustive // Only mailer keys have runtime overrides; all others fall through to Viper.
+		switch k {
+		case MailerHost:
+			return c.Host
+		case MailerUsername:
+			return c.Username
+		case MailerPassword:
+			return c.Password
+		case MailerFromEmail:
+			return c.FromEmail
+		case MailerAuthType:
+			return c.AuthType
+		}
+	}
 	return viper.GetString(string(k))
 }
 
 // GetBool returns a bool config value
 func (k Key) GetBool() bool {
+	if c := mailerRuntime.Load(); c != nil {
+		//nolint:exhaustive // Only mailer keys have runtime overrides; all others fall through to Viper.
+		switch k {
+		case MailerEnabled:
+			return c.Enabled
+		case MailerForceSSL:
+			return c.TLSMode == "tls"
+		case MailerSkipTLSVerify:
+			return c.SkipTLSVerify
+		}
+	}
 	return viper.GetBool(string(k))
 }
 
 // GetInt returns an int config value
 func (k Key) GetInt() int {
+	if c := mailerRuntime.Load(); c != nil && k == MailerPort {
+		return c.Port
+	}
 	return viper.GetInt(string(k))
 }
 

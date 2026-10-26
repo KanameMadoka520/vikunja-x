@@ -1,27 +1,32 @@
 {
   "systemStatus": {
-    "title": "Container health",
-    "healthy": "Healthy",
+    "title": "Server load",
+    "healthy": "Vikunja healthy",
     "offline": "Disconnected",
     "degraded": "Dependency unavailable",
     "loading": "Connecting…",
     "cpu": "CPU",
     "memory": "Memory",
-    "disk": "Data filesystem",
-    "cores": "{n} cores available",
+    "disk": "Server disk · data volume",
+    "cores": "{n} host logical CPUs",
     "unavailable": "Sampling / unavailable",
     "duration": "{days}d {hours}h {minutes}m",
-    "uptime": "Up {duration}",
+    "uptime": "Vikunja: {duration}",
     "measurement": "How these numbers are measured",
-    "cpuHelp": "CPU is usage relative to available cores, not single-core percentage.",
-    "cpuLimited": "Cgroup quota/cpuset limits apply.",
-    "cpuShared": "No independent CPU quota; shares the available CPUs.",
-    "memoryLimited": "Memory is the container working set divided by its finite limit; inactive file cache is excluded, following Docker stats.",
-    "memoryShared": "No independent memory limit. The numerator is container working set (excluding inactive file cache); the denominator is shared host RAM.",
-    "diskHelp": "This is the used space on the filesystem holding uploaded data, including other applications. It is not a private container disk quota or the size of Vikunja files alone.",
-    "refreshHelp": "Read-only kernel counters; 15-second server cache, normally refreshes every 30 seconds while the sidebar and tab are visible. Uptime is the app process runtime and resets after restart.",
-    "sampled": "Sampled at"
-},
+    "cpuHelp": "CPU is the host non-idle time across all logical cores, excluding I/O wait. Guest time is not double counted. Samples use total-time deltas and are independent of container CPU quotas.",
+    "diskHelp": "Used space on the server filesystem containing Vikunja data, including all other files on that volume. This deployment uses the server root filesystem; separately mounted disks are not summed.",
+    "refreshHelp": "15-second shared server cache; normally refreshes every 30 seconds while the sidebar and tab are visible. Server uptime resets on reboot; Vikunja uptime resets on application restart.",
+    "sampled": "Sampled at",
+    "unconfigured": "Host metrics unavailable",
+    "hostUptime": "Server uptime: {duration}",
+    "load": "Load average",
+    "loadPeriods": "1 / 5 / 15 minutes",
+    "loadHelp": "Load counts runnable and uninterruptible tasks across the host. It is not a percentage; compare sustained load with the logical CPU count. I/O waits can raise load even when CPU usage is low.",
+    "hostSource": "CPU, memory, load and boot uptime come from explicitly mounted read-only host kernel counters and include all applications. Missing host files stay unavailable. The green badge checks Vikunja dependencies, not host resource pressure.",
+    "memoryHelp": "RAM used = host total − host available memory. Available includes reclaimable caches, following the kernel estimate. This covers all applications, not only Vikunja.",
+    "ioWait": "I/O wait",
+    "steal": "CPU steal"
+  },
   "modelConfig": {
       "title": "Model capabilities & capacity",
       "help": "Each connection describes one model. Use the provider’s published capabilities or enter values for your gateway. Capacity is measured in tokens, not characters. These settings also apply to compaction.",
@@ -415,7 +420,9 @@
             "header": "Send this authorization header with every request: {value}"
           }
         }
-      }
+      },
+      "currentEmail": "Current receiving email",
+      "currentEmailHelp": "Account messages are sent here. A new address takes effect after confirmation. Manage reminder preferences in"
     },
     "deletion": {
       "title": "Delete your Vikunja Account",
@@ -2535,5 +2542,45 @@
         "description": "More room for multi-step or cross-project work. Review every write. 24 rounds / 80 operations / 300 seconds."
       }
     }
+  },
+  "settingsDraft": {
+    "unsaved": "You have unsaved changes.",
+    "retained": "Save failed. Your edits are still here.",
+    "failed": "Could not save. Please check the fields and try again."
+  },
+  "mailServer": {
+    "title": "Website email (SMTP)",
+    "intro": "Configure the relay used to send account confirmations and reminders for this website. Only site-settings administrators can view or change these settings.",
+    "recipient": "Your receiving email is managed separately:",
+    "emailLink": "Receiving email",
+    "loading": "Loading mail settings…",
+    "forbidden": "You do not have permission to manage website email.",
+    "loadFailed": "Could not load mail settings. Refresh to try again.",
+    "enabled": "Enable outgoing email",
+    "host": "SMTP host",
+    "port": "Port",
+    "username": "SMTP username",
+    "password": "SMTP password",
+    "savedPassword": "Saved; leave blank to keep it",
+    "emptyPassword": "No password saved",
+    "clearPassword": "Remove the saved password",
+    "from": "Sender email / From",
+    "auth": "Authentication",
+    "none": "No authentication",
+    "tls": "Connection security",
+    "auto": "Automatic STARTTLS (when available)",
+    "starttls": "Require STARTTLS",
+    "implicit": "Implicit TLS (usually port 465)",
+    "skipVerify": "Skip TLS certificate verification",
+    "tlsHelp": "Use the mode required by your relay. Automatic mode may send unencrypted if the server does not support STARTTLS. Certificate verification should normally remain enabled.",
+    "passwordHelp": "Changing the host or username requires entering the password again. The saved password is never returned to the browser.",
+    "sourceEnvironment": "Currently using server environment configuration.",
+    "sourceSaved": "Currently using settings saved on this page.",
+    "saveHelp": "Saved settings take effect for subsequent deliveries and survive restarts. Saving does not send a test email.",
+    "save": "Save mail settings",
+    "saved": "Mail settings saved.",
+    "revision": "Configuration revision",
+    "conflictHelp": "If someone else saved first, reload before making your changes again.",
+    "keyChange": "The API address has changed. Enter the key again before saving; the old key will not be forwarded to a new address."
   }
 }

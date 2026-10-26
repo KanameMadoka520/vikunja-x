@@ -3,20 +3,28 @@ import {useI18n} from 'vue-i18n'
 const props = defineProps<{initial: AISettings}>()
 const {t} = useI18n({useScope: 'global'})
 import {audioChatFile} from '@/helpers/tcyAudio'
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import type {AIConnection, AISettings} from '@/client/queries/tcyAi'
 import {useFetchAIModels, useSaveAISettings, useTestAIConnection} from '@/client/queries/tcyAi'
 import type {ListedModel} from '@/client/generated'
 import {isRequestContextAbort} from '@/client/requestContext'
 
 type Settings = AISettings
-function initialDraft(): Settings { return {
-	connections: props.initial.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', api_key: ''})),
-	assistant: props.initial.assistant,
-	transcription: props.initial.transcription,
-	cleanup: props.initial.cleanup,
+function initialDraft(source = props.initial): Settings { return {
+	connections: source.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', api_key: ''})),
+	assistant: source.assistant,
+	transcription: source.transcription,
+	cleanup: source.cleanup,
 } }
 const draft = ref<Settings>(initialDraft())
+const baseline = ref(JSON.stringify(initialDraft()))
+const dirty = computed(() => JSON.stringify(draft.value) !== baseline.value)
+const saveError = ref('')
+watch(() => props.initial, () => {
+	if (dirty.value) return
+	draft.value = initialDraft()
+	baseline.value = JSON.stringify(draft.value)
+})
 const save = useSaveAISettings()
 const test = useTestAIConnection()
 const testResult = ref('')
@@ -40,7 +48,19 @@ function removeConnection(id: string) {
 }
 
 async function saveSettings() {
-	try { await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({...c, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0}))}) } catch { return }
+	if (save.isPending.value) return
+	saveError.value = ''
+	const submitted = JSON.stringify(draft.value)
+	try {
+		const saved = await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({id: c.id, name: c.name, kind: c.kind, protocol: c.protocol, base_url: c.base_url, model: c.model, api_key: c.api_key, non_streaming: c.non_streaming, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0, input_types: c.input_types, output_token_field: c.output_token_field}))})
+		const clean = initialDraft(saved)
+		if (JSON.stringify(draft.value) === submitted) draft.value = clean
+		baseline.value = JSON.stringify(clean)
+	} catch (error) {
+		if (isRequestContextAbort(error)) return
+		saveError.value = error instanceof Error ? error.message : t('settingsDraft.failed')
+	}
+
 }
 
 async function testConnection(id: string, kind: string) {
@@ -114,6 +134,10 @@ function changeInputTypes(c: AIConnection, event: Event) {
 	const value = (event.target as HTMLSelectElement).value
 	c.input_types = value ? value.split(',') : []
 }
+function changedAddress(c: AIConnection) {
+	const previous = props.initial.connections.find(s => s.id === c.id)
+	return previous?.has_key && previous.base_url.replace(/\/+$/, '') !== c.base_url.trim().replace(/\/+$/, '') && !c.api_key
+}
 function savedMatches(c: AIConnection) {
 	const saved = props.initial.connections.find(s => s.id === c.id)
 	return saved && saved.base_url === c.base_url && saved.model === c.model && saved.protocol === c.protocol && saved.kind === c.kind && Boolean(saved.non_streaming) === Boolean(c.non_streaming) && capabilityKey(saved) === capabilityKey(c) && !c.api_key
@@ -132,6 +156,13 @@ function savedMatches(c: AIConnection) {
 			<h2><Icon icon="robot" /> {{ t('tcymc.text.ai_and_voice') }}</h2>
 			<p>{{ t('tcymc.text.connect_your_own_models_and_choose_one_for') }}</p>
 		</header>
+		<p
+			v-if="dirty"
+			role="status"
+		>
+			{{ t('settingsDraft.unsaved') }}
+		</p>
+
 		<section class="tcy-panel">
 			<h3 data-tour="ai-connections">
 				<Icon icon="link" /> {{ t('tcymc.text.model_connections') }}
@@ -149,6 +180,12 @@ function savedMatches(c: AIConnection) {
 				class="connection"
 			>
 				<legend>{{ t('tcymc.text.connection') }} {{ index + 1 }} · {{ connection.name || t('tcymc.text.new_model') }}</legend>
+				<p
+					v-if="changedAddress(connection)"
+					class="notification is-warning"
+				>
+					{{ t('mailServer.keyChange') }}
+				</p>
 				<div class="fields">
 					<label>{{ t('tcymc.text.connection_name') }}<input
 						v-model="connection.name"
@@ -358,6 +395,13 @@ function savedMatches(c: AIConnection) {
 				>{{ c.name }} · {{ c.model }}</option></select><small>{{ t('tcymc.text.improve_wording_and_punctuation_without_changing_tasks') }}</small></label>
 			</div>
 		</section>
+		<p
+			v-if="saveError"
+			class="notification is-danger"
+			role="alert"
+		>
+			{{ t('settingsDraft.retained') }} {{ saveError }}
+		</p>
 		<div class="actions">
 			<XButton
 				variant="primary"

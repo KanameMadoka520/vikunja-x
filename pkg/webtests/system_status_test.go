@@ -58,6 +58,7 @@ func TestTCYSystemStatus(t *testing.T) {
 	var status systemstatus.Snapshot
 	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &status))
 	assert.True(t, status.Healthy)
+	assert.Equal(t, "host", status.Scope)
 	assert.False(t, status.Started.IsZero())
 	assert.False(t, status.Sampled.IsZero())
 	second := humaRequest(t, e, "GET", path, "", token, "")

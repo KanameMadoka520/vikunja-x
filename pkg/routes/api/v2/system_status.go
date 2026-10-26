@@ -48,7 +48,7 @@ type systemStatusBody struct {
 }
 
 func RegisterSystemStatusRoutes(api huma.API) {
-	Register(api, huma.Operation{OperationID: "system-status", Method: http.MethodGet, Path: "/system/status", Tags: []string{"system"}, Summary: "Read container runtime status", Description: "Authenticated user sessions only, excluding public shares and API tokens. Returns cached cgroup CPU/memory measurements, shared data-filesystem usage, uptime and running build version. Samples are cached server-wide for 15 seconds. Disk is filesystem usage, not a container disk quota. Missing platform counters are null."}, func(ctx context.Context, _ *struct{}) (*systemStatusBody, error) {
+	Register(api, huma.Operation{OperationID: "system-status", Method: http.MethodGet, Path: "/system/status", Tags: []string{"system"}, Summary: "Read host load and application runtime status", Description: "Authenticated user sessions only, excluding public shares and API tokens. Returns host CPU/RAM, load averages and boot uptime from four explicit read-only host proc file mounts; also reports data-filesystem usage, application uptime and build version. Without the mounts, host counters are unavailable, never silently substituted with container counters. Samples are cached server-wide for 15 seconds. Disk is filesystem usage, not a container disk quota. Missing platform counters are null."}, func(ctx context.Context, _ *struct{}) (*systemStatusBody, error) {
 		if _, err := aiUser(ctx); err != nil {
 			return nil, err
 		}

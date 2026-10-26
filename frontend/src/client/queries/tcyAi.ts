@@ -1,9 +1,9 @@
 import {i18n} from '@/i18n'
 const {t} = i18n.global
-import {queryOptions, useMutation} from '@tanstack/vue-query'
+import {queryOptions, useMutation, useQueryClient} from '@tanstack/vue-query'
 import {
 	tcyAiModels, tcyAiSettings, tcyAiSaveSettings, tcyAiTest, tcyAiRun, tcyAiTranscribe, tcyAiCleanup,
-	type ModelCapabilities, type TcyAiModelsData, type TcyAiSaveSettingsData, type TcyAiTestData, type TcyAiRunData, type TcyAiTranscribeData,
+	type TcyAiSettingsResponse, type ModelCapabilities, type TcyAiModelsData, type TcyAiSaveSettingsData, type TcyAiTestData, type TcyAiRunData, type TcyAiTranscribeData,
 } from '@/client/generated'
 import {contextMutationOptions} from './contextMutation'
 import {useSecretMutation} from './secretMutation'
@@ -17,17 +17,25 @@ export type AIRunResult = {reply: string, actions: {tool: string, arguments: str
 
 const settingsKey = ['tcymc-ai', 'settings'] as const
 
+export function normalizeAISettings(s: TcyAiSettingsResponse): AISettings {
+	return {connections: (s.connections ?? []).map(c => ({context_window: c.context_window, max_output_tokens: c.max_output_tokens, input_types: c.input_types ?? [], output_token_field: c.output_token_field, resolved: c.resolved ?? undefined, non_streaming: c.non_streaming, protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
+}
+
 export function aiSettingsQuery() {
 	return queryOptions({queryKey: settingsKey, queryFn: async ({signal}): Promise<AISettings> => {
 		const s = (await tcyAiSettings({signal})).data
-		return {connections: (s.connections ?? []).map(c => ({context_window: c.context_window, max_output_tokens: c.max_output_tokens, input_types: c.input_types ?? [], output_token_field: c.output_token_field, resolved: c.resolved ?? undefined, non_streaming: c.non_streaming, protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
+		return normalizeAISettings(s)
 	}})
 }
 
 export function useSaveAISettings() {
+	const client = useQueryClient()
 	return useSecretMutation(contextMutationOptions({
-		mutationFn: async (body: TcyAiSaveSettingsData['body']) => (await tcyAiSaveSettings({body})).data,
-		onSettled: (_input, client) => client.invalidateQueries({queryKey: settingsKey}),
+		mutationFn: async (body: TcyAiSaveSettingsData['body']) => {
+			await client.cancelQueries({queryKey: settingsKey})
+			return normalizeAISettings((await tcyAiSaveSettings({body})).data)
+		},
+		onSuccess: data => { client.setQueryData(settingsKey, data) },
 		successMessage: () => t('tcymc.text.model_connections_and_feature_assignments_saved'),
 	}))
 }

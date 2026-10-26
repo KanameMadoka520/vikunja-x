@@ -1,0 +1,29 @@
+# Merge into the existing Vikunja Compose configuration to enable host metrics.
+# Only these four aggregate kernel files are exposed, all read-only.
+services:
+  vikunja:
+    volumes:
+      - type: bind
+        source: /proc/stat
+        target: /run/tcymc-host-proc/stat
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /proc/meminfo
+        target: /run/tcymc-host-proc/meminfo
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /proc/loadavg
+        target: /run/tcymc-host-proc/loadavg
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /proc/uptime
+        target: /run/tcymc-host-proc/uptime
+        read_only: true
+        bind:
+          create_host_path: false

@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/log"
@@ -160,4 +161,42 @@ func TestStopMailDaemonCalledTwice(t *testing.T) {
 
 	assert.NotPanics(t, StopMailDaemon)
 	assert.NotPanics(t, StopMailDaemon)
+}
+
+func TestTCYMailRuntimeReload(t *testing.T) {
+	port1, received1 := startSMTPSink(t)
+	port2, received2 := startSMTPSink(t)
+	setupMailerConfig(t, "127.0.0.1", port1)
+	t.Setenv("TCYMC_SETTINGS_ADMIN_IDS", "1")
+	config.SetMailerRuntime(nil)
+	t.Cleanup(func() { StopMailDaemon(); config.SetMailerRuntime(nil) })
+	config.MailerEnabled.Set(false)
+	StartMailDaemon()
+	c := config.CurrentMailerRuntime()
+	c.Enabled = true
+	c.AuthType = "none"
+	c.Revision = 1
+	config.SetMailerRuntime(&c)
+	send := func() {
+		SendMail(&Opts{To: "test@example.com", Subject: "Runtime reload", Message: "Isolated SMTP sink", ContentType: ContentTypePlain})
+	}
+	send()
+	select {
+	case <-received1:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first relay did not receive mail")
+	}
+	c.Port = port2
+	c.FromEmail = "changed@example.com"
+	c.Revision = 2
+	config.SetMailerRuntime(&c)
+	send()
+	select {
+	case msg := <-received2:
+		assert.Contains(t, msg, "changed@example.com")
+	case <-time.After(5 * time.Second):
+		t.Fatal("new relay did not receive mail")
+	}
+	StopMailDaemon()
+	assert.Empty(t, received1)
 }

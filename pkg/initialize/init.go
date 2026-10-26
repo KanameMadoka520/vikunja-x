@@ -35,6 +35,7 @@ import (
 	"code.vikunja.io/api/pkg/modules/auth/ldap"
 	"code.vikunja.io/api/pkg/modules/auth/openid"
 	"code.vikunja.io/api/pkg/modules/keyvalue"
+	"code.vikunja.io/api/pkg/modules/mailsettings"
 	migrationmodule "code.vikunja.io/api/pkg/modules/migration"
 	migrationHandler "code.vikunja.io/api/pkg/modules/migration/handler"
 	"code.vikunja.io/api/pkg/plugins"
@@ -105,6 +106,10 @@ func FullInitWithoutAsync() {
 		if err := audit.Init(); err != nil {
 			log.Fatalf("Could not initialize audit logging: %s", err)
 		}
+	}
+
+	if err := mailsettings.Initialize(); err != nil {
+		log.Fatalf("Could not initialize SMTP settings: %s", err)
 	}
 
 	// Start the mail daemon

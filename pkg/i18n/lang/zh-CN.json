@@ -270,7 +270,17 @@
 			"agentNotLoaded": "请先通过 find_tools 发现并加载这个工具，再调用它。",
 			"agentArguments": "工具参数不符合要求，请按照工具说明修正后再试。",
 			"chatReviewChanged": "这份审核已失效，请重新读取会话并审核最新预览。",
-			"agentTimeout": "本段执行超时，已完成的操作会保留。如果仅是模型请求超时，可以追加一段预算后继续。"
+			"agentTimeout": "本段执行超时，已完成的操作会保留。如果仅是模型请求超时，可以追加一段预算后继续。",
+			"smtpPort": "SMTP 端口需在 1–65535 之间。",
+			"smtpAuth": "请选择支持的 SMTP 认证方式。",
+			"smtpTLS": "请选择支持的连接加密方式。",
+			"smtpHost": "请填写域名或 IP 地址，不要包含 https://、端口或路径。",
+			"smtpAddress": "请填写有效的发信邮箱，邮箱和用户名不能包含换行。",
+			"smtpNewKey": "更换 SMTP 地址或用户名时，请重新填写密码。",
+			"smtpCredentials": "启用 SMTP 认证需要填写用户名和密码。",
+			"smtpForbidden": "只有站点配置管理员可以管理发信配置。",
+			"smtpConflict": "配置已在其他页面更改，请刷新后重新修改再保存。",
+			"smtpSave": "无法持久保存发信配置，原配置仍然有效。"
 		},
 		"stopped": "执行已停止：%s。已完成的操作见下方记录。",
 		"cleanupFailed": "文字整理失败，已保留识别原文：%s",

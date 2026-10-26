@@ -7,6 +7,8 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import {useQuery} from '@tanstack/vue-query'
+import {mailSettingsAccessQuery} from '@/client/queries/mailSettings'
 import {useI18n} from 'vue-i18n'
 import {useTitle} from '@/composables/useTitle'
 import {useConfigStore} from '@/stores/config'
@@ -17,6 +19,7 @@ import SideNavShell, {type SideNavItem} from '@/components/misc/SideNavShell.vue
 const {t} = useI18n({useScope: 'global'})
 useTitle(() => t('user.settings.title'))
 
+const mailAccess = useQuery(mailSettingsAccessQuery())
 const configStore = useConfigStore()
 const authStore = useAuthStore()
 
@@ -25,6 +28,7 @@ const isLocalUser = computed(() => authStore.info?.is_local_user)
 
 const navigationItems = computed(() => {
 	const items: (SideNavItem & {condition?: boolean})[] = [
+		{title: t('mailServer.title'), icon: 'cog', routeName: 'user.settings.mail-server', condition: mailAccess.data.value?.can_manage_mail === true},
 		{
 			title: t('tcymc.text.public_page'),
 			icon: 'globe',

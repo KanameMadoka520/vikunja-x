@@ -19,7 +19,6 @@ const saved = computed(() => settings.data.value)
 		</p>
 		<TcyAISettingsForm
 			v-else-if="saved"
-			:key="settings.dataUpdatedAt.value"
 			:initial="saved"
 		/>
 		<p v-else>

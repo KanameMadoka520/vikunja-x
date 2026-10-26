@@ -10,7 +10,7 @@ const base = useBaseStore()
 const visibility = useDocumentVisibility()
 const query = useQuery(computed(() => systemStatusQuery(base.menuActive && visibility.value === 'visible')))
 const data = computed(() => query.data.value)
-const state = computed(() => query.isError.value ? 'offline' : !data.value ? 'loading' : data.value.healthy ? 'healthy' : 'degraded')
+const state = computed(() => query.isError.value ? 'offline' : !data.value ? 'loading' : !data.value.host_metrics_available ? 'unconfigured' : data.value.healthy ? 'healthy' : 'degraded')
 function bytes(n?: number | null) {
 	if (n == null) return '—'
 	const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
@@ -23,10 +23,10 @@ const rows = computed(() => [
 	{key: 'memory', percent: ratio(data.value?.memory_used, data.value?.memory_total), detail: `${bytes(data.value?.memory_used)} / ${bytes(data.value?.memory_total)}`},
 	{key: 'disk', percent: ratio(data.value?.disk_used, data.value?.disk_total), detail: `${bytes(data.value?.disk_used)} / ${bytes(data.value?.disk_total)}`},
 ])
-const uptime = computed(() => {
-	const seconds = data.value?.uptime_seconds ?? 0
+function duration(seconds?: number | null) {
+	if (seconds == null) return '—'
 	return t('systemStatus.duration', {days: Math.floor(seconds / 86400), hours: Math.floor(seconds % 86400 / 3600), minutes: Math.floor(seconds % 3600 / 60)})
-})
+}
 </script>
 
 <template>
@@ -52,14 +52,25 @@ const uptime = computed(() => {
 				/>
 				<small>{{ row.detail }}</small>
 			</div>
+			<div class="host-load">
+				<span>{{ t('systemStatus.load') }}</span><strong>{{ data.load_average?.length === 3 ? data.load_average.map(n => n.toFixed(2)).join(' / ') : '—' }}</strong><small>{{ t('systemStatus.loadPeriods') }}</small>
+			</div>
 			<div class="runtime">
-				<span>{{ t('systemStatus.uptime', {duration: uptime}) }}</span><a
+				<span>{{ t('systemStatus.hostUptime', {duration: duration(data.host_uptime_seconds)}) }}</span>
+			</div>
+			<div class="runtime">
+				<span>{{ t('systemStatus.uptime', {duration: duration(data.uptime_seconds)}) }}</span><a
 					:href="`https://github.com/KanameMadoka520/vikunja-x/releases/tag/${data.version}`"
 					target="_blank"
 					rel="noopener noreferrer"
 				>{{ data.version }}</a>
 			</div>
-			<details><summary>{{ t('systemStatus.measurement') }}</summary><p>{{ t('systemStatus.cpuHelp') }} {{ t(data.cpu_limited ? 'systemStatus.cpuLimited' : 'systemStatus.cpuShared') }}</p><p>{{ t(data.memory_limited ? 'systemStatus.memoryLimited' : 'systemStatus.memoryShared') }}</p><p>{{ t('systemStatus.diskHelp') }}</p><p>{{ t('systemStatus.refreshHelp') }}</p><p>{{ t('systemStatus.sampled') }} {{ data.sampled ? new Date(data.sampled).toLocaleString() : '—' }}</p></details>
+			<details>
+				<summary>{{ t('systemStatus.measurement') }}</summary>
+				<p>{{ t('systemStatus.hostSource') }}</p><p>{{ t('systemStatus.cpuHelp') }}</p>
+				<p>{{ t('systemStatus.ioWait') }} {{ data.cpu_io_wait_percent == null ? '—' : `${data.cpu_io_wait_percent.toFixed(1)}%` }} · {{ t('systemStatus.steal') }} {{ data.cpu_steal_percent == null ? '—' : `${data.cpu_steal_percent.toFixed(1)}%` }}</p>
+				<p>{{ t('systemStatus.memoryHelp') }}</p><p>{{ t('systemStatus.loadHelp') }}</p><p>{{ t('systemStatus.diskHelp') }}</p><p>{{ t('systemStatus.refreshHelp') }}</p><p>{{ t('systemStatus.sampled') }} {{ data.sampled ? new Date(data.sampled).toLocaleString() : '—' }}</p>
+			</details>
 		</template>
 		<button
 			v-if="query.isError.value"
@@ -86,7 +97,7 @@ gap: .35rem;
 flex-wrap: wrap;}
 .status-heading {margin-block-end: .55rem;}
 .healthy {color: var(--success);}
-.offline, .degraded {color: var(--danger);}
+.offline, .degraded, .unconfigured {color: var(--danger);}
 .resource-row {display: grid;
 grid-template-columns: auto 1fr auto;
 align-items: center;
@@ -102,6 +113,13 @@ overflow-wrap: anywhere;}
 .runtime {font-size: .68rem;
 color: var(--grey-600);}
 .runtime a {overflow-wrap: anywhere;}
+.host-load {display: grid;
+grid-template-columns: auto 1fr;
+gap: .2rem .5rem;
+margin-block: .5rem;}
+.host-load strong {text-align: end;}
+.host-load small {grid-column: 1 / -1;
+color: var(--grey-600);}
 summary {cursor: pointer;
 color: var(--grey-600);
 margin-block-start: .5rem;}

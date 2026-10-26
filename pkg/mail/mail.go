@@ -19,6 +19,7 @@ package mail
 import (
 	"context"
 	"crypto/tls"
+	"os"
 	"time"
 
 	"code.vikunja.io/api/pkg/config"
@@ -33,10 +34,10 @@ var Queue chan *mail.Msg
 // daemonDone is closed by the daemon goroutine once it has drained the queue and returned.
 var daemonDone chan struct{}
 
-func getClient() (*mail.Client, error) {
+func getClient(settings config.MailerRuntime) (*mail.Client, error) {
 
 	var authType mail.SMTPAuthType
-	switch config.MailerAuthType.GetString() {
+	switch settings.AuthType {
 	case "plain":
 		authType = mail.SMTPAuthPlain
 	case "login":
@@ -46,7 +47,7 @@ func getClient() (*mail.Client, error) {
 	}
 
 	tlsPolicy := mail.TLSOpportunistic
-	if config.MailerForceSSL.GetBool() {
+	if settings.TLSMode == "tls" || settings.TLSMode == "starttls" {
 		tlsPolicy = mail.TLSMandatory
 	}
 
@@ -54,56 +55,45 @@ func getClient() (*mail.Client, error) {
 		mail.WithTLSPortPolicy(tlsPolicy),
 		mail.WithTLSConfig(&tls.Config{
 			//#nosec G402
-			InsecureSkipVerify: config.MailerSkipTLSVerify.GetBool(),
-			ServerName:         config.MailerHost.GetString(),
+			InsecureSkipVerify: settings.SkipTLSVerify,
+			ServerName:         settings.Host,
 		}),
-		mail.WithPort(config.MailerPort.GetInt()),
+		mail.WithPort(settings.Port),
 		mail.WithTimeout((config.MailerQueueTimeout.GetDuration() + 3) * time.Second), // 3s more for us to close before mail server timeout
 		mail.WithLogger(log.NewMailLogger(config.LogEnabled.GetBool(), config.LogMail.GetString(), config.LogMailLevel.GetString(), config.LogFormat.GetString())),
 		mail.WithDebugLog(),
 	}
 
-	if config.MailerForceSSL.GetBool() {
+	if settings.TLSMode == "tls" {
 		opts = append(opts, mail.WithSSLPort(true))
 	}
 
-	if config.MailerUsername.GetString() != "" && config.MailerPassword.GetString() != "" {
+	if settings.AuthType != "none" && settings.Username != "" && settings.Password != "" {
 		opts = append(opts, mail.WithSMTPAuth(authType))
 	}
 
-	if config.MailerUsername.GetString() != "" {
-		opts = append(opts, mail.WithUsername(config.MailerUsername.GetString()))
+	if settings.Username != "" {
+		opts = append(opts, mail.WithUsername(settings.Username))
 	}
 
-	if config.MailerPassword.GetString() != "" {
-		opts = append(opts, mail.WithPassword(config.MailerPassword.GetString()))
+	if settings.Password != "" {
+		opts = append(opts, mail.WithPassword(settings.Password))
 	}
 
 	return mail.NewClient(
-		config.MailerHost.GetString(),
+		settings.Host,
 		opts...,
 	)
 }
 
 // StartMailDaemon starts the mail daemon
 func StartMailDaemon() {
-	if !config.MailerEnabled.GetBool() {
+	if !config.MailerEnabled.GetBool() && os.Getenv("TCYMC_SETTINGS_ADMIN_IDS") == "" {
 		Queue = nil
 		return
 	}
 
 	Queue = make(chan *mail.Msg, config.MailerQueuelength.GetInt())
-
-	if config.MailerHost.GetString() == "" {
-		log.Warning("Mailer seems to be not configured! Please see the config docs for more details.")
-		return
-	}
-
-	c, err := getClient()
-	if err != nil {
-		log.Errorf("Could not create mail client: %v", err)
-		return
-	}
 
 	// Read from local copies so StopMailDaemon can reset the package vars without racing the daemon.
 	queue := Queue
@@ -114,6 +104,8 @@ func StartMailDaemon() {
 		defer close(done)
 		var err error
 		open := false
+		var c *mail.Client
+		var active config.MailerRuntime
 		for {
 			select {
 			case m, ok := <-queue:
@@ -124,6 +116,22 @@ func StartMailDaemon() {
 						}
 					}
 					return
+				}
+				settings := config.CurrentMailerRuntime()
+				if !settings.Enabled {
+					continue
+				}
+				if c == nil || active != settings {
+					if open {
+						_ = c.Close()
+						open = false
+					}
+					c, err = getClient(settings)
+					if err != nil {
+						log.Error("Could not create SMTP client; check mail settings")
+						continue
+					}
+					active = settings
 				}
 				if !open {
 					err = c.DialWithContext(context.Background())

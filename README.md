@@ -3,13 +3,26 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.11`
+- 版本：`v2.7.1-tcymc.12`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 
-## WebP 封面与容器健康状态（tcymc.11）
+## 邮箱与网站发信配置（tcymc.12）
 
-修复附件图片名单遗漏 WebP 导致无法预览／设为封面，原始 WebP 和上传转换的 WebP 均可复用。侧栏底部显示 CPU、内存、数据文件系统占用、应用运行时长和实际版本。指标读取 Linux cgroup v2/v1，采样方式参考 [Docker runtime metrics](https://docs.docker.com/engine/containers/runmetrics/) 与 [Netdata cgroups collector](https://github.com/netdata/netdata/tree/master/src/collectors/cgroups.plugin)，独立实现，不依赖 Docker socket、外部监控进程或目录扫描。服务端全局缓存 15 秒，侧栏和标签页可见时通常每 30 秒刷新；无独立内存配额时以主机内存为分母，磁盘明确为共享文件系统，不冒充容器配额。接口仅供登录用户会话使用，公开分享和 API token 不可读取。
+- **设置 → 修改邮箱** 显示当前收件地址，待确认的新邮箱与当前地址分开显示；邮件提醒开关仍在常规设置中。
+- **设置 → 网站发信（SMTP）** 提供服务器、端口、认证方式、发信地址、密码和 TLS 设置。仅服务器环境变量 `TCYMC_SETTINGS_ADMIN_IDS` 中明确列出的账户 ID 能访问，例如 `2,5`；普通用户没有入口，接口同样拒绝访问，API token 和公开分享不可使用。此名单仅授权本二次开发版的网站配置，不授予上游许可控制的管理面板权限。
+- 初次读取现有 `VIKUNJA_MAILER_*` 环境配置；首次保存后使用数据目录中的 `.tcymc-smtp.enc` 加密配置。需备份该文件及原 `VIKUNJA_SERVICE_SECRET`。密码不回传，留空保留；更换服务器或用户名需重填密码。保存采用版本冲突检测、原子文件替换和内存快照，重启保留，下一封邮件使用新连接。保存本身不发送测试邮件。
+- AI 模型设置保存失败会保留草稿并显示具体错误，后台刷新不覆盖正在编辑的内容。成功时采用服务器返回配置、清空密钥输入框；更换 API 地址需重新输入密钥，页面给出明确提示。
+
+## 服务器负载（tcymc.12）
+
+侧栏监控统一为整台 Linux 主机：CPU 使用率与逻辑核心数、整机内存（MemTotal − MemAvailable）、最近 1／5／15 分钟系统平均负载、数据分区占用。服务器开机时长与 Vikunja 进程运行时长分别显示，版本可点击进入对应 Release。CPU 使用总时间差计算，扣除空闲与 I/O 等待，guest 不重复计数；展开说明可查看 I/O wait 和 steal。指标语义参考 [Linux 内核 proc 文档](https://docs.kernel.org/filesystems/proc.html)。
+
+Docker 部署合并 [只读主机指标 Compose 配置](deploy/compose.host-status.yml)，将主机 `/proc/stat`、`meminfo`、`loadavg`、`uptime` 四个文件分别挂载至 `/run/tcymc-host-proc/`。无需 Docker socket、特权模式或整个主机目录。缺少挂载时明确显示主机指标未接入，不把容器或进程用量冒充整机数据。当前部署的数据目录与服务器根分区在同一文件系统；磁盘不合并其他独立挂载点。15 秒全局缓存，侧栏和标签页可见时通常 30 秒刷新，不做文件扫描。绿色状态仅表示 Vikunja 依赖服务正常，不是整机压力判断。只对登录用户会话开放，公开分享和 API token 不可读取。
+
+## WebP 封面（tcymc.11）
+
+修复附件图片名单遗漏 WebP 导致无法预览／设为封面，原始 WebP 和上传转换的 WebP 均可复用。此前容器资源监控已由 tcymc.12 的整机监控替代。
 
 ## 会话配置与手机首次访问修复（tcymc.11）
 
@@ -243,7 +256,7 @@ docker run -d --name vikunja-x --restart unless-stopped \
   vikunja-x:v2.7.1-tcymc.5
 ```
 
-通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 按上游 `VIKUNJA_MAILER_*` 配置，密码通过外部环境文件提供，勿提交源码。账号名中的 admin 不会绕过上游授权功能。
+通过反向代理提供 HTTPS。创建首个账号使用 `docker exec -it vikunja-x /app/vikunja/vikunja user create --help` 查看 CLI 参数。注册默认建议关闭；SMTP 初始使用上游 `VIKUNJA_MAILER_*` 配置，也可通过上述管理员页面保存；密码勿提交源码。账号名中的 admin 不会绕过上游授权功能。
 
 Release 附带 Linux amd64 二进制、Docker 镜像包及 SHA256 校验文件；使用 `docker load -i vikunja-x-v2.7.1-tcymc.5-linux-amd64.docker.tar.gz` 导入镜像。
 

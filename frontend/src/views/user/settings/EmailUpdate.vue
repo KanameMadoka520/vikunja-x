@@ -3,6 +3,18 @@
 		v-if="isLocalUser"
 		:title="$t('user.settings.updateEmailTitle')"
 	>
+		<div
+			class="mbe-4"
+			data-cy="current-email"
+		>
+			<strong>{{ $t('user.settings.currentEmail') }}</strong>
+			<p>{{ authStore.info?.email }}</p>
+			<p>
+				{{ $t('user.settings.currentEmailHelp') }} <RouterLink :to="{name: 'user.settings.general'}">
+					{{ $t('user.settings.general.title') }}
+				</RouterLink>
+			</p>
+		</div>
 		<Message
 			v-if="pendingEmail"
 			variant="warning"

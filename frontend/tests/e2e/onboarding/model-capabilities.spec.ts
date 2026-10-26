@@ -48,3 +48,40 @@ for (const width of [1440, 390]) {
 		await page.screenshot({path: testInfo.outputPath(`model-options-${width}.png`), animations: 'disabled'})
 	})
 }
+
+test('saved model edits persist, failed saves keep the draft, and background refresh does not erase it', async ({authenticatedPage: page, apiContext, userToken}) => {
+ const api = `${apiRootUrl(process.env.API_URL || 'http://localhost:3456')}/api/v2`
+ await page.clock.install()
+	const initial = {connections: [{id: 'draft-regression', name: 'Original model', kind: 'chat', protocol: 'openai-chat', base_url: 'https://api.example.com/v1', model: 'original', api_key: 'isolated-old-key'}], assistant: 'draft-regression', cleanup: '', transcription: ''}
+ expect((await apiContext.post(`${api}/ai/settings`, {headers: {Authorization: `Bearer ${userToken}`}, data: initial})).ok()).toBeTruthy()
+ await page.goto('/user/settings/ai')
+ await page.getByLabel('Model ID', {exact: true}).fill('updated-model')
+ let saved = page.waitForResponse(r => r.url().endsWith('/ai/settings') && r.request().method() === 'POST')
+ await page.getByRole('button', {name: 'Save settings', exact: true}).click()
+ expect((await saved).ok()).toBeTruthy()
+ await page.reload()
+ await expect(page.getByLabel('Model ID', {exact: true})).toHaveValue('updated-model')
+ await page.getByLabel('API base URL').fill('https://other.example.com/v1')
+ saved = page.waitForResponse(r => r.url().endsWith('/ai/settings') && r.request().method() === 'POST')
+ await page.getByRole('button', {name: 'Save settings', exact: true}).click()
+ expect((await saved).status()).toBe(400)
+ await expect(page.locator('.tcy-settings [role="alert"]')).toContainText('Your edits are still here')
+ await expect(page.locator('.tcy-settings [role="alert"]')).toContainText('API key')
+ await expect(page.getByLabel('API base URL')).toHaveValue('https://other.example.com/v1')
+ // Reconnect after the query becomes stale, without navigating away from the draft.
+ await page.clock.fastForward(61_000)
+	const refreshed = page.waitForResponse(r => r.url().endsWith('/ai/settings') && r.request().method() === 'GET')
+ await page.evaluate(() => { window.dispatchEvent(new Event('offline')); window.dispatchEvent(new Event('online')) })
+ await refreshed
+ await expect(page.getByLabel('API base URL')).toHaveValue('https://other.example.com/v1')
+ await page.getByLabel('API key', {exact: true}).fill('isolated-new-key')
+ saved = page.waitForResponse(r => r.url().endsWith('/ai/settings') && r.request().method() === 'POST')
+ await page.getByRole('button', {name: 'Save settings', exact: true}).click()
+ const response = await saved
+ expect(response.ok()).toBeTruthy()
+ expect(JSON.stringify(await response.json())).not.toContain('isolated-new-key')
+ await expect(page.getByLabel('API key', {exact: true})).toHaveValue('')
+ await expect(page.locator('.tcy-settings [role="alert"]')).toHaveCount(0)
+ await page.reload()
+ await expect(page.getByLabel('API base URL')).toHaveValue('https://other.example.com/v1')
+})

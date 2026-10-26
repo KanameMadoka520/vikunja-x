@@ -24,6 +24,7 @@ import (
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/models"
+	"code.vikunja.io/api/pkg/modules/humabridge"
 	"code.vikunja.io/api/pkg/routes/api/shared"
 	"code.vikunja.io/api/pkg/user"
 
@@ -62,7 +63,7 @@ func RegisterUserSettingsRoutes(api huma.API) {
 	Register(api, huma.Operation{
 		OperationID: "user-show",
 		Summary:     "Get the current user",
-		Description: "Returns the authenticated user together with their settings and computed account facts (auth_provider, is_local_user, is_admin, deletion_scheduled_at).",
+		Description: "Returns the authenticated user together with their settings and computed account facts (auth_provider, is_local_user, is_admin, deletion_scheduled_at). Browser sessions also receive their own email address; API tokens and public shares do not.",
 		Method:      http.MethodGet,
 		Path:        "/user",
 		Tags:        tags,
@@ -172,6 +173,17 @@ func userShow(ctx context.Context, _ *struct{}) (*singleBody[userInfoBody], erro
 	u, err := models.GetUserOrLinkShareUser(s, a)
 	if err != nil {
 		return nil, translateDomainError(err)
+	}
+
+	// Public user lookups deliberately strip email. Only the account's own
+	// browser session may receive it here; API tokens and shares remain redacted.
+	ec := humabridge.EchoContextFrom(ctx)
+	if _, isUser := a.(*user.User); isUser && ec != nil && (*ec).Get("api_token") == nil {
+		private, loadErr := user.GetUserWithEmail(s, &user.User{ID: u.ID})
+		if loadErr != nil {
+			return nil, translateDomainError(loadErr)
+		}
+		u.Email = private.Email
 	}
 
 	info := &userInfoBody{

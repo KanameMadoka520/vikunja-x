@@ -18,5 +18,7 @@
 
 package systemstatus
 
-// Unsupported platform counters stay null; never mislabel Go heap as container RAM.
-func measure(_ string) (Snapshot, float64, bool) { return Snapshot{}, 0, false }
+// Unsupported host counters remain unavailable, never replaced by process metrics.
+func measure(_ string) (Snapshot, cpuCounters) {
+	return Snapshot{Scope: "host", LoadAverage: []float64{}}, cpuCounters{}
+}

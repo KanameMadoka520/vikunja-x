@@ -14,22 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Vikunja is a to-do list application to facilitate your life.
-// Copyright 2018-present Vikunja and contributors. All rights reserved.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 package systemstatus
 
 import (
@@ -42,27 +26,53 @@ import (
 )
 
 type Snapshot struct {
-	Version       string    `json:"version" doc:"Running API build version."`
-	Started       time.Time `json:"started" doc:"Application process start, UTC; resets on restart."`
-	UptimeSeconds int64     `json:"uptime_seconds" doc:"Continuous application process runtime in seconds."`
-	Sampled       time.Time `json:"sampled" doc:"UTC sample time. Samples are shared and cached for 15 seconds."`
-	Healthy       bool      `json:"healthy" doc:"Database and configured Redis are reachable."`
-	CPUPercent    *float64  `json:"cpu_percent" doc:"CPU time delta divided by elapsed time and available CPU cores, percent; null until a sample pair exists."`
-	CPUCores      float64   `json:"cpu_cores" doc:"Available cores after CPU quota and cpuset limits; zero if unavailable."`
-	CPULimited    bool      `json:"cpu_limited" doc:"Whether a finite cgroup CPU quota or cpuset restriction was found."`
-	MemoryUsed    *uint64   `json:"memory_used" doc:"Container working set bytes: cgroup usage minus inactive file cache, as in Docker stats."`
-	MemoryTotal   *uint64   `json:"memory_total" doc:"Finite cgroup memory limit, or host RAM when no independent limit exists."`
-	MemoryLimited bool      `json:"memory_limited" doc:"True only when an independent finite cgroup memory limit applies."`
-	DiskUsed      *uint64   `json:"disk_used" doc:"Used bytes on the filesystem containing uploaded data; includes other applications on that filesystem."`
-	DiskTotal     *uint64   `json:"disk_total" doc:"Filesystem capacity available to this process: used plus available bytes; not a container-specific quota."`
+	Scope                string    `json:"scope" enum:"host" doc:"CPU and memory describe the entire host, never the application cgroup."`
+	HostMetricsAvailable bool      `json:"host_metrics_available" doc:"True when explicit read-only host proc files are readable and valid. No silent fallback to container counters."`
+	Version              string    `json:"version" doc:"Running API build version."`
+	Started              time.Time `json:"started" doc:"Application process start, UTC; resets on restart."`
+	UptimeSeconds        int64     `json:"uptime_seconds" doc:"Continuous application process runtime in seconds."`
+	HostUptimeSeconds    *int64    `json:"host_uptime_seconds" doc:"Host time since boot in seconds, independent of application restarts."`
+	Sampled              time.Time `json:"sampled" doc:"UTC sample time. Samples are shared and cached for 15 seconds."`
+	Healthy              bool      `json:"healthy" doc:"Application database and configured Redis are reachable; not a host resource pressure assessment."`
+	CPUPercent           *float64  `json:"cpu_percent" doc:"Host non-idle CPU time excluding I/O wait, across all cores, percent. Null until two valid samples exist."`
+	CPUIOWaitPercent     *float64  `json:"cpu_io_wait_percent" doc:"Host CPU I/O wait delta as a percentage of total CPU time."`
+	CPUStealPercent      *float64  `json:"cpu_steal_percent" doc:"Host CPU steal time delta as a percentage of total CPU time."`
+	CPUCores             float64   `json:"cpu_cores" doc:"Host logical CPU count from host proc/stat, unaffected by container quotas."`
+	LoadAverage          []float64 `json:"load_average" doc:"Host 1, 5 and 15 minute load averages, in that order; empty when unavailable. Not percentages."`
+	MemoryUsed           *uint64   `json:"memory_used" doc:"Host MemTotal minus MemAvailable in bytes; includes all host applications."`
+	MemoryAvailable      *uint64   `json:"memory_available" doc:"Host kernel estimate of available RAM in bytes, including reclaimable caches."`
+	MemoryTotal          *uint64   `json:"memory_total" doc:"Total host RAM in bytes, independent of container limits."`
+	DiskUsed             *uint64   `json:"disk_used" doc:"Used bytes on the host filesystem containing uploaded data, including other applications."`
+	DiskTotal            *uint64   `json:"disk_total" doc:"Data-filesystem capacity: used plus available bytes, matching df usage accounting; not a sum of all mounted filesystems."`
+}
+
+type cpuCounters struct {
+	total, idle, ioWait, steal uint64
+	valid                      bool
+}
+
+func cpuUsage(before, after cpuCounters) (busy, wait, steal *float64) {
+	if !before.valid || !after.valid || after.total <= before.total || after.idle < before.idle || after.ioWait < before.ioWait || after.steal < before.steal {
+		return nil, nil, nil
+	}
+	total := after.total - before.total
+	idle := after.idle - before.idle
+	io := after.ioWait - before.ioWait
+	stolen := after.steal - before.steal
+	if idle > total || io > total-idle || stolen > total {
+		return nil, nil, nil
+	}
+	b := 100 * float64(total-idle-io) / float64(total)
+	w := 100 * float64(io) / float64(total)
+	s := 100 * float64(stolen) / float64(total)
+	return &b, &w, &s
 }
 
 var started = time.Now().UTC()
 var cache struct {
 	sync.Mutex
-	snapshot     Snapshot
-	previousCPU  float64
-	previousTime time.Time
+	snapshot Snapshot
+	previous cpuCounters
 }
 
 // Read performs no directory scans, external commands or background polling.
@@ -75,22 +85,15 @@ func Read() Snapshot {
 	if !cache.snapshot.Sampled.IsZero() && now.Sub(cache.snapshot.Sampled) < 15*time.Second {
 		return cache.snapshot
 	}
-	sample, cpuSeconds, cpuOK := measure(config.FilesBasePath.GetString())
+	sample, cpu := measure(config.FilesBasePath.GetString())
+	sample.Scope = "host"
 	sample.Version = version.Version
 	sample.Started = started
 	sample.UptimeSeconds = int64(now.Sub(started).Seconds())
 	sample.Sampled = now
 	sample.Healthy = health.Check() == nil
-	if cpuOK && !cache.previousTime.IsZero() && sample.CPUCores > 0 && cpuSeconds >= cache.previousCPU {
-		percent := 100 * (cpuSeconds - cache.previousCPU) / now.Sub(cache.previousTime).Seconds() / sample.CPUCores
-		sample.CPUPercent = &percent
-	}
-	if cpuOK {
-		cache.previousCPU = cpuSeconds
-		cache.previousTime = now
-	} else {
-		cache.previousTime = time.Time{}
-	}
+	sample.CPUPercent, sample.CPUIOWaitPercent, sample.CPUStealPercent = cpuUsage(cache.previous, cpu)
+	cache.previous = cpu
 	cache.snapshot = sample
 	return sample
 }

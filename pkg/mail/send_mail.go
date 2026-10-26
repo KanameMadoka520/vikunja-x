@@ -66,7 +66,7 @@ func SendTestMail(opts *Opts) error {
 		return fmt.Errorf("mailer is not configured! Please see the config docs for more details")
 	}
 
-	c, err := getClient()
+	c, err := getClient(config.CurrentMailerRuntime())
 	if err != nil {
 		return err
 	}

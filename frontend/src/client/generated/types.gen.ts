@@ -1563,6 +1563,34 @@ export type LogoutBodyBody = {
     readonly oidc_logout_url?: string;
 };
 
+export type MailSettings = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    auth_type?: 'plain' | 'login' | 'cram-md5' | 'none';
+    /**
+     * Explicitly remove the saved password.
+     */
+    clear_password?: boolean;
+    enabled?: boolean;
+    from_email?: string;
+    readonly has_password?: boolean;
+    host?: string;
+    port?: number;
+    /**
+     * Revision from the last read. Stale saves return 409.
+     */
+    revision?: number;
+    skip_tls_verify?: boolean;
+    readonly source?: 'environment' | 'saved';
+    /**
+     * auto: opportunistic STARTTLS; starttls: required STARTTLS; tls: implicit TLS.
+     */
+    tls_mode?: 'auto' | 'starttls' | 'tls';
+    username?: string;
+};
+
 export type MarkAllReadBodyBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -3008,6 +3036,14 @@ export type Settings = {
     transcription?: string;
 };
 
+export type SettingsAccessBodyBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    can_manage_mail?: boolean;
+};
+
 export type ShareCounts = {
     /**
      * Number of link shares across all projects.
@@ -3029,45 +3065,65 @@ export type Snapshot = {
      */
     readonly $schema?: string;
     /**
-     * Available cores after CPU quota and cpuset limits; zero if unavailable.
+     * Host logical CPU count from host proc/stat, unaffected by container quotas.
      */
     cpu_cores?: number;
     /**
-     * Whether a finite cgroup CPU quota or cpuset restriction was found.
+     * Host CPU I/O wait delta as a percentage of total CPU time.
      */
-    cpu_limited?: boolean;
+    cpu_io_wait_percent?: number | null;
     /**
-     * CPU time delta divided by elapsed time and available CPU cores, percent; null until a sample pair exists.
+     * Host non-idle CPU time excluding I/O wait, across all cores, percent. Null until two valid samples exist.
      */
     cpu_percent?: number | null;
     /**
-     * Filesystem capacity available to this process: used plus available bytes; not a container-specific quota.
+     * Host CPU steal time delta as a percentage of total CPU time.
+     */
+    cpu_steal_percent?: number | null;
+    /**
+     * Data-filesystem capacity: used plus available bytes, matching df usage accounting; not a sum of all mounted filesystems.
      */
     disk_total?: number | null;
     /**
-     * Used bytes on the filesystem containing uploaded data; includes other applications on that filesystem.
+     * Used bytes on the host filesystem containing uploaded data, including other applications.
      */
     disk_used?: number | null;
     /**
-     * Database and configured Redis are reachable.
+     * Application database and configured Redis are reachable; not a host resource pressure assessment.
      */
     healthy?: boolean;
     /**
-     * True only when an independent finite cgroup memory limit applies.
+     * True when explicit read-only host proc files are readable and valid. No silent fallback to container counters.
      */
-    memory_limited?: boolean;
+    host_metrics_available?: boolean;
     /**
-     * Finite cgroup memory limit, or host RAM when no independent limit exists.
+     * Host time since boot in seconds, independent of application restarts.
+     */
+    host_uptime_seconds?: number | null;
+    /**
+     * Host 1, 5 and 15 minute load averages, in that order; empty when unavailable. Not percentages.
+     */
+    load_average?: Array<number> | null;
+    /**
+     * Host kernel estimate of available RAM in bytes, including reclaimable caches.
+     */
+    memory_available?: number | null;
+    /**
+     * Total host RAM in bytes, independent of container limits.
      */
     memory_total?: number | null;
     /**
-     * Container working set bytes: cgroup usage minus inactive file cache, as in Docker stats.
+     * Host MemTotal minus MemAvailable in bytes; includes all host applications.
      */
     memory_used?: number | null;
     /**
      * UTC sample time. Samples are shared and cached for 15 seconds.
      */
     sampled?: string;
+    /**
+     * CPU and memory describe the entire host, never the application cgroup.
+     */
+    scope?: 'host';
     /**
      * Application process start, UTC; resets on restart.
      */
@@ -5436,6 +5492,32 @@ export type LoginWritable = {
     username?: string;
 };
 
+export type MailSettingsWritable = {
+    auth_type?: 'plain' | 'login' | 'cram-md5' | 'none';
+    /**
+     * Explicitly remove the saved password.
+     */
+    clear_password?: boolean;
+    enabled?: boolean;
+    from_email?: string;
+    host?: string;
+    /**
+     * Blank preserves the saved password only when host and username are unchanged.
+     */
+    password?: string;
+    port?: number;
+    /**
+     * Revision from the last read. Stale saves return 409.
+     */
+    revision?: number;
+    skip_tls_verify?: boolean;
+    /**
+     * auto: opportunistic STARTTLS; starttls: required STARTTLS; tls: implicit TLS.
+     */
+    tls_mode?: 'auto' | 'starttls' | 'tls';
+    username?: string;
+};
+
 export type MigrationCredentialsBodyWritable = {
     /**
      * The password to log in with. Only used when no token is given.
@@ -6153,47 +6235,71 @@ export type SettingsWritable = {
     transcription?: string;
 };
 
+export type SettingsAccessBodyBodyWritable = {
+    can_manage_mail?: boolean;
+};
+
 export type SnapshotWritable = {
     /**
-     * Available cores after CPU quota and cpuset limits; zero if unavailable.
+     * Host logical CPU count from host proc/stat, unaffected by container quotas.
      */
     cpu_cores?: number;
     /**
-     * Whether a finite cgroup CPU quota or cpuset restriction was found.
+     * Host CPU I/O wait delta as a percentage of total CPU time.
      */
-    cpu_limited?: boolean;
+    cpu_io_wait_percent?: number | null;
     /**
-     * CPU time delta divided by elapsed time and available CPU cores, percent; null until a sample pair exists.
+     * Host non-idle CPU time excluding I/O wait, across all cores, percent. Null until two valid samples exist.
      */
     cpu_percent?: number | null;
     /**
-     * Filesystem capacity available to this process: used plus available bytes; not a container-specific quota.
+     * Host CPU steal time delta as a percentage of total CPU time.
+     */
+    cpu_steal_percent?: number | null;
+    /**
+     * Data-filesystem capacity: used plus available bytes, matching df usage accounting; not a sum of all mounted filesystems.
      */
     disk_total?: number | null;
     /**
-     * Used bytes on the filesystem containing uploaded data; includes other applications on that filesystem.
+     * Used bytes on the host filesystem containing uploaded data, including other applications.
      */
     disk_used?: number | null;
     /**
-     * Database and configured Redis are reachable.
+     * Application database and configured Redis are reachable; not a host resource pressure assessment.
      */
     healthy?: boolean;
     /**
-     * True only when an independent finite cgroup memory limit applies.
+     * True when explicit read-only host proc files are readable and valid. No silent fallback to container counters.
      */
-    memory_limited?: boolean;
+    host_metrics_available?: boolean;
     /**
-     * Finite cgroup memory limit, or host RAM when no independent limit exists.
+     * Host time since boot in seconds, independent of application restarts.
+     */
+    host_uptime_seconds?: number | null;
+    /**
+     * Host 1, 5 and 15 minute load averages, in that order; empty when unavailable. Not percentages.
+     */
+    load_average?: Array<number> | null;
+    /**
+     * Host kernel estimate of available RAM in bytes, including reclaimable caches.
+     */
+    memory_available?: number | null;
+    /**
+     * Total host RAM in bytes, independent of container limits.
      */
     memory_total?: number | null;
     /**
-     * Container working set bytes: cgroup usage minus inactive file cache, as in Docker stats.
+     * Host MemTotal minus MemAvailable in bytes; includes all host applications.
      */
     memory_used?: number | null;
     /**
      * UTC sample time. Samples are shared and cached for 15 seconds.
      */
     sampled?: string;
+    /**
+     * CPU and memory describe the entire host, never the application cgroup.
+     */
+    scope?: 'host';
     /**
      * Application process start, UTC; resets on restart.
      */
@@ -11588,6 +11694,81 @@ export type SubscriptionsCreateResponses = {
 };
 
 export type SubscriptionsCreateResponse = SubscriptionsCreateResponses[keyof SubscriptionsCreateResponses];
+
+export type SystemMailSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/system/mail-settings';
+};
+
+export type SystemMailSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type SystemMailSettingsError = SystemMailSettingsErrors[keyof SystemMailSettingsErrors];
+
+export type SystemMailSettingsResponses = {
+    /**
+     * OK
+     */
+    200: MailSettings;
+};
+
+export type SystemMailSettingsResponse = SystemMailSettingsResponses[keyof SystemMailSettingsResponses];
+
+export type SystemSaveMailSettingsData = {
+    body: MailSettingsWritable;
+    path?: never;
+    query?: never;
+    url: '/system/mail-settings';
+};
+
+export type SystemSaveMailSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type SystemSaveMailSettingsError = SystemSaveMailSettingsErrors[keyof SystemSaveMailSettingsErrors];
+
+export type SystemSaveMailSettingsResponses = {
+    /**
+     * Created
+     */
+    201: MailSettings;
+};
+
+export type SystemSaveMailSettingsResponse = SystemSaveMailSettingsResponses[keyof SystemSaveMailSettingsResponses];
+
+export type SystemSettingsAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/system/settings-access';
+};
+
+export type SystemSettingsAccessErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type SystemSettingsAccessError = SystemSettingsAccessErrors[keyof SystemSettingsAccessErrors];
+
+export type SystemSettingsAccessResponses = {
+    /**
+     * OK
+     */
+    200: SettingsAccessBodyBody;
+};
+
+export type SystemSettingsAccessResponse = SystemSettingsAccessResponses[keyof SystemSettingsAccessResponses];
 
 export type SystemStatusData = {
     body?: never;
