@@ -135,6 +135,23 @@ describe('CustomImage attachment id', () => {
 		expect(getBlobUrl).toHaveBeenCalledTimes(1)
 	})
 
+	it('resolves every copy of the same image in one editor', async () => {
+		const {editor} = createEditor(`<p><img src="${ATTACHMENT_URL}"><img src="${ATTACHMENT_URL}"></p>`)
+		await settle()
+		expect(Array.from(editor.view.dom.querySelectorAll('img')).map(image => image.src)).toEqual(['blob:real-attachment', 'blob:real-attachment'])
+	})
+
+	it('shows a recoverable placeholder without saving it into the description', async () => {
+		getBlobUrl.mockRejectedValueOnce(new Error('missing image'))
+		const {editor} = createEditor(`<p><img src="${ATTACHMENT_URL}"></p>`)
+		await settle()
+		const image = editor.view.dom.querySelector('img')!
+		expect(image.src).toContain('data:image/svg+xml')
+		expect(image.alt).toBe('task.attachment.imageUnavailable')
+		expect(editor.getHTML()).toContain(ATTACHMENT_URL)
+		expect(editor.getHTML()).not.toContain('data:image/svg+xml')
+	})
+
 	it('round trips the rendered html', async () => {
 		const {editor} = createEditor(`<p><img src="${ATTACHMENT_URL}"></p>`)
 		await settle()

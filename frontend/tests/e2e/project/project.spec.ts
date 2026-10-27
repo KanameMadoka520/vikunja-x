@@ -174,6 +174,7 @@ test.describe('Projects', () => {
 			mimeType: 'image/png',
 			buffer: await readFile('tests/fixtures/image-blue.png'),
 		})
+		await page.getByRole('dialog', {name: 'Choose how to upload images'}).getByRole('button', {name: 'Upload images', exact: true}).click()
 		expect((await upload).ok()).toBe(true)
 		await expect(background).toHaveClass(/is-visible/)
 		await expect(background).toHaveCSS('background-image', /url\(/)

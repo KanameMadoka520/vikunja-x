@@ -1,4 +1,16 @@
 {
+  "screenshot": {
+    "short": "截图脱敏",
+    "open": "一键截图脱敏",
+    "title": "脱敏截图预览",
+    "note": "截图预览 · 当前展示为示例内容",
+    "close": "关闭脱敏，恢复原内容",
+    "project": "示例项目",
+    "task": "示例任务",
+    "person": "示例用户",
+    "content": "示例内容",
+    "image": "示例占位图片"
+},
   "systemStatus": {
     "title": "服务器负载",
     "healthy": "Vikunja 正常",
@@ -1230,6 +1242,9 @@
 			"subscribedProjectThroughParentProject": "你通过父项目订阅了此项目。在这里取消订阅，将停止此项目及其全部内容的通知。"
 		},
 		"attachment": {
+			"inlineDeleteNote": "删除附件时，会一并移除本任务描述和评论中对它的图片引用，保留其他文字和图片。仅取消封面不会删除附件或正文图片。",
+			"imageUnavailable": "图片暂不可用，请检查权限或刷新重试。",
+
 			"title": "附件",
 			"createdBy": "创建 {0} 由 {1}",
 			"downloadTooltip": "下载此附件",

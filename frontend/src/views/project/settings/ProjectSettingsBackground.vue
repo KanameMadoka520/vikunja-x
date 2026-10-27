@@ -38,6 +38,7 @@
 				<XButton
 					variant="secondary"
 					icon="folder"
+					:disabled="backgroundMutationLoading"
 					@click="driveOpen = true"
 				>
 					{{ t('drive.choose') }}
@@ -165,7 +166,8 @@ import {useDriveCoverMutation, type DriveEntry} from '@/client/queries/drive'
 import {coverPresets, createCoverPreset, type CoverPreset} from '@/helpers/coverPresets'
 
 import {useProjectBackground} from '@/composables/useProjectBackground'
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
+import {error as showError} from '@/message'
 import {useInfiniteQuery, useQuery} from '@tanstack/vue-query'
 import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
@@ -232,13 +234,13 @@ const deleteBackgroundMutation = useDeleteProjectBackgroundMutation(isCurrentPro
 const backgroundMutationLoading = computed(() =>
 	setBackgroundMutation.isPending.value ||
 	uploadBackgroundMutation.isPending.value ||
-	deleteBackgroundMutation.isPending.value,
+	deleteBackgroundMutation.isPending.value || driveCover.isPending.value || presetLoading.value,
 )
 const searching = useDelayedLoading(backgroundSearchQuery.isFetching)
 const loadingMore = useDelayedLoading(backgroundSearchQuery.isFetchingNextPage)
 
 async function setBackground(backgroundId: string) {
-	if (setBackgroundMutation.isPending.value) {
+	if (backgroundMutationLoading.value) {
 		return
 	}
 
@@ -251,14 +253,16 @@ async function setBackground(backgroundId: string) {
 const backgroundUploadInput = ref<HTMLInputElement | null>(null)
 async function uploadBackground() {
 	const file = backgroundUploadInput.value?.files?.[0]
-	if (!file) {
+	if (!file || backgroundMutationLoading.value) {
 		return
 	}
 
 	await uploadBackgroundMutation.mutateAsync({projectId: projectId.value, file}).catch(() => undefined)
+	if (backgroundUploadInput.value) backgroundUploadInput.value.value = ''
 }
 
 async function removeBackground() {
+	if (backgroundMutationLoading.value) return
 	const id = projectId.value
 	const updated = await deleteBackgroundMutation.mutateAsync({projectId: id}).catch(() => undefined)
 	if (updated && isCurrentProject(id)) {
@@ -267,14 +271,23 @@ async function removeBackground() {
 }
 const driveOpen = ref(false), presetLoading = ref(false)
 const driveCover = useDriveCoverMutation()
+watch(projectId, () => {driveOpen.value = false})
 async function chooseCover(file: DriveEntry) {
+	if (backgroundMutationLoading.value) return
 	const result = await driveCover.mutateAsync({file, projectId: projectId.value}).catch(() => undefined)
 	if (result) driveOpen.value = false
 }
 async function applyPreset(preset: CoverPreset) {
-	if (presetLoading.value) return
+	if (backgroundMutationLoading.value) return
+	const targetId = projectId.value
 	presetLoading.value = true
-	try {const file = await createCoverPreset(preset); await uploadBackgroundMutation.mutateAsync({projectId: projectId.value, file}).catch(() => undefined)} finally {presetLoading.value = false}
+	try {
+		const file = await createCoverPreset(preset)
+		if (!isCurrentProject(targetId)) return
+		await uploadBackgroundMutation.mutateAsync({projectId: targetId, file}).catch(() => undefined)
+	} catch (error) {
+		if (isCurrentProject(targetId)) showError(error)
+	} finally {presetLoading.value = false}
 }
 </script>
 

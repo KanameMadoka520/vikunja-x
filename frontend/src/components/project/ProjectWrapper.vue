@@ -66,7 +66,10 @@
 					{{ getViewTitle(view) }}
 				</BaseButton>
 			</div>
-			<slot name="header" />
+			<div class="project-view-actions">
+				<ScreenshotPreview />
+				<slot name="header" />
+			</div>
 		</div>
 		<CustomTransition name="fade">
 			<Message
@@ -87,6 +90,7 @@ import {computed, ref, watch, nextTick, onMounted} from 'vue'
 import {useResizeObserver} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 
+import ScreenshotPreview from '@/components/project/ScreenshotPreview.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import Dropdown from '@/components/misc/Dropdown.vue'
 import DropdownItem from '@/components/misc/DropdownItem.vue'
@@ -179,6 +183,14 @@ function getViewRoute(view: ProjectView) {
 </script>
 
 <style lang="scss" scoped>
+.project-view-actions {
+ display: flex;
+ flex-wrap: wrap;
+ align-items: center;
+ justify-content: center;
+ gap: .5rem;
+}
+
 .switch-view-container {
 	position: relative;
 	min-block-size: $switch-view-height;

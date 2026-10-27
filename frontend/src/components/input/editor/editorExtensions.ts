@@ -142,14 +142,17 @@ export function createEditorExtensions(deps: EditorExtensionDeps): Extensions {
 
 	// One url per image node, reused across re-renders and released with the editor that handed it out.
 	const imageUrls = new Map<ImageNodeKey, string>()
+	let imagesDisposed = false
 
 	async function resolveImageUrl(nodeKey: ImageNodeKey, taskId: number, attachmentId: number): Promise<string> {
+		if (imagesDisposed) throw new Error('Editor disposed')
 		const cached = imageUrls.get(nodeKey)
 		if (cached !== undefined) {
 			return cached
 		}
 
 		const url = await fetchAttachmentUrl({task_id: taskId, id: attachmentId})
+		if (imagesDisposed) { releaseAttachmentUrl(url); throw new Error('Editor disposed') }
 		const won = imageUrls.get(nodeKey)
 		if (won !== undefined) {
 			releaseAttachmentUrl(url)
@@ -161,6 +164,7 @@ export function createEditorExtensions(deps: EditorExtensionDeps): Extensions {
 
 	const CustomImage = Image.extend({
 		onDestroy() {
+			imagesDisposed = true
 			imageUrls.forEach(releaseAttachmentUrl)
 			imageUrls.clear()
 		},
@@ -196,17 +200,25 @@ export function createEditorExtensions(deps: EditorExtensionDeps): Extensions {
 				nextTick(async () => {
 
 					// no live view: fail closed, never fall back to document
+					if (imagesDisposed) return
 					const root = getEditor()?.view?.dom
 					if (!root) return
 
-					const img = root.querySelector(`[id="${id}"]`)
+					const images = root.querySelectorAll<HTMLImageElement>(`[id="${id}"]`)
+					const img = images.item(0)
 
 					if (!img || !(img instanceof HTMLImageElement)) return
 
 					try {
-						img.src = await resolveImageUrl(nodeKey, taskId, attachmentId)
+						const url = await resolveImageUrl(nodeKey, taskId, attachmentId)
+						if (imagesDisposed || getEditor()?.view?.dom !== root) return
+						images.forEach(image => { if (root.contains(image)) image.src = url })
 					} catch {
-						// leave the placeholder src in place
+						if (imagesDisposed) return
+						const label = t('task.attachment.imageUnavailable')
+						const escaped = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+						const placeholder = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="64" viewBox="0 0 420 64"><rect width="420" height="64" rx="8" fill="#f1f3f5"/><text x="16" y="37" fill="#586174" font-family="sans-serif" font-size="14">${escaped}</text></svg>`)
+						images.forEach(image => {if (root.contains(image)) {image.src = placeholder; image.alt = label; image.title = label}})
 					}
 				})
 

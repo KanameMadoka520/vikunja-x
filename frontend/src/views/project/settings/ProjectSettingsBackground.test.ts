@@ -18,6 +18,9 @@ const state = vi.hoisted(() => ({
 	searchIsError: undefined as Ref<boolean> | undefined,
 }))
 
+const createPreset = vi.hoisted(() => vi.fn())
+vi.mock('@/helpers/coverPresets', async original => ({...await original<typeof import('@/helpers/coverPresets')>(), createCoverPreset: createPreset}))
+
 const refetchSearch = vi.hoisted(() => vi.fn())
 
 const goBack = vi.hoisted(() => vi.fn())
@@ -67,10 +70,11 @@ vi.mock('@/stores/config', () => ({
 
 vi.mock('@/message', () => ({error: vi.fn(), success}))
 vi.mock('@/composables/useTitle', () => ({useTitle: vi.fn()}))
-vi.mock('vue-router', async () => {
+vi.mock('vue-router', async importOriginal => {
 	const {reactive} = await import('vue')
 	state.routeParams = reactive({projectId: '7'})
 	return {
+		...await importOriginal<typeof import('vue-router')>(),
 		useRoute: () => ({params: state.routeParams}),
 	}
 })
@@ -134,6 +138,17 @@ describe('ProjectSettingsBackground', () => {
 		backgrounds.deleteProjectBackground.mockReset()
 		backgrounds.setUnsplashProjectBackground.mockReset()
 		backgrounds.uploadProjectBackground.mockReset()
+	})
+
+	it('does not upload a preset into a different project after navigation', async () => {
+		let finish!: (file: File) => void
+		createPreset.mockReturnValueOnce(new Promise(resolve => {finish = resolve}))
+		const wrapper = mountView()
+		await wrapper.find('.cover-preset-grid button').trigger('click')
+		state.routeParams!.projectId = '99'
+		finish(new File(['image'], 'preset.png', {type: 'image/png'}))
+		await flushPromises()
+		expect(backgrounds.uploadProjectBackground).not.toHaveBeenCalled()
 	})
 
 	it('clears the cached background and navigates back after removing it', async () => {

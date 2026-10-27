@@ -176,10 +176,9 @@ func TestTaskAttachment_Delete(t *testing.T) {
 		ta := &TaskAttachment{ID: 1}
 		err := ta.Delete(s, u)
 		require.NoError(t, err)
-		// Check if the file itself was deleted
-		_, err = files.FileStat(ta.File) // The new file has the id 2 since it's the second attachment
-		require.Error(t, err)
-		assert.True(t, os.IsNotExist(err))
+		// Other attachments still reference this legacy file.
+		_, err = files.FileStat(ta.File)
+		require.NoError(t, err)
 	})
 	t.Run("retains managed previews until permanent deletion", func(t *testing.T) {
 		files.InitTestFileFixtures(t)

@@ -112,6 +112,7 @@
 								? $t('task.attachment.unsetAsCover')
 								: $t('task.attachment.setAsCover')"
 							class="attachment-info-meta-button"
+							:disabled="loading"
 							@click.prevent.stop="setCoverImage(task.cover_image_attachment_id === a.id ? null : a)"
 						>
 							<Icon :icon="task.cover_image_attachment_id === a.id ? 'eye-slash' : 'eye'" />
@@ -169,6 +170,7 @@
 		<!-- Delete modal -->
 		<Modal
 			:enabled="attachmentToDelete !== null"
+			:loading="deleteMutation.isPending.value"
 			@close="setAttachmentToDelete(null)"
 			@submit="deleteAttachment()"
 		>
@@ -179,7 +181,7 @@
 			<template #text>
 				<p v-if="attachmentToDelete">
 					{{ $t('task.attachment.deleteText1', {filename: attachmentToDelete.file?.name}) }}<br>
-					<span>{{ $t('drive.detachNote') }}</span>
+					<span>{{ $t('drive.detachNote') }}</span><br><span>{{ $t('task.attachment.inlineDeleteNote') }}</span>
 				</p>
 			</template>
 		</Modal>
@@ -319,7 +321,7 @@ const uploadBatch = ref<{
 const uploadProgress = computed(() => uploadBatch.value === null || uploadBatch.value.completed === 0
 	? undefined
 	: (uploadBatch.value.completed / uploadBatch.value.total) * 100)
-const loading = computed(() => uploadBatch.value !== null
+const loading = computed(() => attachDrive.isPending.value || uploadBatch.value !== null
 	|| uploadMutation.isPending.value
 	|| deleteMutation.isPending.value
 	|| updateTask.isPending.value)
@@ -492,11 +494,12 @@ async function uploadFilesToTask(files: File[] | FileList) {
 const attachmentToDelete = ref<IAttachment | null>(null)
 
 function setAttachmentToDelete(attachment: IAttachment | null) {
+	if (deleteMutation.isPending.value) return
 	attachmentToDelete.value = attachment
 }
 
 async function deleteAttachment() {
-	if (attachmentToDelete.value === null) {
+	if (deleteMutation.isPending.value || attachmentToDelete.value === null) {
 		return
 	}
 
@@ -554,6 +557,7 @@ function downloadVideoPreview() {
 }
 
 onBeforeUnmount(closePreview)
+watch(() => props.task.id, () => { closePreview(); attachmentToDelete.value = null; driveOpen.value = false })
 
 const audioPlayers = new Map<IAttachment['id'], AudioPreviewInstance>()
 
@@ -623,14 +627,18 @@ function copyUrl(attachment: IAttachment) {
 }
 
 async function setCoverImage(attachment: IAttachment | null) {
-	await updateTask.mutateAsync({...props.task, id: props.task.id!, cover_image_attachment_id: attachment?.id ?? 0})
-	success({message: t('task.attachment.successfullyChangedCoverImage')})
+	if (loading.value || !props.editEnabled) return
+	try {
+		await updateTask.mutateAsync({id: props.task.id!, cover_image_attachment_id: attachment?.id ?? 0})
+		success({message: t('task.attachment.successfullyChangedCoverImage')})
+	} catch { /* Mutation reports errors; leave the current cover intact. */ }
 }
 
 defineExpose({openFilePicker})
 const driveOpen = ref(false)
 const attachDrive = useAttachDriveMutation()
 async function chooseDriveFile(file: DriveEntry) {
+	if (loading.value || !props.editEnabled) return
 	const result = await attachDrive.mutateAsync({file, taskId: props.task.id!}).catch(() => undefined)
 	if (result) driveOpen.value = false
 }

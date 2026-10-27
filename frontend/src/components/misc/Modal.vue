@@ -11,11 +11,11 @@
 			:aria-labelledby="headerLabelId"
 			:aria-label="sheetLabel"
 			v-bind="attrs"
-			@cancel.prevent="$emit('close')"
+			@cancel.prevent="!loading && $emit('close')"
 		>
 			<div
 				class="modal-container"
-				@mousedown.self.prevent.stop="$emit('close')"
+				@mousedown.self.prevent.stop="!loading && $emit('close')"
 			>
 				<div
 					v-if="isSheet"
@@ -36,8 +36,9 @@
 				<template v-else>
 					<BaseButton
 						:aria-label="$t('misc.closeDialog')"
+						:disabled="loading"
 						class="close d-print-none"
-						@click="$emit('close')"
+						@click="!loading && $emit('close')"
 					>
 						<Icon icon="times" />
 					</BaseButton>
@@ -62,7 +63,8 @@
 								<XButton
 									variant="tertiary"
 									class="has-text-danger"
-									@click="$emit('close')"
+									:disabled="loading"
+									@click="!loading && $emit('close')"
 								>
 									{{ $t('misc.cancel') }}
 								</XButton>
@@ -70,7 +72,9 @@
 									v-cy="'modalPrimary'"
 									variant="primary"
 									:shadow="false"
-									@click="$emit('submit')"
+									:loading="loading"
+									:disabled="loading"
+									@click="!loading && $emit('submit')"
 								>
 									{{ $t('misc.doit') }}
 								</XButton>
@@ -94,12 +98,14 @@ import {computed, ref, useAttrs, useId, useSlots, watch, onBeforeUnmount, onMoun
 
 const props = withDefaults(defineProps<{
 	enabled?: boolean,
+	loading?: boolean,
 	overflow?: boolean,
 	wide?: boolean,
 	variant?: 'default' | 'hint-modal' | 'scrolling' | 'top' | 'fullscreen' | 'sheet',
 	title?: string,
 }>(), {
 	enabled: true,
+	loading: false,
 	overflow: false,
 	wide: false,
 	variant: 'default',

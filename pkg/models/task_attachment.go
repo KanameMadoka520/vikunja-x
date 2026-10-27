@@ -33,12 +33,14 @@ import (
 	"strings"
 	"time"
 
+	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/files"
 	"code.vikunja.io/api/pkg/log"
 	"code.vikunja.io/api/pkg/modules/imageutils"
 	"code.vikunja.io/api/pkg/modules/keyvalue"
+	"code.vikunja.io/api/pkg/richtext"
 	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/web"
 
@@ -589,33 +591,51 @@ func (ta *TaskAttachment) Delete(s *xorm.Session, a web.Auth) error {
 		return err
 	}
 
+	// Serialize with description and cover edits before removing their reference.
+	task, err := GetTaskSimple(lockingSession(s), &Task{ID: ta.TaskID})
+	if err != nil {
+		return err
+	}
+
 	// Delete it
 	_, err = s.
 		Where("task_id = ? AND id = ?", ta.TaskID, ta.ID).
-		Delete(ta)
+		Delete(&TaskAttachment{})
 	if err != nil {
 		return err
 	}
 
-	// Clear any cover pointing to the removed reference, while keeping Drive originals.
-	if _, err = s.Where("id = ? AND cover_image_attachment_id = ?", ta.TaskID, ta.ID).Cols("cover_image_attachment_id").Update(&Task{}); err != nil {
+	// Detach the cover and its inline images in the same transaction.
+	clean := func(source string) string {
+		return richtext.FilterAttachmentImages(source, config.ServicePublicURL.GetString(), func(tid, aid int64) bool { return tid == ta.TaskID && aid == ta.ID })
+	}
+	task.Description = clean(task.Description)
+	if task.CoverImageAttachmentID == ta.ID {
+		task.CoverImageAttachmentID = 0
+	}
+	if _, err = s.ID(task.ID).Cols("description", "cover_image_attachment_id").Update(&task); err != nil {
 		return err
 	}
-	// Delete the underlying file only when it is not managed by Drive.
-	err = ta.File.Delete(s)
-	// If the file does not exist, we don't want to error out
-	if err != nil && files.IsErrFileDoesNotExist(err) {
-		return nil
-	}
-	if err != nil {
+	comments := []*TaskComment{}
+	if err = s.Where("task_id = ?", ta.TaskID).Find(&comments); err != nil {
 		return err
 	}
-
+	for _, comment := range comments {
+		updated := clean(comment.Comment)
+		if updated == comment.Comment {
+			continue
+		}
+		// Preserve a concurrently edited comment instead of replacing its newer text.
+		if _, err = s.Where("id = ? AND comment = ?", comment.ID, comment.Comment).Cols("comment").Update(&TaskComment{Comment: updated}); err != nil {
+			return err
+		}
+	}
+	// Legacy attachments can share a file. Keep other references and defer blob
+	// removal until commit so a failed transaction cannot destroy the source.
+	if err = releaseUnusedAttachmentFile(s, ta.FileID); err != nil {
+		return err
+	}
 	doer, _ := user.GetFromAuth(a)
-	task, err := GetTaskByIDSimple(s, ta.TaskID)
-	if err != nil {
-		return err
-	}
 
 	events.DispatchOnCommit(s, &TaskAttachmentDeletedEvent{
 		Task:       &task,
@@ -670,4 +690,18 @@ func getTaskAttachmentsByTaskIDs(s *xorm.Session, taskIDs []int64) (attachments 
 	}
 
 	return
+}
+
+// Managed Drive files remain reusable; legacy files are removed only after their
+// final attachment reference is gone and the surrounding transaction commits.
+func releaseUnusedAttachmentFile(s *xorm.Session, fileID int64) error {
+	used, err := s.Where("file_id = ?", fileID).Exist(&TaskAttachment{})
+	if err != nil || used {
+		return err
+	}
+	err = (&files.File{ID: fileID}).DeleteOnCommit(s)
+	if files.IsErrFileDoesNotExist(err) {
+		return nil
+	}
+	return err
 }

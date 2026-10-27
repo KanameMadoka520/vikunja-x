@@ -32,6 +32,13 @@
 			role="status"
 			aria-live="polite"
 		>{{ saveStateAnnouncement }}</span>
+		<p
+			v-if="saveError"
+			role="alert"
+			class="has-text-danger"
+		>
+			{{ saveError }}
+		</p>
 		<Editor
 			v-model="description"
 			class="tiptap__task-description"
@@ -52,6 +59,8 @@
 </template>
 
 <script setup lang="ts">
+import {removeAttachmentImages} from '@/helpers/attachmentImages'
+import {getErrorText} from '@/message'
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import {onBeforeRouteLeave} from 'vue-router'
 import {useI18n} from 'vue-i18n'
@@ -87,6 +96,12 @@ watch(
 	{immediate: true},
 )
 
+watch(() => ({id: props.modelValue.id, ids: (props.modelValue.attachments ?? []).map(a => a.id!)}), (current, previous) => {
+	if (!previous || current.id !== previous.id) return
+	const removed = previous.ids.filter(id => !current.ids.includes(id))
+	description.value = removeAttachmentImages(description.value, current.id!, removed)
+})
+const saveError = ref('')
 const saved = ref(false)
 const saving = ref(false)
 
@@ -191,43 +206,44 @@ onBeforeUnmount(async () => {
 	}
 })
 
-onBeforeRouteLeave(() => save())
+onBeforeRouteLeave(async () => { const ok = await save(); return ok && (!hasChanges.value || await save()) })
 
-async function save() {
-	if (!hasChanges.value) {
-		return
+let pendingSave: Promise<boolean> | undefined
+async function save(): Promise<boolean> {
+	if (pendingSave) {
+		const ok = await pendingSave
+		return ok && hasChanges.value ? save() : ok
 	}
-
-	hasChanges.value = false
-	if (changeTimeout.value !== null) {
-		clearTimeout(changeTimeout.value)
-	}
+	if (!hasChanges.value) return true
+	const taskId = props.modelValue.id!
+	const submitted = description.value
+	const storageKey = descriptionStorageKey.value
+	if (changeTimeout.value !== null) clearTimeout(changeTimeout.value)
 	saved.value = false
 	saving.value = true
-
-	try {
-		const updated = await updateTask.mutateAsync({
-			...props.modelValue,
-			id: props.modelValue.id!,
-			description: description.value,
-		})
-		emit('update:modelValue', updated)
-
-		// Clear draft from localStorage when saved successfully
-		clearEditorDraft(descriptionStorageKey.value)
-
-		saved.value = true
-	} catch (error) {
-		// If the task was deleted (404), silently skip saving
-		if ((error as {status?: number} | null)?.status === 404) {
-			return
-		}
-		hasChanges.value = true
-		// Re-throw other errors
-		throw error
-	} finally {
-		saving.value = false
-	}
+	saveError.value = ''
+	pendingSave = (async () => {
+		try {
+			const updated = await updateTask.mutateAsync({id: taskId, description: submitted})
+			if (props.modelValue.id !== taskId) return true
+			if (description.value === submitted) {
+				description.value = updated.description ?? ''
+				hasChanges.value = false
+				clearEditorDraft(storageKey)
+				saved.value = true
+			}
+			emit('update:modelValue', updated)
+			return true
+		} catch (error) {
+			if (props.modelValue.id === taskId) {
+				if ((error as {status?: number})?.status === 404) { hasChanges.value = false; return true }
+				hasChanges.value = true
+				saveError.value = getErrorText(error)
+			}
+			return false
+		} finally { saving.value = false }
+	})()
+	try { return await pendingSave } finally {pendingSave = undefined}
 }
 
 // the editor toasts the rejection itself, a mutation toast would duplicate it

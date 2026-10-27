@@ -1,3 +1,5 @@
+import {commentKeys} from './comments'
+import {removeAttachmentImages} from '@/helpers/attachmentImages'
 import {useMutation} from '@tanstack/vue-query'
 import {
 	taskAttachmentsDelete,
@@ -88,9 +90,11 @@ export function deleteAttachmentMutationOptions() {
 			mapTaskEverywhere(client, taskId, task => ({
 				...task,
 				attachments: task.attachments.filter(a => a.id !== id),
+				description: removeAttachmentImages(task.description, taskId, [id]),
 				cover_image_attachment_id: task.cover_image_attachment_id === id ? 0 : task.cover_image_attachment_id,
 			}))
 			client.removeQueries({queryKey: attachmentKeys.blobsFor(taskId, id)})
+			void client.invalidateQueries({queryKey: commentKeys.task(taskId)})
 		},
 		onSettled: ({taskId}, client) => invalidateTaskMembership(client, taskId),
 		successMessage: () => i18n.global.t('task.attachment.deleteSuccess'),

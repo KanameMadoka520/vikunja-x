@@ -76,7 +76,12 @@ func (tc *TaskComment) Create(s *xorm.Session, a web.Auth) (err error) {
 
 func (tc *TaskComment) CreateWithTimestamps(s *xorm.Session, a web.Auth) (err error) {
 	// Check if the task exists
-	task, err := GetTaskByIDSimple(s, tc.TaskID)
+	task, err := GetTaskSimple(lockingSession(s), &Task{ID: tc.TaskID})
+	if err != nil {
+		return err
+	}
+
+	tc.Comment, err = cleanTaskAttachmentImages(s, tc.TaskID, tc.Comment)
 	if err != nil {
 		return err
 	}
@@ -168,6 +173,19 @@ func (tc *TaskComment) Delete(s *xorm.Session, a web.Auth) error {
 // @Failure 500 {object} models.Message "Internal error"
 // @Router /tasks/{taskID}/comments/{commentID} [post]
 func (tc *TaskComment) Update(s *xorm.Session, a web.Auth) error {
+	saved := &TaskComment{ID: tc.ID, TaskID: tc.TaskID}
+	if err := getTaskCommentSimple(s, saved); err != nil {
+		return err
+	}
+	tc.TaskID = saved.TaskID
+	if _, err := GetTaskSimple(lockingSession(s), &Task{ID: tc.TaskID}); err != nil {
+		return err
+	}
+	cleaned, err := cleanTaskAttachmentImages(s, tc.TaskID, tc.Comment)
+	if err != nil {
+		return err
+	}
+	tc.Comment = cleaned
 	updated, err := s.
 		ID(tc.ID).
 		Cols("comment").

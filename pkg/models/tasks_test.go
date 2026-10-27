@@ -841,8 +841,10 @@ func TestHardDeleteTask(t *testing.T) {
 	db.AssertMissing(t, "task_index_aliases", map[string]interface{}{"task_id": 1})
 	db.AssertMissing(t, "reactions", map[string]interface{}{"entity_id": 1, "entity_kind": ReactionKindTask})
 	db.AssertMissing(t, "reactions", map[string]interface{}{"entity_id": 1, "entity_kind": ReactionKindComment})
-	// The attachment files are gone too
-	db.AssertMissing(t, "files", map[string]interface{}{"id": 1})
+	// Task 34 still references file 1; deleting this task must preserve it.
+	db.AssertExists(t, "files", map[string]interface{}{"id": 1}, false)
+	_, err = files.FileStat(&files.File{ID: 1})
+	require.NoError(t, err)
 }
 
 func TestUpdateTasksHelper(t *testing.T) {

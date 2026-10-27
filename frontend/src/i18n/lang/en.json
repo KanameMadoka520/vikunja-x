@@ -1,4 +1,16 @@
 {
+  "screenshot": {
+    "short": "Privacy",
+    "open": "One-click screenshot privacy",
+    "title": "Private screenshot preview",
+    "note": "Screenshot preview · sample content only",
+    "close": "Restore real content",
+    "project": "Example project",
+    "task": "Example task",
+    "person": "Example user",
+    "content": "Sample content",
+    "image": "Placeholder image"
+},
   "systemStatus": {
     "title": "Server load",
     "healthy": "Vikunja healthy",
@@ -1257,6 +1269,9 @@
       "unsubscribeSuccessTask": "You are now unsubscribed to this task"
     },
     "attachment": {
+			"inlineDeleteNote": "Deleting this attachment also removes its images from this task’s description and comments. Other text and images are kept. Removing only the cover keeps the attachment and inline images.",
+			"imageUnavailable": "Image unavailable. Check access or reload to retry.",
+
       "title": "Attachments",
       "createdBy": "created {0} by {1}",
       "downloadTooltip": "Download this attachment",

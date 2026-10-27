@@ -30,7 +30,6 @@ import (
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
-	"code.vikunja.io/api/pkg/files"
 	"code.vikunja.io/api/pkg/log"
 	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/utils"
@@ -1551,6 +1550,13 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 		return err
 	}
 
+	if len(fields) == 0 || fieldSet["description"] {
+		t.Description, err = cleanTaskAttachmentImages(s, t.ID, t.Description)
+		if err != nil {
+			return err
+		}
+	}
+
 	// If a task attachment is being set as cover image, check if the attachment actually belongs to the task
 	if t.CoverImageAttachmentID != 0 {
 		is, err := s.Exist(&TaskAttachment{
@@ -2238,19 +2244,13 @@ func hardDeleteTask(s *xorm.Session, t *Task) (err error) {
 	if err != nil {
 		return err
 	}
+	if _, err = s.Where("task_id = ?", t.ID).Delete(&TaskAttachment{}); err != nil {
+		return err
+	}
 	for _, attachment := range attachments {
-		if attachment.File == nil {
-			continue
-		}
-		err = attachment.File.Delete(s)
-		if err != nil && !files.IsErrFileDoesNotExist(err) {
+		if err = releaseUnusedAttachmentFile(s, attachment.FileID); err != nil {
 			return err
 		}
-	}
-
-	_, err = s.Where("task_id = ?", t.ID).Delete(&TaskAttachment{})
-	if err != nil {
-		return err
 	}
 
 	commentIDs := []int64{}
