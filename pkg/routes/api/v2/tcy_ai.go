@@ -274,6 +274,9 @@ var aiRuns = struct {
 }{entries: map[string]aiRunCacheEntry{}, busy: map[int64]bool{}}
 
 func runAI(ctx context.Context, api huma.API, uid int64, in tcyai.RunInput) (*singleBody[tcyai.RunResult], error) {
+	if len(in.AttachmentIDs) > 0 {
+		return nil, chatFileError(ctx, tcyai.ErrAttachmentMissing)
+	}
 	key := fmt.Sprintf("%d:%s", uid, in.RequestID)
 	raw, err := json.Marshal(in)
 	if err != nil {

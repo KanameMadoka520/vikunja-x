@@ -36,13 +36,14 @@ import (
 )
 
 type ChatTurn struct {
-	ID        string     `json:"id" readOnly:"true" doc:"Server-generated identifier."`
-	Prompt    string     `json:"prompt" readOnly:"true" doc:"Original user message."`
-	RequestID string     `json:"request_id" readOnly:"true" doc:"Retry key for the exact same request; does not authorize replay."`
-	Status    string     `json:"status" enum:"running,completed,failed,stopped,interrupted,awaiting_approval,awaiting_input,paused" readOnly:"true" doc:"Execution state. Interrupted runs are never replayed automatically."`
-	Started   time.Time  `json:"started" readOnly:"true" doc:"UTC run start timestamp."`
-	Finished  *time.Time `json:"finished,omitempty" readOnly:"true" doc:"UTC completion timestamp when finished."`
-	Result    RunResult  `json:"result" readOnly:"true" doc:"Saved answer, actual tool results and request metadata."`
+	Attachments []ChatAttachment `json:"attachments,omitempty" readOnly:"true" doc:"Files attached to this user message, in their original order."`
+	ID          string           `json:"id" readOnly:"true" doc:"Server-generated identifier."`
+	Prompt      string           `json:"prompt" readOnly:"true" doc:"Original user message."`
+	RequestID   string           `json:"request_id" readOnly:"true" doc:"Retry key for the exact same request; does not authorize replay."`
+	Status      string           `json:"status" enum:"running,completed,failed,stopped,interrupted,awaiting_approval,awaiting_input,paused" readOnly:"true" doc:"Execution state. Interrupted runs are never replayed automatically."`
+	Started     time.Time        `json:"started" readOnly:"true" doc:"UTC run start timestamp."`
+	Finished    *time.Time       `json:"finished,omitempty" readOnly:"true" doc:"UTC completion timestamp when finished."`
+	Result      RunResult        `json:"result" readOnly:"true" doc:"Saved answer, actual tool results and request metadata."`
 }
 type Compaction struct {
 	Through    int       `json:"through" doc:"Number of original turns covered by this summary."`
@@ -75,18 +76,20 @@ func cloneCompactProgress(progress *CompactProgress) *CompactProgress {
 }
 
 type Conversation struct {
-	CompactProgress *CompactProgress `json:"compact_progress,omitempty" readOnly:"true" doc:"Live and last completed compaction diagnostics."`
-	Compacting      bool             `json:"compacting" readOnly:"true" doc:"Background compaction continues without a connected browser."`
-	CompactText     string           `json:"compact_text,omitempty" readOnly:"true" doc:"Live summary draft; authoritative only when compaction completes."`
-	CompactError    string           `json:"compact_error,omitempty" readOnly:"true" doc:"Last compaction failure; previous summary remains usable."`
-	ID              string           `json:"id" readOnly:"true" doc:"Server-generated identifier."`
-	Title           string           `json:"title" readOnly:"true" doc:"User title or first-message title."`
-	Created         time.Time        `json:"created" readOnly:"true" doc:"UTC creation timestamp."`
-	Updated         time.Time        `json:"updated" readOnly:"true" doc:"UTC last change timestamp."`
-	ParentID        string           `json:"parent_id,omitempty" readOnly:"true" doc:"Source conversation when created as a branch."`
-	ParentTurnID    string           `json:"parent_turn_id,omitempty" readOnly:"true" doc:"Last source turn included in this branch."`
-	Turns           []ChatTurn       `json:"turns" readOnly:"true" doc:"Original messages with actual execution results."`
-	Compactions     []Compaction     `json:"compactions" readOnly:"true" doc:"Saved context summaries; only the most recent is sent on subsequent requests."`
+	DraftAttachments []ChatAttachment     `json:"draft_attachments,omitempty" readOnly:"true" doc:"Uploaded files waiting to be sent."`
+	Storage          *ConversationStorage `json:"storage,omitempty" readOnly:"true" doc:"Actual encrypted file sizes; shared attachments are counted once per conversation, not exclusive disk usage."`
+	CompactProgress  *CompactProgress     `json:"compact_progress,omitempty" readOnly:"true" doc:"Live and last completed compaction diagnostics."`
+	Compacting       bool                 `json:"compacting" readOnly:"true" doc:"Background compaction continues without a connected browser."`
+	CompactText      string               `json:"compact_text,omitempty" readOnly:"true" doc:"Live summary draft; authoritative only when compaction completes."`
+	CompactError     string               `json:"compact_error,omitempty" readOnly:"true" doc:"Last compaction failure; previous summary remains usable."`
+	ID               string               `json:"id" readOnly:"true" doc:"Server-generated identifier."`
+	Title            string               `json:"title" readOnly:"true" doc:"User title or first-message title."`
+	Created          time.Time            `json:"created" readOnly:"true" doc:"UTC creation timestamp."`
+	Updated          time.Time            `json:"updated" readOnly:"true" doc:"UTC last change timestamp."`
+	ParentID         string               `json:"parent_id,omitempty" readOnly:"true" doc:"Source conversation when created as a branch."`
+	ParentTurnID     string               `json:"parent_turn_id,omitempty" readOnly:"true" doc:"Last source turn included in this branch."`
+	Turns            []ChatTurn           `json:"turns" readOnly:"true" doc:"Original messages with actual execution results."`
+	Compactions      []Compaction         `json:"compactions" readOnly:"true" doc:"Saved context summaries; only the most recent is sent on subsequent requests."`
 }
 type ConversationSummary struct {
 	ID        string    `json:"id" doc:"Server-generated identifier."`
@@ -101,7 +104,8 @@ type storedMessage struct {
 	Native json.RawMessage `json:"native,omitempty"`
 }
 type conversationFile struct {
-	States []*AgentState `json:"states,omitempty"`
+	OwnerID int64         `json:"-"`
+	States  []*AgentState `json:"states,omitempty"`
 	Conversation
 	Contexts [][]storedMessage `json:"contexts"`
 	Requests map[string]string `json:"requests,omitempty"`
@@ -156,6 +160,7 @@ func readConversation(uid int64, id string) (*conversationFile, error) {
 		return nil, err
 	}
 	var record conversationFile
+	record.OwnerID = uid
 	if err = json.Unmarshal(plain, &record); err != nil {
 		return nil, err
 	}
@@ -226,9 +231,11 @@ func writeConversation(uid int64, record *conversationFile) error {
 func cloneConversation(record *conversationFile) Conversation {
 	out := record.Conversation
 	out.CompactProgress = cloneCompactProgress(record.CompactProgress)
+	out.DraftAttachments = append([]ChatAttachment{}, out.DraftAttachments...)
 	out.Turns = append([]ChatTurn{}, out.Turns...)
 	out.Compactions = append([]Compaction{}, out.Compactions...)
 	for i := range out.Turns {
+		out.Turns[i].Attachments = append([]ChatAttachment{}, out.Turns[i].Attachments...)
 		result := &out.Turns[i].Result
 		if i < len(record.States) && record.States[i] != nil {
 			result.Configuration = runOptions(record.States[i].Input)
@@ -262,7 +269,9 @@ func GetConversation(uid int64, id string) (Conversation, error) {
 	if err != nil {
 		return Conversation{}, err
 	}
-	return cloneConversation(record), nil
+	out := cloneConversation(record)
+	decorateAttachments(uid, &out)
+	return out, nil
 }
 func ListConversations(uid int64) ([]ConversationSummary, error) {
 	conversations.Lock()
@@ -308,7 +317,7 @@ func CreateConversation(uid int64, title string) (Conversation, error) {
 		return Conversation{}, tcylocale.Error("chatLimit")
 	}
 	now := time.Now().UTC()
-	record := &conversationFile{Conversation: Conversation{ID: uuid.NewString(), Title: strings.TrimSpace(title), Created: now, Updated: now, Turns: []ChatTurn{}, Compactions: []Compaction{}}, Contexts: [][]storedMessage{}}
+	record := &conversationFile{OwnerID: uid, Conversation: Conversation{ID: uuid.NewString(), Title: strings.TrimSpace(title), Created: now, Updated: now, Turns: []ChatTurn{}, Compactions: []Compaction{}}, Contexts: [][]storedMessage{}}
 	if err = writeConversation(uid, record); err != nil {
 		return Conversation{}, err
 	}
@@ -341,7 +350,14 @@ func DeleteConversation(uid int64, id string) error {
 	if err != nil {
 		return err
 	}
+	record, err := readConversation(uid, id)
+	if err != nil {
+		return err
+	}
 	err = os.Remove(path)
+	if err == nil {
+		cleanupAttachments(uid, allAttachments(record.Conversation))
+	}
 	if errors.Is(err, os.ErrNotExist) {
 		return ErrConversationMissing
 	}
@@ -375,6 +391,8 @@ func ForkConversation(uid int64, id, turnID string) (Conversation, error) {
 		return Conversation{}, tcylocale.Error("chatLimit")
 	}
 	now := time.Now().UTC()
+	record.DraftAttachments = nil
+	record.Storage = nil
 	record.ParentID = id
 	record.ParentTurnID = turnID
 	record.ID = uuid.NewString()
@@ -413,7 +431,7 @@ func conversationHistory(record *conversationFile, c Connection) ([]Message, str
 			if err != nil {
 				return nil, "", err
 			}
-			history = append(history, Message{Role: "user", Content: turn.Prompt}, Message{Role: "assistant", Content: turn.Result.Reply + "\nPrevious execution status: " + turn.Status + ". Actual operations already attempted (do not replay them): " + string(detail) + "\n" + turn.Result.Error})
+			history = append(history, Message{Role: "user", Content: turn.Prompt, Attachments: turn.Attachments, AttachmentOwner: recordOwner(record)}, Message{Role: "assistant", Content: turn.Result.Reply + "\nPrevious execution status: " + turn.Status + ". Actual operations already attempted (do not replay them): " + string(detail) + "\n" + turn.Result.Error})
 			continue
 		}
 		for _, stored := range record.Contexts[i] {
@@ -455,6 +473,11 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 	if len(record.Turns) >= 200 {
 		return Conversation{}, tcylocale.Error("chatLimit")
 	}
+	attached, err := resolveTurnAttachments(uid, record, in.AttachmentIDs, c)
+	if err != nil {
+		return Conversation{}, err
+	}
+	in.ServerAttachments, in.AttachmentOwner = attached, uid
 	history, summary, err := conversationHistory(record, c)
 	if err != nil {
 		return Conversation{}, err
@@ -473,7 +496,7 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 		record.States = append(record.States, nil)
 	}
 	record.States = append(record.States, state)
-	record.Turns = append(record.Turns, ChatTurn{ID: uuid.NewString(), RequestID: in.RequestID, Prompt: in.Message, Status: "running", Started: time.Now().UTC(), Result: publicResult(state.Result)})
+	record.Turns = append(record.Turns, ChatTurn{ID: uuid.NewString(), RequestID: in.RequestID, Prompt: in.Message, Attachments: attached, Status: "running", Started: time.Now().UTC(), Result: publicResult(state.Result)})
 	record.Contexts = append(record.Contexts, []storedMessage{})
 	if record.Title == "" {
 		runes := []rune(in.Message)
@@ -482,6 +505,20 @@ func StartConversation(ctx context.Context, uid int64, id string, in RunInput, c
 		}
 		record.Title = string(runes)
 	}
+	remaining := []ChatAttachment{}
+	for _, draft := range record.DraftAttachments {
+		used := false
+		for _, a := range attached {
+			if a.ID == draft.ID {
+				used = true
+				break
+			}
+		}
+		if !used {
+			remaining = append(remaining, draft)
+		}
+	}
+	record.DraftAttachments = remaining
 	record.Updated = time.Now().UTC()
 	if err = writeConversation(uid, record); err != nil {
 		return Conversation{}, err
@@ -752,7 +789,7 @@ func summarizeConversation(ctx context.Context, record *conversationFile, c Conn
 	}
 	var history strings.Builder
 	for _, turn := range record.Turns[start:through] {
-		raw, encodeErr := json.Marshal(map[string]any{"user": turn.Prompt, "answer": turn.Result.Reply, "actions": turn.Result.Actions, "receipts": turn.Result.Operations, "status": turn.Status, "error": turn.Result.Error})
+		raw, encodeErr := json.Marshal(map[string]any{"user": turn.Prompt, "attachments": turn.Attachments, "answer": turn.Result.Reply, "actions": turn.Result.Actions, "receipts": turn.Result.Operations, "status": turn.Status, "error": turn.Result.Error})
 		if encodeErr != nil {
 			return "", usage, model, encodeErr
 		}
@@ -830,12 +867,13 @@ func summarizeConversation(ctx context.Context, record *conversationFile, c Conn
 
 // Activity snapshots never grant execution; reconnecting only observes the saved job.
 type ConversationActivity struct {
-	CompactProgress *CompactProgress `json:"compact_progress,omitempty"`
-	Turn            *ChatTurn        `json:"turn,omitempty"`
-	Compacting      bool             `json:"compacting"`
-	CompactText     string           `json:"compact_text,omitempty"`
-	CompactError    string           `json:"compact_error,omitempty"`
-	Compactions     []Compaction     `json:"compactions"`
+	Storage         *ConversationStorage `json:"storage,omitempty"`
+	CompactProgress *CompactProgress     `json:"compact_progress,omitempty"`
+	Turn            *ChatTurn            `json:"turn,omitempty"`
+	Compacting      bool                 `json:"compacting"`
+	CompactText     string               `json:"compact_text,omitempty"`
+	CompactError    string               `json:"compact_error,omitempty"`
+	Compactions     []Compaction         `json:"compactions"`
 }
 
 func GetConversationActivity(uid int64, id string) (ConversationActivity, error) {
@@ -845,7 +883,9 @@ func GetConversationActivity(uid int64, id string) (ConversationActivity, error)
 	if err != nil {
 		return ConversationActivity{}, err
 	}
-	out := ConversationActivity{CompactProgress: cloneCompactProgress(record.CompactProgress), Compacting: record.Compacting, CompactText: record.CompactText, CompactError: record.CompactError, Compactions: append([]Compaction{}, record.Compactions...)}
+	snapshot := cloneConversation(record)
+	decorateAttachments(uid, &snapshot)
+	out := ConversationActivity{Storage: snapshot.Storage, CompactProgress: cloneCompactProgress(record.CompactProgress), Compacting: record.Compacting, CompactText: record.CompactText, CompactError: record.CompactError, Compactions: append([]Compaction{}, record.Compactions...)}
 	if n := len(record.Turns); n > 0 {
 		turn := record.Turns[n-1]
 		turn.Result = publicResult(turn.Result)

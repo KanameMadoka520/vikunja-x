@@ -37,6 +37,7 @@ import (
 )
 
 type Connection struct {
+	Persona          string             `json:"-"`
 	ContextWindow    int64              `json:"context_window,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Declared model context capacity in tokens; zero uses known provider metadata or remains unknown."`
 	MaxOutputTokens  int64              `json:"max_output_tokens,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Per-request output allowance; zero uses provider defaults, or a visible protocol fallback when required."`
 	InputTypes       []string           `json:"input_types,omitempty" maxItems:"2" uniqueItems:"true" doc:"Model capabilities: text and optionally image. Empty uses known provider metadata or text only."`
@@ -54,6 +55,7 @@ type Connection struct {
 }
 
 type Settings struct {
+	Persona       string               `json:"persona,omitempty" enum:"arona,none" doc:"Arona character tone (default) or neutral. Never changes tool permissions."`
 	Preferences   AssistantPreferences `json:"preferences" readOnly:"true" doc:"Personal assistant profiles; updated separately to avoid overwriting connection secrets."`
 	Connections   []Connection         `json:"connections" maxItems:"20" doc:"Connections owned by the current user."`
 	Assistant     string               `json:"assistant" doc:"Connection used by the task agent."`
@@ -121,6 +123,7 @@ func Redact(s Settings) Settings {
 func (s Settings) Find(id, kind string) (Connection, error) {
 	for _, c := range s.Connections {
 		if c.ID == id && c.Kind == kind {
+			c.Persona = s.Persona
 			return c, nil
 		}
 	}
@@ -133,6 +136,9 @@ func Save(uid int64, s Settings) (Settings, error) {
 	old, err := read(uid)
 	if err != nil {
 		return s, err
+	}
+	if s.Persona != "" && s.Persona != "arona" && s.Persona != "none" {
+		return s, tcylocale.Error("modelCapacityInvalid")
 	}
 	if len(s.Connections) > 20 {
 		return s, tcylocale.Error("e30")

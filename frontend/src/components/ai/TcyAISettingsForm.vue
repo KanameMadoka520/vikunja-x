@@ -13,6 +13,7 @@ type Settings = AISettings
 function initialDraft(source = props.initial): Settings { return {
 	connections: source.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', api_key: ''})),
 	assistant: source.assistant,
+	persona: source.persona || 'arona',
 	transcription: source.transcription,
 	cleanup: source.cleanup,
 } }
@@ -369,6 +370,10 @@ function savedMatches(c: AIConnection) {
 				<Icon icon="sitemap" /> {{ t('tcymc.text.models_for_each_feature') }}
 			</h3>
 			<div class="fields">
+				<label>{{ t('chatFiles.persona') }}<select
+					v-model="draft.persona"
+					class="input"
+				><option value="arona">{{ t('chatFiles.personaArona') }}</option><option value="none">{{ t('chatFiles.personaNone') }}</option></select><small>{{ t('chatFiles.personaHint') }}</small></label>
 				<label>{{ t('tcymc.text.task_ai_assistant') }}<select
 					v-model="draft.assistant"
 					class="input"

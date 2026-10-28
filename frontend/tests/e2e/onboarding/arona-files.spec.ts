@@ -1,0 +1,62 @@
+import {test, expect} from '../../support/fixtures'
+import {readFile} from 'node:fs/promises'
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGOQ6/lKU8QwasGoBaMWjFowasGoBaMWjFowasGoBaMWDBULAL2yfFv5tHQyAAAAAElFTkSuQmCC', 'base64')
+for (const width of [1440, 390]) {
+ test(`Arona attachments persist and export a real PDF at ${width}px`, async ({authenticatedPage: page, apiContext, userToken}, testInfo) => {
+  test.setTimeout(120_000)
+  await page.setViewportSize({width, height: 900})
+  await page.route('**/api/v2/ai/settings', route => route.fulfill({json: {persona: 'arona', connections: [{id: 'vision', name: 'Vision fixture', kind: 'chat', protocol: 'openai-chat', base_url: 'https://fixture.example/v1', model: 'vision', input_types: ['text', 'image'], resolved: {input_types: ['text', 'image']}}], assistant: 'vision', transcription: '', cleanup: ''}}))
+  const headers = {Authorization: `Bearer ${userToken}`}
+  const created = await apiContext.post('/api/v2/ai/conversations', {headers, data: {title: '阿罗娜图片会话'}})
+  expect(created.ok()).toBe(true)
+  const c = await created.json()
+  await page.goto(`/ai?chat=${c.id}`)
+  await expect(page.getByRole('button', {name: 'Attach images or files (paste or drop also works)', exact: true})).toBeEnabled()
+  await page.locator('.composer input[type=file]').first().setInputFiles({name: 'test-image.png', mimeType: 'image/png', buffer: png})
+  const choice = page.locator('.image-upload-dialog')
+  await expect(choice).toBeVisible()
+  await choice.getByRole('button', {name: 'Upload images', exact: true}).click()
+  await expect(page.locator('.draft-files .chat-file')).toContainText('test-image.png')
+  await expect(page.locator('.conversation-storage')).toContainText('1 attachments')
+  await page.reload()
+  await expect(page.locator('.draft-files .image-button img')).toBeVisible()
+  await page.locator('.draft-files .image-button').click()
+  await expect(page.locator('.image-preview[open] img')).toBeVisible()
+  await page.keyboard.press('Escape')
+  let sent: any
+  let snapshot: any
+  await page.route(`**/api/v2/ai/conversations/${c.id}`, async route => {
+   if (snapshot) return route.fulfill({json: snapshot})
+   return route.continue()
+  })
+  await page.route(`**/api/v2/ai/conversations/${c.id}/messages`, async route => {
+   sent = route.request().postDataJSON()
+   const saved = await (await apiContext.get(`/api/v2/ai/conversations/${c.id}`, {headers})).json()
+   snapshot = {...saved, draft_attachments: [], turns: [{id: crypto.randomUUID(), started: new Date().toISOString(), prompt: sent.message, status: 'completed', attachments: [...saved.draft_attachments, {id: 'a'.repeat(64), name: 'lost.png', mime: 'image/png', size: 10, missing: true}], result: {reply: '# 图片说明\n\n图片已收到。\n\n| 项目 | 状态 |\n|---|---|\n| 检查 | 完成 |', model: 'vision', usage: {input: 20, output: 10, reported: true}, actions: [], steps: []}}]}
+   await route.fulfill({json: snapshot})
+  })
+  await page.route(`**/api/v2/ai/conversations/${c.id}/events`, route => route.abort())
+  await page.getByLabel('Your request').fill('查看这张图片')
+  await page.getByRole('button', {name: 'Send request', exact: true}).click()
+  await expect.poll(() => sent?.attachment_ids?.length).toBe(1)
+  await expect(page.locator('.message-attachments .image-button img')).toBeVisible()
+  await page.getByRole('button', {name: 'Export conversation', exact: true}).click()
+  const dialog = page.getByRole('dialog', {name: 'Export conversation', exact: true})
+  const download = page.waitForEvent('download', {timeout: 90_000})
+  await dialog.getByRole('button', {name: 'Download', exact: true}).click()
+  const file = await Promise.race([download, dialog.getByRole('alert').waitFor({state: 'visible', timeout: 90_000}).then(async () => { throw new Error(await dialog.getByRole('alert').innerText()) })])
+  const output = testInfo.outputPath('arona-conversation.pdf')
+  await file.saveAs(output)
+  const bytes = await readFile(output)
+  expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+  expect(bytes.length).toBeGreaterThan(1000)
+  await expect(dialog).toContainText('File generated')
+  await dialog.getByRole('button', {name: 'Close', exact: true}).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({path: testInfo.outputPath('arona-files.png')})
+  const exported = await apiContext.get(`/api/v2/ai/conversations/${c.id}/export?format=zip`, {headers})
+  expect(exported.ok()).toBe(true)
+  expect((await exported.body()).subarray(0, 2).toString()).toBe('PK')
+  await apiContext.delete(`/api/v2/ai/conversations/${c.id}`, {headers})
+ })
+}

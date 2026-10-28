@@ -11,6 +11,12 @@ import AssistantPreferences from '@/components/ai/AssistantPreferences.vue'
 import {assistantPreferencesQuery} from '@/client/queries/assistantPreferences'
 import {builtinProfileIDs, normalizeOptions, profileOptions, validOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
+import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
+import ConversationExport from '@/components/ai/export/ConversationExport.vue'
+import UploadProgressRow from '@/components/misc/UploadProgressRow.vue'
+import {chatBytes} from '@/components/ai/export/files'
+import {useUploadChatAttachment, useRemoveChatAttachment} from '@/client/queries/chatAttachments'
+import {uploads} from '@/helpers/uploadTransport'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {
 	conversationsQuery,
@@ -26,7 +32,7 @@ import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
 import type {ReviewInput} from '@/client/generated'
 import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
-import {captureClientRequestContext, isRequestContextAbort} from '@/client/requestContext'
+import {captureClientRequestContext, isClientRequestContextCurrent, isRequestContextAbort} from '@/client/requestContext'
 
 useTitle(() => t('tcymc.text.ai_task_assistant'))
 const route = useRoute()
@@ -53,6 +59,45 @@ const sidebarOpen = ref(false)
 const connectionID = ref('')
 const chatModels = computed(() => settings.data.value?.connections.filter(c => c.kind === 'chat') ?? [])
 const selectedConnection = computed(() => connectionID.value || settings.data.value?.assistant || '')
+const exportOpen = ref(false)
+const fileInput = ref<HTMLInputElement>()
+const uploadFile = useUploadChatAttachment()
+const removeFile = useRemoveChatAttachment()
+const uploadingFiles = ref(false)
+let fileController: AbortController | undefined
+const draftFiles = computed(() => active.value?.draft_attachments ?? [])
+const imageModel = computed(() => {
+	const model = chatModels.value.find(c => c.id === selectedConnection.value)
+	return (model?.resolved?.input_types ?? model?.input_types ?? []).includes('image')
+})
+const imageMismatch = computed(() => !imageModel.value && draftFiles.value.some(f => /^image\/(png|jpeg|webp|gif)$/.test(f.mime || '')))
+const attachmentProgress = computed(() => uploads.value.filter(u => u.targetPath.endsWith(`/ai/conversations/${chatID.value}/attachments`)).slice(0, 3))
+async function addFiles(files: File[]) {
+	if (!files.length || busy.value) return
+	if (files.some(f => f.size > 32 * 1024 * 1024) || files.length + draftFiles.value.length > 16) { notice.value = t('chatFiles.limits'); return }
+	uploadingFiles.value = true
+	fileController = new AbortController()
+	const location = route.fullPath
+	const requestContext = captureClientRequestContext()
+	try {
+		let id = chatID.value
+		if (!id) {
+			const created = await create.mutateAsync()
+			if (disposed || route.fullPath !== location || !isClientRequestContextCurrent(requestContext)) return
+			id = created.id!
+			saveOptions(id, currentOptions.value, selectedProfile.value)
+			await router.replace({name: 'tcy-ai', query: {...route.query, chat: id}})
+		}
+		for (const file of files) { await uploadFile.mutateAsync({id, file, signal: fileController.signal}) }
+	} catch (e) { if (!isRequestContextAbort(e) && !fileController.signal.aborted) notice.value = t('chatFiles.uploadFailed') }
+	finally { uploadingFiles.value = false; if (fileInput.value) fileInput.value.value = '' }
+}
+function pasteFiles(event: ClipboardEvent) {
+	const files = Array.from(event.clipboardData?.files ?? [])
+	if (files.length) { event.preventDefault(); void addFiles(files) }
+}
+async function removeDraft(file: string) { try { await removeFile.mutateAsync({id: chatID.value, file}) } catch { return } }
+onBeforeUnmount(() => fileController?.abort())
 const rename = ref(false)
 const newTitle = ref('')
 const showSystemPrompt = ref(false)
@@ -131,7 +176,7 @@ const audioInput = ref<HTMLInputElement>()
 const recording = ref(false)
 const audioStage = ref('')
 const elapsed = ref(0)
-const editingBusy = computed(() => Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
+const editingBusy = computed(() => uploadingFiles.value || removeFile.isPending.value || Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
 const busy = computed(() => !optionsReady.value || editingBusy.value || activeRun.value || Boolean(paused.value))
 const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
@@ -161,12 +206,14 @@ async function newConversation() {
 }
 
 async function submit() {
-	if (!prompt.value.trim() || busy.value || !hasAssistant.value) return
-	const message = prompt.value.trim()
+	if ((!prompt.value.trim() && !draftFiles.value.length) || busy.value || !hasAssistant.value || imageMismatch.value) return
+	const originalPrompt = prompt.value
+	const message = prompt.value.trim() || t('chatFiles.defaultPrompt')
 	const id = chatID.value
 	const location = route.fullPath
 	const request = {
 		message,
+		attachment_ids: draftFiles.value.map(f => f.id!),
 		history: [],
 		project_id: projectID.value,
 		mode: mode.value,
@@ -188,7 +235,7 @@ async function submit() {
 			await router.replace({name: 'tcy-ai', query: {...route.query, chat: target}})
 		}
 		await send.mutateAsync({id: target, body: request})
-		if (chatID.value === target && prompt.value.trim() === message) {
+		if (chatID.value === target && prompt.value === originalPrompt) {
 			prompt.value = ''
 			drafts.delete(target)
 			original.value = ''
@@ -503,6 +550,14 @@ onBeforeUnmount(() => {
 					<div class="toolbar-actions">
 						<BaseButton
 							class="toolbar-button"
+							:aria-label="t('chatFiles.export')"
+							:title="t('chatFiles.export')"
+							@click="exportOpen = true"
+						>
+							<Icon icon="download" />
+						</BaseButton>
+						<BaseButton
+							class="toolbar-button"
 							:aria-label="t('chat.rename')"
 							:aria-disabled="busy"
 							@click="!busy && (newTitle = active.title ?? '', rename = true)"
@@ -524,6 +579,17 @@ onBeforeUnmount(() => {
 						</BaseButton>
 					</div>
 				</div>
+				<details
+					v-if="active?.storage"
+					class="conversation-storage"
+				>
+					<summary>{{ t('chatFiles.storageLine', {bytes: chatBytes(active.storage.total_bytes), count: active.storage.attachment_count}) }}</summary>
+					<p>{{ t('chatFiles.storageDetail', {record: chatBytes(active.storage.record_bytes), files: chatBytes(active.storage.attachment_bytes)}) }}</p>
+					<p>{{ t('chatFiles.storageHint') }}</p>
+					<p v-if="active.storage.missing_count">
+						{{ t('chatFiles.missingCount', {count: active.storage.missing_count}) }}
+					</p>
+				</details>
 				<details
 					v-if="active?.compactions?.length"
 					class="summary-banner"
@@ -602,6 +668,7 @@ onBeforeUnmount(() => {
 							v-for="turn in active?.turns"
 							:key="turn.id"
 							:turn="turn"
+							:conversation-id="chatID"
 							:busy="busy"
 							:review-busy="review.isPending.value || action.isPending.value"
 							@review="reviewOperation"
@@ -637,8 +704,48 @@ onBeforeUnmount(() => {
 				</p>
 				<form
 					class="composer"
+					@dragover.prevent
+					@drop.prevent="addFiles(Array.from($event.dataTransfer?.files ?? []))"
+					@paste="pasteFiles"
 					@submit.prevent="submit"
 				>
+					<div
+						v-if="draftFiles.length"
+						class="chat-attachment-grid draft-files"
+					>
+						<ChatAttachmentCard
+							v-for="file in draftFiles"
+							:key="file.id"
+							:conversation-id="chatID"
+							:file="file"
+							removable
+							:disabled="busy"
+							@remove="removeDraft"
+						/>
+					</div>
+					<div
+						v-if="uploadingFiles || attachmentProgress.some(u => ['uploading', 'processing', 'error'].includes(u.stage))"
+						class="attachment-upload-progress"
+					>
+						<UploadProgressRow
+							v-for="row in attachmentProgress"
+							:key="row.id"
+							:row="row"
+						/>
+					</div>
+					<p
+						v-if="draftFiles.length"
+						class="attachment-input-hint"
+					>
+						{{ t('chatFiles.fileInputHint') }}
+					</p>
+					<p
+						v-if="imageMismatch"
+						class="notice"
+						role="status"
+					>
+						{{ t('chatFiles.imageModelRequired') }}
+					</p>
 					<label
 						for="ai-prompt"
 						class="composer-label is-sr-only"
@@ -697,6 +804,22 @@ onBeforeUnmount(() => {
 						data-tour="ai-voice"
 					>
 						<div class="composer-context">
+							<input
+								ref="fileInput"
+								type="file"
+								multiple
+								class="audio-upload"
+								@change="addFiles(Array.from(($event.target as HTMLInputElement).files ?? []))"
+							>
+							<BaseButton
+								class="toolbar-button"
+								:disabled="busy"
+								:title="t('chatFiles.attach')"
+								:aria-label="t('chatFiles.attach')"
+								@click="fileInput?.click()"
+							>
+								<Icon icon="paperclip" />
+							</BaseButton>
 							<label class="profile-switch"><span class="is-sr-only">{{ t('assistantUI.scenarios') }}</span><select
 								:value="selectedProfile"
 								:disabled="!optionsReady"
@@ -746,7 +869,7 @@ onBeforeUnmount(() => {
 							icon="arrow-up"
 							class="send"
 							type="submit"
-							:aria-disabled="busy || !hasAssistant || !prompt.trim()"
+							:aria-disabled="busy || !hasAssistant || (!prompt.trim() && !draftFiles.length) || imageMismatch"
 						>
 							<span class="is-sr-only">{{ send.isPending.value ? t('chat.sending') : t('tcymc.text.send_request') }}</span>
 						</XButton>
@@ -768,6 +891,11 @@ onBeforeUnmount(() => {
 				</form>
 			</section>
 		</div>
+		<ConversationExport
+			v-if="exportOpen && active"
+			:conversation="active"
+			@close="exportOpen = false"
+		/>
 		<AssistantPreferences
 			v-if="preferencesOpen"
 			:options="currentOptions"
@@ -779,6 +907,41 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+.attachment-input-hint { font-size: .7rem;
+color: var(--text-light);
+margin-block: .4rem;
+}
+.conversation-storage { margin: .25rem 1.5rem;
+color: var(--text-light);
+font-size: .75rem;
+flex-shrink: 0;
+max-block-size: 6rem;
+overflow: auto;
+}
+.conversation-storage p { margin-block: .3rem;
+}
+.chat-attachment-grid { display: flex;
+gap: .5rem;
+flex-wrap: wrap;
+}
+.draft-files { max-block-size: 180px;
+overflow: auto;
+margin-block-end: .5rem;
+}
+.attachment-upload-progress { max-block-size: 8rem;
+overflow: auto;
+}
+@media (width <= 540px) {
+ .composer-context { flex-wrap: wrap;
+}
+ .profile-switch select { max-inline-size: 9rem;
+}
+ .draft-files :deep(.chat-file) { inline-size: 140px;
+}
+ .conversation-storage { margin-inline: 1rem;
+}
+}
+
 .tcy-assistant {
 font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 display: flex;
@@ -1183,7 +1346,8 @@ transition: none;
 } }
 
 @media (height <= 600px) {
- .welcome { display: none; }
+ .welcome { display: none;
+}
  .composer .textarea { max-block-size: min(180px, 30dvh);
 }
  .conversation { padding-block: .25rem;
@@ -1204,5 +1368,6 @@ clip-path: inset(50%);
 white-space: nowrap;
 }
 }
-.toolbar-button.is-recording { color: var(--danger); }
+.toolbar-button.is-recording { color: var(--danger);
+}
 </style>

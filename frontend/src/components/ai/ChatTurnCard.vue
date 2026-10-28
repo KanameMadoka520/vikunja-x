@@ -6,14 +6,16 @@ import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
+import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
 import type {ChatTurn, ReviewInput, ModelStep} from '@/client/generated'
 
 const props = withDefaults(defineProps<{
+	conversationId?: string
 	turn: ChatTurn
 	busy: boolean
  reviewBusy?: boolean
-}>(), {reviewBusy: false})
+}>(), {reviewBusy: false, conversationId: ''})
 const emit = defineEmits<{
 	fork: [id: string]
  review: [input: ReviewInput]
@@ -59,7 +61,19 @@ async function copy() {
 		:data-turn-id="turn.id"
 	>
 		<div class="user-message">
-			<div><strong class="is-sr-only">{{ t('tcymc.text.you') }}</strong><p>{{ turn.prompt }}</p></div>
+			<div>
+				<strong class="is-sr-only">{{ t('tcymc.text.you') }}</strong><p>{{ turn.prompt }}</p><div
+					v-if="turn.attachments?.length && conversationId"
+					class="message-attachments"
+				>
+					<ChatAttachmentCard
+						v-for="file in turn.attachments"
+						:key="file.id"
+						:conversation-id="conversationId"
+						:file="file"
+					/>
+				</div>
+			</div>
 		</div>
 		<div class="assistant-message">
 			<div class="assistant-identity">
@@ -253,6 +267,11 @@ async function copy() {
 </template>
 
 <style scoped lang="scss">
+.message-attachments { display: flex;
+flex-wrap: wrap;
+gap: .5rem;
+margin-block-start: .75rem;
+}
 .chat-turn {
 content-visibility: auto;contain-intrinsic-size: auto 200px;
 margin-block: 1rem 2.5rem;

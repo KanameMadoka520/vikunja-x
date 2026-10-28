@@ -46,6 +46,9 @@ type ToolCall struct {
 	Function FunctionCall `json:"function"`
 }
 type Message struct {
+	Attachments      []ChatAttachment `json:"attachments,omitempty"`
+	AttachmentOwner  int64            `json:"attachment_owner,omitempty"`
+	imageData        []imagePayload
 	Native           json.RawMessage `json:"-"`
 	Role             string          `json:"role"`
 	Content          string          `json:"content"`
@@ -128,6 +131,11 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 }
 
 func Chat(ctx context.Context, c Connection, messages []Message, tools []map[string]any) (Message, error) {
+	var err error
+	messages, err = hydrateMessages(c, messages)
+	if err != nil {
+		return Message{}, err
+	}
 	if o := observe(ctx); o != nil {
 		caps := c.Capabilities()
 		o.step.ContextWindow = caps.ContextWindow
@@ -141,7 +149,7 @@ func Chat(ctx context.Context, c Connection, messages []Message, tools []map[str
 	case "gemini":
 		return geminiChat(ctx, c, messages, tools, nil)
 	}
-	return openAIChat(ctx, c, map[string]any{"model": c.Model, "messages": messages, "stream": false}, tools)
+	return openAIChat(ctx, c, map[string]any{"model": c.Model, "messages": openAIImageMessages(messages), "stream": false}, tools)
 }
 func openAIChat(ctx context.Context, c Connection, input map[string]any, tools []map[string]any) (Message, error) {
 	if limit := c.Capabilities().MaxOutputTokens; limit > 0 {

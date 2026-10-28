@@ -12,13 +12,13 @@ import {taskKeys} from './tasks'
 
 export type AIProtocol = 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio'
 export type AIConnection = {context_window?: number, max_output_tokens?: number, input_types?: string[], output_token_field?: '' | 'max_tokens' | 'max_completion_tokens', resolved?: ModelCapabilities, non_streaming?: boolean, protocol: AIProtocol, id: string, name: string, base_url: string, model: string, kind: 'chat' | 'transcription', api_key: string, has_key: boolean}
-export type AISettings = {connections: AIConnection[], assistant: string, transcription: string, cleanup: string}
+export type AISettings = {persona?: 'arona' | 'none', connections: AIConnection[], assistant: string, transcription: string, cleanup: string}
 export type AIRunResult = {reply: string, actions: {tool: string, arguments: string, result: string, success: boolean}[]}
 
 const settingsKey = ['tcymc-ai', 'settings'] as const
 
 export function normalizeAISettings(s: TcyAiSettingsResponse): AISettings {
-	return {connections: (s.connections ?? []).map(c => ({context_window: c.context_window, max_output_tokens: c.max_output_tokens, input_types: c.input_types ?? [], output_token_field: c.output_token_field, resolved: c.resolved ?? undefined, non_streaming: c.non_streaming, protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
+	return {persona: s.persona || 'arona', connections: (s.connections ?? []).map(c => ({context_window: c.context_window, max_output_tokens: c.max_output_tokens, input_types: c.input_types ?? [], output_token_field: c.output_token_field, resolved: c.resolved ?? undefined, non_streaming: c.non_streaming, protocol: c.protocol ?? (c.kind === 'transcription' ? 'openai-transcription' : 'openai-chat'), id: c.id ?? '', name: c.name ?? '', base_url: c.base_url ?? '', model: c.model ?? '', kind: c.kind ?? 'chat', api_key: '', has_key: c.has_key ?? false})), assistant: s.assistant ?? '', transcription: s.transcription ?? '', cleanup: s.cleanup ?? ''}
 }
 
 export function aiSettingsQuery() {

@@ -49,7 +49,15 @@ func responsesChat(ctx context.Context, c Connection, messages []Message, tools 
 			input = append(input, map[string]any{"type": "function_call_output", "call_id": m.ToolCallID, "output": m.Content})
 			continue
 		}
-		input = append(input, map[string]any{"role": m.Role, "content": m.Content})
+		var content any = m.Content
+		if len(m.imageData) > 0 {
+			parts := []any{map[string]any{"type": "input_text", "text": m.Content}}
+			for _, image := range m.imageData {
+				parts = append(parts, map[string]any{"type": "input_image", "image_url": image.dataURL()})
+			}
+			content = parts
+		}
+		input = append(input, map[string]any{"role": m.Role, "content": content})
 	}
 	req := map[string]any{"model": c.Model, "input": input, "store": false, "include": []string{"reasoning.encrypted_content"}}
 	if limit := c.Capabilities().MaxOutputTokens; limit > 0 {
@@ -137,6 +145,13 @@ func anthropicChat(ctx context.Context, c Connection, messages []Message, tools 
 				return Message{}, err
 			}
 			parts = []json.RawMessage{raw}
+			for _, image := range m.imageData {
+				part, err := rawPart(map[string]any{"type": "image", "source": map[string]any{"type": "base64", "media_type": image.MIME, "data": image.Data}})
+				if err != nil {
+					return Message{}, err
+				}
+				parts = append(parts, part)
+			}
 		}
 		if len(turns) > 0 && turns[len(turns)-1].Role == role {
 			turns[len(turns)-1].Content = append(turns[len(turns)-1].Content, parts...)
@@ -226,6 +241,7 @@ func geminiChat(ctx context.Context, c Connection, messages []Message, tools []m
 				return Message{}, err
 			}
 			parts = []json.RawMessage{raw}
+			parts = append(parts, geminiImageParts(m.imageData)...)
 		}
 		if len(turns) > 0 && turns[len(turns)-1].Role == role {
 			turns[len(turns)-1].Parts = append(turns[len(turns)-1].Parts, parts...)
@@ -308,4 +324,14 @@ func checkMessage(m Message) (Message, error) {
 		return m, tcylocale.Error("e9")
 	}
 	return m, nil
+}
+
+func geminiImageParts(images []imagePayload) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(images))
+	for _, p := range images {
+		//nolint:errchkjson // Both map levels contain only strings, so encoding cannot fail.
+		raw, _ := json.Marshal(map[string]map[string]string{"inlineData": {"mimeType": p.MIME, "data": p.Data}})
+		out = append(out, raw)
+	}
+	return out
 }

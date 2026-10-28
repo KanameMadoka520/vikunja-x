@@ -46,6 +46,9 @@ func conversationOut(ctx context.Context, value tcyai.Conversation, err error) (
 	return &conversationResponse{CacheControl: "no-store", Body: value}, nil
 }
 func conversationError(ctx context.Context, err error) error {
+	if errors.Is(err, tcyai.ErrAttachmentMissing) || errors.Is(err, tcyai.ErrAttachmentInvalid) || errors.Is(err, tcyai.ErrImageModel) {
+		return chatFileError(ctx, err)
+	}
 	if errors.Is(err, tcyai.ErrConversationMissing) {
 		return huma.Error404NotFound(tcylocale.Render(ctx, tcylocale.Error("chatMissing")))
 	}
@@ -268,7 +271,12 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 				ToolSchema   string `json:"tool_schema" doc:"Readable JSON tool definitions; no credentials or private task data."`
 			}
 		}{CacheControl: "no-store"}
-		body.Body.SystemPrompt = tcyai.SystemPrompt(ctx, tcyai.RunInput{ProjectID: in.ProjectID, Mode: in.Mode, AllowDelete: in.AllowDelete})
+		uid, _ := aiUser(ctx)
+		settings, err := tcyai.Load(uid)
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		body.Body.SystemPrompt = tcyai.SystemPrompt(ctx, tcyai.RunInput{Persona: settings.Persona, ProjectID: in.ProjectID, Mode: in.Mode, AllowDelete: in.AllowDelete})
 		raw, err := json.MarshalIndent(tcyai.AllTools(in.Mode, in.AllowDelete), "", "  ")
 		if err != nil {
 			return nil, err

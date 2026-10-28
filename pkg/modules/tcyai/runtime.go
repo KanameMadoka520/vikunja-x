@@ -105,6 +105,9 @@ func failureCode(err error) string {
 // ExplainError adds a localized explanation while retaining the exact technical detail for debugging and model recovery.
 func ExplainError(ctx context.Context, err error) string {
 	keys := map[string]string{"SCOPE_DENIED": "agentScopeDenied", "FORBIDDEN": "agentForbidden", "STATE_CONFLICT": "agentConflict", "WRITE_UNCERTAIN": "agentUncertain", "INVALID_DATE_RANGE": "agentDateRange", "MODEL_CHANGED": "agentModelChanged", "TOOL_NOT_ALLOWED": "agentNotAllowed", "TOOL_NOT_LOADED": "agentNotLoaded", "INVALID_ARGUMENTS": "agentArguments", "TIMEOUT": "agentTimeout"}
+	if errors.Is(err, ErrImageModel) || errors.Is(err, ErrAttachmentMissing) || errors.Is(err, ErrAttachmentInvalid) {
+		return tcylocale.Render(ctx, tcylocale.Error(err.Error()))
+	}
 	detail := tcylocale.Render(ctx, err)
 	if key, ok := keys[failureCode(err)]; ok {
 		return tcylocale.Render(ctx, tcylocale.Error(key)) + "\n" + detail
@@ -143,6 +146,7 @@ func normalizeRun(in RunInput) RunInput {
 
 func NewAgentState(ctx context.Context, c Connection, input RunInput) *AgentState {
 	in := normalizeRun(input)
+	in.Persona = c.Persona
 	system := SystemPrompt(ctx, in)
 	messages := []Message{{Role: "system", Content: system}}
 	if in.Summary != "" {
@@ -154,7 +158,7 @@ func NewAgentState(ctx context.Context, c Connection, input RunInput) *AgentStat
 			messages = append(messages, Message{Role: h.Role, Content: h.Content})
 		}
 	}
-	messages = append(messages, Message{Role: "user", Content: in.Message})
+	messages = append(messages, Message{Role: "user", Content: in.Message, Attachments: in.ServerAttachments, AttachmentOwner: in.AttachmentOwner})
 	state := &AgentState{HistoryStart: len(messages) - 1, Input: in, Messages: []storedMessage{}, Pending: []ToolCall{}, Available: []string{}, Result: RunResult{
 		Configuration: runOptions(in), TraceID: uuid.NewString(), SystemPrompt: system, Actions: []Action{}, Steps: []ModelStep{}, Operations: []Operation{},
 		Model: c.Model, RequestedModel: c.Model, Protocol: c.EffectiveProtocol(), Endpoint: AgentEndpoint(c),

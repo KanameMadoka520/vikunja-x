@@ -562,7 +562,38 @@ export type Callback = {
     totp_passcode?: string;
 };
 
+export type ChatAttachment = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Account-scoped content hash. Authorization also requires a reference in this conversation.
+     */
+    id?: string;
+    /**
+     * Server-detected media type.
+     */
+    mime?: string;
+    /**
+     * The referenced file is no longer available.
+     */
+    readonly missing?: boolean;
+    /**
+     * Original display filename, never used as a server path.
+     */
+    name?: string;
+    /**
+     * Original content bytes, excluding encryption overhead.
+     */
+    size?: number;
+};
+
 export type ChatTurn = {
+    /**
+     * Files attached to this user message, in their original order.
+     */
+    readonly attachments?: Array<ChatAttachment> | null;
     /**
      * UTC completion timestamp when finished.
      */
@@ -768,6 +799,10 @@ export type Conversation = {
      */
     readonly created?: string;
     /**
+     * Uploaded files waiting to be sent.
+     */
+    readonly draft_attachments?: Array<ChatAttachment> | null;
+    /**
      * Server-generated identifier.
      */
     readonly id?: string;
@@ -780,6 +815,10 @@ export type Conversation = {
      */
     readonly parent_turn_id?: string;
     /**
+     * Actual encrypted file sizes; shared attachments are counted once per conversation, not exclusive disk usage.
+     */
+    readonly storage?: ConversationStorage;
+    /**
      * User title or first-message title.
      */
     readonly title?: string;
@@ -791,6 +830,29 @@ export type Conversation = {
      * UTC last change timestamp.
      */
     readonly updated?: string;
+};
+
+export type ConversationStorage = {
+    /**
+     * Encrypted file bytes, each distinct referenced attachment counted once.
+     */
+    attachment_bytes?: number;
+    /**
+     * Distinct attachment references, including drafts and missing files.
+     */
+    attachment_count?: number;
+    /**
+     * Referenced files absent from disk.
+     */
+    missing_count?: number;
+    /**
+     * Encrypted conversation file bytes, including summaries and durable execution state.
+     */
+    record_bytes?: number;
+    /**
+     * Record plus existing attachments. Shared files also count in other conversations; this is not exclusive disk usage.
+     */
+    total_bytes?: number;
 };
 
 export type ConversationSummary = {
@@ -2752,6 +2814,10 @@ export type RunInput = {
      */
     approval?: 'smart' | 'review' | 'auto';
     /**
+     * IDs of files already uploaded to this conversation. Images require an image-capable model.
+     */
+    attachment_ids?: Array<string> | null;
+    /**
      * Optional saved text connection. Empty uses the assigned assistant.
      */
     connection_id?: string;
@@ -3026,6 +3092,10 @@ export type Settings = {
      * Connections owned by the current user.
      */
     connections?: Array<Connection> | null;
+    /**
+     * Arona character tone (default) or neutral. Never changes tool permissions.
+     */
+    persona?: 'arona' | 'none';
     /**
      * Personal assistant profiles; updated separately to avoid overwriting connection secrets.
      */
@@ -5094,6 +5164,25 @@ export type CallbackWritable = {
     totp_passcode?: string;
 };
 
+export type ChatAttachmentWritable = {
+    /**
+     * Account-scoped content hash. Authorization also requires a reference in this conversation.
+     */
+    id?: string;
+    /**
+     * Server-detected media type.
+     */
+    mime?: string;
+    /**
+     * Original display filename, never used as a server path.
+     */
+    name?: string;
+    /**
+     * Original content bytes, excluding encryption overhead.
+     */
+    size?: number;
+};
+
 export type ChatTurnWritable = {
     [key: string]: never;
 };
@@ -6038,6 +6127,10 @@ export type RunInputWritable = {
      */
     approval?: 'smart' | 'review' | 'auto';
     /**
+     * IDs of files already uploaded to this conversation. Images require an image-capable model.
+     */
+    attachment_ids?: Array<string> | null;
+    /**
      * Optional saved text connection. Empty uses the assigned assistant.
      */
     connection_id?: string;
@@ -6229,6 +6322,10 @@ export type SettingsWritable = {
      * Connections owned by the current user.
      */
     connections?: Array<ConnectionWritable> | null;
+    /**
+     * Arona character tone (default) or neutral. Never changes tool permissions.
+     */
+    persona?: 'arona' | 'none';
     /**
      * Connection used for speech recognition.
      */
@@ -7647,6 +7744,103 @@ export type TcyAiConversationsReadResponses = {
 
 export type TcyAiConversationsReadResponse = TcyAiConversationsReadResponses[keyof TcyAiConversationsReadResponses];
 
+export type TcyAiAttachmentsUploadData = {
+    body: {
+        file: Blob | File;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/attachments';
+};
+
+export type TcyAiAttachmentsUploadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiAttachmentsUploadError = TcyAiAttachmentsUploadErrors[keyof TcyAiAttachmentsUploadErrors];
+
+export type TcyAiAttachmentsUploadResponses = {
+    /**
+     * Created
+     */
+    201: ChatAttachment;
+};
+
+export type TcyAiAttachmentsUploadResponse = TcyAiAttachmentsUploadResponses[keyof TcyAiAttachmentsUploadResponses];
+
+export type TcyAiAttachmentsRemoveData = {
+    body?: never;
+    path: {
+        /**
+         * Private conversation owned by this human account.
+         */
+        id: string;
+        /**
+         * Attachment hash referenced in this conversation.
+         */
+        file: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/attachments/{file}';
+};
+
+export type TcyAiAttachmentsRemoveErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiAttachmentsRemoveError = TcyAiAttachmentsRemoveErrors[keyof TcyAiAttachmentsRemoveErrors];
+
+export type TcyAiAttachmentsRemoveResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type TcyAiAttachmentsRemoveResponse = TcyAiAttachmentsRemoveResponses[keyof TcyAiAttachmentsRemoveResponses];
+
+export type TcyAiAttachmentsDownloadData = {
+    body?: never;
+    path: {
+        /**
+         * Private conversation owned by this human account.
+         */
+        id: string;
+        /**
+         * Attachment hash referenced in this conversation.
+         */
+        file: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/attachments/{file}';
+};
+
+export type TcyAiAttachmentsDownloadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiAttachmentsDownloadError = TcyAiAttachmentsDownloadErrors[keyof TcyAiAttachmentsDownloadErrors];
+
+export type TcyAiAttachmentsDownloadResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type TcyAiAttachmentsDownloadResponse = TcyAiAttachmentsDownloadResponses[keyof TcyAiAttachmentsDownloadResponses];
+
 export type TcyAiConversationsCompactData = {
     body: TcyAiConversationsCompactRequestWritable;
     path: {
@@ -7704,6 +7898,38 @@ export type TcyAiConversationsEventsResponses = {
      */
     200: unknown;
 };
+
+export type TcyAiConversationsExportData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * ZIP includes relative attachment references and original files. Missing attachments are marked in place.
+         */
+        format?: 'json' | 'md' | 'zip';
+    };
+    url: '/ai/conversations/{id}/export';
+};
+
+export type TcyAiConversationsExportErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsExportError = TcyAiConversationsExportErrors[keyof TcyAiConversationsExportErrors];
+
+export type TcyAiConversationsExportResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type TcyAiConversationsExportResponse = TcyAiConversationsExportResponses[keyof TcyAiConversationsExportResponses];
 
 export type TcyAiConversationsForkData = {
     body: TcyAiConversationsForkRequestWritable;
