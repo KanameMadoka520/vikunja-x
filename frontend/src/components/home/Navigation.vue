@@ -29,7 +29,7 @@
 						data-tour="nav-ai"
 						:to="{name: 'tcy-ai'}"
 					>
-						<span class="menu-item-icon icon"><Icon icon="robot" /></span>{{ t('tcymc.text.ai_task_assistant') }}
+						<span class="menu-item-icon icon"><AronaAvatar size="small" /></span>{{ t('tcymc.text.ai_task_assistant') }}
 					</RouterLink>
 				</li>
 				<li>
@@ -160,6 +160,7 @@
 import {useI18n} from 'vue-i18n'
 const {t} = useI18n({useScope: 'global'})
 import {computed} from 'vue'
+import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import SystemStatus from '@/components/home/SystemStatus.vue'
 import TcyBrand from '@/components/home/TcyBrand.vue'
 

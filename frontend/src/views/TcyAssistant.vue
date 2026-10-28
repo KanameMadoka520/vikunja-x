@@ -10,6 +10,7 @@ import {aiSettingsQuery, useCleanupAI, useTranscribeAI} from '@/client/queries/t
 import AssistantPreferences from '@/components/ai/AssistantPreferences.vue'
 import {assistantPreferencesQuery} from '@/client/queries/assistantPreferences'
 import {builtinProfileIDs, normalizeOptions, profileOptions, validOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
+import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import ConversationExport from '@/components/ai/export/ConversationExport.vue'
@@ -385,7 +386,7 @@ onBeforeUnmount(() => {
 				>
 					<Icon icon="history" />
 				</BaseButton>
-				<h1>{{ t('tcymc.text.ai_task_assistant') }}</h1>
+				<AronaAvatar /><h1>{{ t('tcymc.text.ai_task_assistant') }}</h1>
 				<BaseButton
 					class="toolbar-button"
 					:aria-label="t('chat.new')"
@@ -649,7 +650,7 @@ onBeforeUnmount(() => {
 						v-if="!active?.turns?.length"
 						class="welcome"
 					>
-						<h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
+						<AronaAvatar size="large" /><h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
 							<XButton
 								variant="secondary"
 								@click="prompt = t('tcymc.text.list_my_unfinished_tasks_and_suggest_a_plan')"
@@ -932,6 +933,17 @@ margin-block-end: .5rem;
 overflow: auto;
 }
 @media (width <= 540px) {
+ .assistant-heading > .heading-actions:last-child {
+flex: 1;
+justify-content: flex-end;
+}
+ .model-switch {
+min-inline-size: 0;
+}
+ .model-switch select {
+inline-size: 100%;
+}
+
  .composer-context { flex-wrap: wrap;
 }
  .profile-switch select { max-inline-size: 9rem;
@@ -1358,6 +1370,17 @@ transition: none;
 }
 }
 @media (width <= 540px) {
+ .assistant-heading > .heading-actions:last-child {
+flex: 1;
+justify-content: flex-end;
+}
+ .model-switch {
+min-inline-size: 0;
+}
+ .model-switch select {
+inline-size: 100%;
+}
+
  .assistant-heading { flex-wrap: nowrap;
 }
  .assistant-heading h1 { position: absolute;

@@ -6,6 +6,7 @@ import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
+import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
 import type {ChatTurn, ReviewInput, ModelStep} from '@/client/generated'
@@ -77,7 +78,7 @@ async function copy() {
 		</div>
 		<div class="assistant-message">
 			<div class="assistant-identity">
-				<span class="message-avatar assistant-avatar"><Icon icon="robot" /></span><strong>{{ t('tcymc.text.task_assistant') }}</strong><span
+				<AronaAvatar /><strong>{{ t('tcymc.text.task_assistant') }}</strong><span
 					v-if="result?.model"
 					class="model-badge"
 				>{{ result.model }}</span><span
@@ -302,24 +303,6 @@ display: flex;align-items: center;flex-wrap: wrap;margin-block-end: .875rem;
 gap: .5rem;
 font-size: .8rem;
 color: var(--text-light);
-}
-.message-avatar {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	inline-size: 2rem;
-	block-size: 2rem;
-	border-radius: .625rem;
-	background: var(--grey-200);
-	color: var(--text);
-}
-.assistant-avatar {
-;
-background: transparent;
-color: var(--text);
-inline-size: 1.5rem;
-block-size: 1.5rem;
 }
 .model-badge, .run-status {
 border-radius: .375rem;color: var(--text-light);font-size: .75rem;overflow-wrap: anywhere;

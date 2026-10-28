@@ -3,13 +3,13 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.16`
+- 版本：`v2.7.1-tcymc.18`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 
 ## 阿罗娜：多模态会话与导出
 
-任务助手现名为 **阿罗娜**，可在 AI 与语音设置里关闭角色语气。支持图片与文字一起输入、上传/粘贴/拖入附件、原图或 WebP、私有附件预览和持久草稿。会话显示实际文件占用和附件数量，分支复用文件。可导出含原位置图片的 PDF、Markdown、带附件 ZIP 和 JSON。参见 [模块边界与移植指南](docs/arona-integration.md)。
+任务助手现名为 **阿罗娜**，在导航、聊天页和回复旁显示本地托管的角色头像（[素材来源与版权](frontend/src/assets/arona/README.md)），可在 AI 与语音设置里关闭角色语气。支持图片与文字一起输入、上传/粘贴/拖入附件、原图或 WebP、私有附件预览和持久草稿。会话显示实际文件占用和附件数量，分支复用文件。可导出含原位置图片的 PDF、Markdown、带附件 ZIP 和 JSON。参见 [模块边界与移植指南](docs/arona-integration.md)。
 
 ## 任务层级的可视化（tcymc.16）
 
