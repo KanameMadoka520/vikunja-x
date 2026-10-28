@@ -192,6 +192,15 @@
 	},
 	"tcymc": {
 		"errors": {
+            "searchRequiredUnavailable": "请先在所选模型连接中开启并配置联网搜索。",
+		    "searchConfig": "搜索协议或连接类型无效。",
+		    "searchOrigin": "搜索共用已保存密钥，必须与聊天连接使用相同的 HTTPS 域名和端口。",
+		    "searchDisabled": "此连接尚未开启联网搜索。",
+		    "searchQuery": "搜索词须为 1 至 128 个字符。",
+		    "searchResponse": "上游未返回有效搜索响应，请检查搜索协议和端点。",
+		    "searchIncomplete": "上游搜索响应未完成或已暂停，请检查诊断中的输出额度并重试。",
+		    "searchUnverified": "接口已响应，但未返回原生搜索证据；模型自称已联网不代表实际搜索成功。",
+		    "searchProviderError": "上游报告搜索工具错误，请确认该账号和模型已开通搜索能力。",
 			"e1": "%s 必须是有效 ID",
 			"e2": "AI 设置和调用需要用户登录会话",
 			"e3": "Gemini 内联音频不能超过 14 MiB，请缩短录音。",

@@ -55,7 +55,7 @@ func (state *AgentState) discover(raw json.RawMessage) (string, error) {
 		score int
 	}
 	matches := []match{}
-	for _, t := range AllTools(state.Input.Mode, state.Input.AllowDelete) {
+	for _, t := range state.catalog() {
 		e := entry(t)
 		score := 0
 		for _, term := range terms {
@@ -91,7 +91,7 @@ func (state *AgentState) discover(raw json.RawMessage) (string, error) {
 func (state *AgentState) trimTools() {
 	// Preserve core tools and pending calls. The working set converges back to
 	// eight deferred definitions when no additional queued calls need pinning.
-	pinned := map[string]bool{}
+	pinned := map[string]bool{"web_search": state.SearchEnabled}
 	for _, t := range Tools(state.Input.Mode, state.Input.AllowDelete) {
 		pinned[toolName(t)] = true
 	}

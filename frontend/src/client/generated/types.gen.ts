@@ -59,6 +59,10 @@ export type Action = {
      */
     round?: number;
     /**
+     * Structured web search evidence and provider telemetry, when this action searched the web.
+     */
+    search?: WebSearchResult;
+    /**
      * Whether the operation succeeded.
      */
     success?: boolean;
@@ -181,6 +185,10 @@ export type AiTextResponseBody = {
      */
     original?: string;
     /**
+     * Native search evidence and telemetry for a search test.
+     */
+    search?: WebSearchResult;
+    /**
      * Processed text.
      */
     text?: string;
@@ -219,6 +227,10 @@ export type AssistantOptions = {
      * Context project only, not a permission boundary.
      */
     project_id?: number;
+    /**
+     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     */
+    search_mode?: 'auto' | 'off' | 'required';
     /**
      * Execution segment deadline in seconds.
      */
@@ -747,6 +759,18 @@ export type Connection = {
      * Effective capacities and input types, resolved by the server; never accepted as configuration.
      */
     readonly resolved?: ModelCapabilities;
+    /**
+     * Optional search API base on the same origin as this connection. Empty uses the chat base (official DeepSeek uses /v1).
+     */
+    web_search_base_url?: string;
+    /**
+     * Optional search model; empty uses this connection model. DeepSeek search does not use a model.
+     */
+    web_search_model?: string;
+    /**
+     * Explicit search adapter; empty disables search. Independent of chat protocol and model name.
+     */
+    web_search_protocol?: '' | 'deepseek' | 'openai-responses' | 'openai-chat' | 'anthropic' | 'gemini';
 };
 
 export type ConnectionSettings = {
@@ -2854,6 +2878,10 @@ export type RunInput = {
      */
     request_id?: string;
     /**
+     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     */
+    search_mode?: 'auto' | 'off' | 'required';
+    /**
      * Active execution seconds per segment; zero uses 180.
      */
     timeout_seconds?: number;
@@ -3921,8 +3949,16 @@ export type TcyAiTestRequest = {
      */
     readonly $schema?: string;
     audio?: string;
+    /**
+     * Optional unsaved connection for search tests; saved secrets only reused on the same origin.
+     */
+    connection?: Connection;
     connection_id?: string;
     filename?: string;
+    /**
+     * Test actual web search, not chat or write tools.
+     */
+    web_search?: boolean;
 };
 
 export type TcyAiTranscribeRequest = {
@@ -4880,6 +4916,60 @@ export type VikunjaInfos = {
     webhooks_enabled?: boolean;
 };
 
+export type WebSearchResult = {
+    /**
+     * Total elapsed wall time.
+     */
+    duration_ms?: number;
+    /**
+     * Actual request endpoint without credentials.
+     */
+    endpoint?: string;
+    /**
+     * Explicitly selected search adapter.
+     */
+    protocol?: string;
+    /**
+     * Public search query sent to the provider.
+     */
+    query?: string;
+    /**
+     * Google search attribution HTML; must be sanitized before display.
+     */
+    search_entry_point?: string;
+    /**
+     * Deduplicated HTTP(S) citations returned by the provider.
+     */
+    sources?: Array<WebSource> | null;
+    /**
+     * Actual provider telemetry; DeepSeek raw search has no LLM token usage.
+     */
+    step?: ModelStep;
+    /**
+     * Search model answer; untrusted external content.
+     */
+    summary?: string;
+    /**
+     * True only with protocol-native search evidence; HTTP 200 or model claims alone are insufficient.
+     */
+    verified?: boolean;
+};
+
+export type WebSource = {
+    /**
+     * Provider-supplied search summary; untrusted external content.
+     */
+    snippet?: string;
+    /**
+     * Provider-supplied page title.
+     */
+    title?: string;
+    /**
+     * HTTP(S) source URL returned by the search provider.
+     */
+    url?: string;
+};
+
 export type Webhook = {
     /**
      * A URL to the JSON Schema for this object.
@@ -4992,6 +5082,10 @@ export type AiTextResponseBodyWritable = {
      * Original transcription, before optional cleanup.
      */
     original?: string;
+    /**
+     * Native search evidence and telemetry for a search test.
+     */
+    search?: WebSearchResult;
     /**
      * Processed text.
      */
@@ -5236,6 +5330,18 @@ export type ConnectionWritable = {
      * Wire protocol. Omitted legacy values are inferred from kind.
      */
     protocol?: 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio';
+    /**
+     * Optional search API base on the same origin as this connection. Empty uses the chat base (official DeepSeek uses /v1).
+     */
+    web_search_base_url?: string;
+    /**
+     * Optional search model; empty uses this connection model. DeepSeek search does not use a model.
+     */
+    web_search_model?: string;
+    /**
+     * Explicit search adapter; empty disables search. Independent of chat protocol and model name.
+     */
+    web_search_protocol?: '' | 'deepseek' | 'openai-responses' | 'openai-chat' | 'anthropic' | 'gemini';
 };
 
 export type ConnectionSettingsWritable = {
@@ -6167,6 +6273,10 @@ export type RunInputWritable = {
      */
     request_id?: string;
     /**
+     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     */
+    search_mode?: 'auto' | 'off' | 'required';
+    /**
      * Active execution seconds per segment; zero uses 180.
      */
     timeout_seconds?: number;
@@ -6637,8 +6747,16 @@ export type TcyAiPromptResponseWritable = {
 
 export type TcyAiTestRequestWritable = {
     audio?: string;
+    /**
+     * Optional unsaved connection for search tests; saved secrets only reused on the same origin.
+     */
+    connection?: ConnectionWritable;
     connection_id?: string;
     filename?: string;
+    /**
+     * Test actual web search, not chat or write tools.
+     */
+    web_search?: boolean;
 };
 
 export type TcyAiTranscribeRequestWritable = {

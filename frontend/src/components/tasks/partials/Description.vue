@@ -38,8 +38,45 @@
 			class="has-text-danger"
 		>
 			{{ saveError }}
+			<button
+				v-if="canWrite"
+				type="button"
+				class="button is-small"
+				:disabled="saving"
+				@click="save"
+			>
+				{{ t('stages.retry') }}
+			</button>
 		</p>
+		<div class="description-view-actions d-print-none">
+			<button
+				v-if="stageCount > 0"
+				type="button"
+				class="button is-small"
+				:aria-pressed="showStages"
+				@click="showStages = !showStages"
+			>
+				{{ showStages ? t('stages.fullDescription') : t('stages.title') }}
+			</button>
+			<button
+				v-if="canWrite"
+				type="button"
+				class="button is-small"
+				:disabled="saving"
+				@click="insertStageTemplate"
+			>
+				{{ t('stages.insertTemplate') }}
+			</button>
+		</div>
+		<DescriptionStages
+			v-if="showStages && stageCount > 0"
+			:model-value="description"
+			:can-write="canWrite"
+			:saving="saving"
+			@update:modelValue="saveStageChange"
+		/>
 		<Editor
+			v-show="!showStages || stageCount === 0"
 			v-model="description"
 			class="tiptap__task-description"
 			:is-edit-enabled="canWrite"
@@ -59,6 +96,8 @@
 </template>
 
 <script setup lang="ts">
+import DescriptionStages from './DescriptionStages.vue'
+import {descriptionStages, stageTemplate} from '@/helpers/descriptionStages'
 import {removeAttachmentImages} from '@/helpers/attachmentImages'
 import {getErrorText} from '@/message'
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
@@ -86,6 +125,20 @@ const emit = defineEmits<{
 
 const description = ref<string>('')
 const hasChanges = ref(false)
+const showStages = ref(false)
+const stageCount = computed(() => descriptionStages(description.value).reduce((n, g) => n + g.items.length, 0))
+watch(() => props.modelValue.id, () => { showStages.value = descriptionStages(props.modelValue.description ?? '').reduce((n, g) => n + g.items.length, 0) >= 12 }, {immediate: true})
+async function saveStageChange(html: string) {
+	if (!props.canWrite || saving.value) return
+	description.value = html; hasChanges.value = true
+	await save()
+}
+async function insertStageTemplate() {
+	if (!props.canWrite || saving.value) return
+	showStages.value = false
+	await saveStageChange(description.value + stageTemplate(t))
+}
+
 watch(
 	() => [props.modelValue.id, props.modelValue.description] as const,
 	([id, value], previous) => {
@@ -265,6 +318,13 @@ function uploadCallback(files: File[] | FileList): Promise<string[]> {
 </script>
 
 <style lang="scss" scoped>
+.description-view-actions {
+ display: flex;
+ flex-wrap: wrap;
+ gap: .5rem;
+ margin-block-end: .75rem;
+}
+@media print { .tiptap__task-description { display: block !important; } }
 .tiptap__task-description {
 	// The exact amount of pixels we need to make the description icon align with the buttons and the form inside the editor.
 	// The icon is not exactly the same length on all sides so we need to hack our way around it.

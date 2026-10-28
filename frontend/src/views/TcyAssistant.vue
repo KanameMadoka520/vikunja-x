@@ -58,6 +58,8 @@ const canCompact = computed(() => (active.value?.turns?.length ?? 0) > (active.v
 const activeRun = computed(() => Boolean(active.value?.compacting || active.value?.turns?.some(turn => turn.status === 'running')))
 const sidebarOpen = ref(false)
 const connectionID = ref('')
+const searchMode = ref<'auto' | 'off' | 'required'>('auto')
+const canSearch = computed(() => Boolean(settings.data.value?.connections.find(c => c.id === selectedConnection.value)?.web_search_protocol))
 const chatModels = computed(() => settings.data.value?.connections.filter(c => c.kind === 'chat') ?? [])
 const selectedConnection = computed(() => connectionID.value || settings.data.value?.assistant || '')
 const exportOpen = ref(false)
@@ -121,9 +123,10 @@ const preferencesOpen = ref(false)
 const selectedProfile = ref('ask')
 const initializedChat = ref<string | null>(null)
 const optionsReady = computed(() => initializedChat.value === chatID.value)
-const currentOptions = computed<AssistantOptions>(() => ({connection_id: connectionID.value, project_id: projectID.value, mode: mode.value, allow_delete: allowDelete.value, approval: approval.value, write_project_ids: writeProjectIDs.value, max_rounds: maxRounds.value, max_operations: maxOperations.value, timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value}))
+const currentOptions = computed<AssistantOptions>(() => ({search_mode: searchMode.value, connection_id: connectionID.value, project_id: projectID.value, mode: mode.value, allow_delete: allowDelete.value, approval: approval.value, write_project_ids: writeProjectIDs.value, max_rounds: maxRounds.value, max_operations: maxOperations.value, timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value}))
 const profiles = computed(() => [...builtinProfileIDs.map(id => ({id, name: t(`assistantUI.presets.${id}.name`)})), ...(preferences.data.value?.profiles ?? []).map(p => ({id: p.id!, name: p.name!}))])
 function applyOptions(o: AssistantOptions, profile: string, remember = true) {
+	searchMode.value = o.search_mode || 'auto'
 	connectionID.value = o.connection_id; projectID.value = o.project_id; mode.value = o.mode; allowDelete.value = o.allow_delete; approval.value = o.approval
 	writeProjectIDs.value = [...o.write_project_ids]; maxRounds.value = o.max_rounds; maxOperations.value = o.max_operations; timeoutSeconds.value = o.timeout_seconds; tokenBudget.value = o.token_budget
 	selectedProfile.value = profile
@@ -208,11 +211,13 @@ async function newConversation() {
 
 async function submit() {
 	if ((!prompt.value.trim() && !draftFiles.value.length) || busy.value || !hasAssistant.value || imageMismatch.value) return
+	if (searchMode.value === 'required' && !canSearch.value) { notice.value = t('webSearch.configureFirst'); return }
 	const originalPrompt = prompt.value
 	const message = prompt.value.trim() || t('chatFiles.defaultPrompt')
 	const id = chatID.value
 	const location = route.fullPath
 	const request = {
+		search_mode: searchMode.value,
 		message,
 		attachment_ids: draftFiles.value.map(f => f.id!),
 		history: [],
@@ -690,7 +695,7 @@ onBeforeUnmount(() => {
 					v-if="!hasAssistant && !settings.isPending.value"
 					class="setup-note"
 				>
-					<RouterLink :to="{name: 'user.settings.ai'}">
+					<RouterLink to="/user/settings/ai">
 						{{ t('tcymc.text.add_a_connection_in_ai_and_voice_settings') }}
 					</RouterLink>
 				</div>
@@ -800,7 +805,24 @@ onBeforeUnmount(() => {
 						role="status"
 					>
 						<progress :aria-label="t(`flow.${audioStage || 'audioProcessing'}`)" /> {{ t(`flow.${audioStage || 'audioProcessing'}`) }}
-					</p><div
+					</p><div class="search-mode-row">
+						<label :title="t('webSearch.modeHelp')">{{ t('webSearch.title') }}<select
+							v-model="searchMode"
+							:aria-label="t('webSearch.turnMode')"
+							:disabled="!optionsReady"
+							@change="applyOptions(currentOptions, '')"
+						><option value="auto">{{ t('webSearch.auto') }}</option><option
+							value="required"
+							:disabled="!canSearch"
+						>{{ t('webSearch.required') }}</option><option value="off">{{ t('webSearch.off') }}</option></select></label>
+						<RouterLink
+							v-if="!canSearch && searchMode !== 'off'"
+							to="/user/settings/ai"
+						>
+							{{ t('webSearch.configure') }}
+						</RouterLink>
+					</div>
+					<div
 						class="composer-tools"
 						data-tour="ai-voice"
 					>
@@ -880,6 +902,7 @@ onBeforeUnmount(() => {
 						</template> · {{ t('chat.enterHint') }}
 					</p><p
 						v-if="notice"
+						:class="{'notice-info': notice === t('assistantUI.applied')}"
 						role="status"
 						class="notice"
 					>
@@ -1389,6 +1412,30 @@ block-size: 1px;
 overflow: hidden;
 clip-path: inset(50%);
 white-space: nowrap;
+}
+}
+.notice-info { color: var(--text-light); }
+.search-mode-row {
+ display: flex;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: .5rem;
+ padding-inline: .25rem;
+ margin-block: .35rem;
+ font-size: .75rem;
+ color: var(--text-light);
+ label {
+ display: inline-flex;
+ align-items: center;
+ gap: .35rem;
+}
+ select {
+ border: 0;
+ background: transparent;
+ color: var(--text);
+ font: inherit;
+ max-inline-size: 12rem;
+ padding: .25rem;
 }
 }
 .toolbar-button.is-recording { color: var(--danger);

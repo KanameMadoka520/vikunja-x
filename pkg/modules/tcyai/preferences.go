@@ -24,6 +24,7 @@ import (
 
 // Profiles contain execution preferences, never messages, credentials or permissions grants.
 type AssistantOptions struct {
+	SearchMode      string  `json:"search_mode,omitempty" enum:"auto,off,required" doc:"Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering."`
 	ConnectionID    string  `json:"connection_id" maxLength:"80" doc:"Empty follows the configured assistant connection."`
 	ProjectID       int64   `json:"project_id" minimum:"0" doc:"Context project only, not a permission boundary."`
 	Mode            string  `json:"mode" enum:"read,write" doc:"Read only or execute writes within existing account permissions."`
@@ -91,14 +92,14 @@ func SavePreferences(uid int64, p AssistantPreferences) (AssistantPreferences, e
 
 func runOptions(input RunInput) *AssistantOptions {
 	in := normalizeRun(input)
-	return &AssistantOptions{ConnectionID: in.ConnectionID, ProjectID: in.ProjectID, Mode: in.Mode,
+	return &AssistantOptions{SearchMode: in.SearchMode, ConnectionID: in.ConnectionID, ProjectID: in.ProjectID, Mode: in.Mode,
 		AllowDelete: in.AllowDelete && in.Mode == "write", Approval: in.Approval,
 		WriteProjectIDs: append([]int64{}, in.WriteProjectIDs...), MaxRounds: in.MaxRounds,
 		MaxOperations: in.MaxOperations, TimeoutSeconds: in.TimeoutSeconds, TokenBudget: in.TokenBudget}
 }
 
 func validAssistantOptions(o AssistantOptions) bool {
-	return (o.Mode == "read" || o.Mode == "write") &&
+	return (o.SearchMode == "" || o.SearchMode == "auto" || o.SearchMode == "off" || o.SearchMode == "required") && (o.Mode == "read" || o.Mode == "write") &&
 		(o.Approval == "smart" || o.Approval == "review" || o.Approval == "auto") &&
 		(o.Mode != "read" || !o.AllowDelete) && o.ProjectID >= 0 && len(o.ConnectionID) <= 80 &&
 		o.MaxRounds >= 1 && o.MaxRounds <= 40 && o.MaxOperations >= 1 && o.MaxOperations <= 100 &&

@@ -37,6 +37,11 @@ import (
 )
 
 type Connection struct {
+	RequiredTool      string `json:"-"`
+	WebSearchProtocol string `json:"web_search_protocol,omitempty" enum:",deepseek,openai-responses,openai-chat,anthropic,gemini" doc:"Explicit search adapter; empty disables search. Independent of chat protocol and model name."`
+	WebSearchBaseURL  string `json:"web_search_base_url,omitempty" doc:"Optional search API base on the same origin as this connection. Empty uses the chat base (official DeepSeek uses /v1)."`
+	WebSearchModel    string `json:"web_search_model,omitempty" maxLength:"150" doc:"Optional search model; empty uses this connection model. DeepSeek search does not use a model."`
+
 	Persona          string             `json:"-"`
 	ContextWindow    int64              `json:"context_window,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Declared model context capacity in tokens; zero uses known provider metadata or remains unknown."`
 	MaxOutputTokens  int64              `json:"max_output_tokens,omitempty" minimum:"0" maximum:"9007199254740991" doc:"Per-request output allowance; zero uses provider defaults, or a visible protocol fallback when required."`
@@ -222,6 +227,9 @@ func validateConnection(c *Connection, ids map[string]bool) error {
 		return tcylocale.Error("e49")
 	}
 	if err := c.ValidateProtocol(); err != nil {
+		return err
+	}
+	if err := validateSearch(c); err != nil {
 		return err
 	}
 	c.Protocol = c.EffectiveProtocol()

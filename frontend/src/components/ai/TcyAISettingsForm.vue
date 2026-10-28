@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import WebSearchEvidence from './WebSearchEvidence.vue'
+import type {WebSearchResult} from '@/client/generated'
 import {useI18n} from 'vue-i18n'
 const props = defineProps<{initial: AISettings}>()
 const {t} = useI18n({useScope: 'global'})
@@ -11,7 +13,7 @@ import {isRequestContextAbort} from '@/client/requestContext'
 
 type Settings = AISettings
 function initialDraft(source = props.initial): Settings { return {
-	connections: source.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', api_key: ''})),
+	connections: source.connections.map(c => ({...c, input_types: [...(c.input_types ?? [])], output_token_field: c.output_token_field ?? '', web_search_protocol: c.web_search_protocol || '', web_search_base_url: c.web_search_base_url || '', web_search_model: c.web_search_model || '', api_key: ''})),
 	assistant: source.assistant,
 	persona: source.persona || 'arona',
 	transcription: source.transcription,
@@ -37,8 +39,30 @@ const chatModels = computed(() => draft.value.connections.filter(c => c.kind ===
 const speechModels = computed(() => draft.value.connections.filter(c => c.kind === 'transcription'))
 const testAudio = ref<File>()
 
+const searchTest = useTestAIConnection()
+const searchResults = ref<Record<string, WebSearchResult>>({})
+const searchErrors = ref<Record<string, string>>({})
+const searchStamps = ref<Record<string, string>>({})
+const searchProtocols = {'': '', deepseek: 'DeepSeek Search API', 'openai-responses': 'OpenAI Responses · web_search', 'openai-chat': 'OpenAI Chat · web_search_options', anthropic: 'Anthropic · web_search_20250305', gemini: 'Gemini · Google Search'}
+function searchFingerprint(c: AIConnection) { return JSON.stringify([c.base_url, c.model, c.api_key, c.web_search_protocol, c.web_search_base_url, c.web_search_model, c.non_streaming, c.max_output_tokens]) }
+function searchEndpoint(c: AIConnection) {
+	const base = c.web_search_base_url?.trim().replace(/\/+$/, '') || (c.web_search_protocol === 'deepseek' && isOfficialDeepSeek(c) ? 'https://api.deepseek.com/v1' : c.base_url.trim().replace(/\/+$/, ''))
+	if (c.web_search_protocol === 'deepseek') return base + '/tools/search'
+	return endpoint({...c, base_url: base, protocol: c.web_search_protocol || 'openai-chat', model: c.web_search_model || c.model})
+}
+async function testSearch(c: AIConnection) {
+	if (searchTest.isPending.value) return
+	const stamp = searchFingerprint(c)
+	delete searchResults.value[c.id]; delete searchErrors.value[c.id]
+	searchStamps.value[c.id] = stamp
+	try {
+		const result = await searchTest.mutateAsync({connection_id: c.id, web_search: true, connection: {...c}})
+		if (stamp === searchFingerprint(c) && result.search) searchResults.value[c.id] = result.search
+	} catch (e) { if (isRequestContextAbort(e)) return; if (stamp === searchFingerprint(c)) searchErrors.value[c.id] = e instanceof Error ? e.message : t('webSearch.failed') }
+}
+
 function addConnection() {
-	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: 'chat', protocol: 'openai-chat', context_window: 0, max_output_tokens: 0, input_types: [], output_token_field: '', api_key: '', has_key: false})
+	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: 'chat', protocol: 'openai-chat', context_window: 0, max_output_tokens: 0, input_types: [], output_token_field: '', web_search_protocol: '', web_search_base_url: '', web_search_model: '', api_key: '', has_key: false})
 }
 
 function removeConnection(id: string) {
@@ -53,7 +77,7 @@ async function saveSettings() {
 	saveError.value = ''
 	const submitted = JSON.stringify(draft.value)
 	try {
-		const saved = await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({id: c.id, name: c.name, kind: c.kind, protocol: c.protocol, base_url: c.base_url, model: c.model, api_key: c.api_key, non_streaming: c.non_streaming, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0, input_types: c.input_types, output_token_field: c.output_token_field}))})
+		const saved = await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({web_search_protocol: c.web_search_protocol, web_search_base_url: c.web_search_base_url, web_search_model: c.web_search_model, id: c.id, name: c.name, kind: c.kind, protocol: c.protocol, base_url: c.base_url, model: c.model, api_key: c.api_key, non_streaming: c.non_streaming, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0, input_types: c.input_types, output_token_field: c.output_token_field}))})
 		const clean = initialDraft(saved)
 		if (JSON.stringify(draft.value) === submitted) draft.value = clean
 		baseline.value = JSON.stringify(clean)
@@ -97,6 +121,7 @@ function protocols(kind: string) {
 const protocolNames = {'openai-chat': 'OpenAI Chat Completions', 'openai-responses': 'OpenAI Responses', anthropic: 'Anthropic Messages', gemini: 'Gemini generateContent', 'openai-transcription': 'OpenAI Audio Transcriptions', 'openai-audio': 'OpenAI Chat Audio'}
 function changeKind(c: AIConnection) {
 	c.protocol = c.kind === 'chat' ? 'openai-chat' : 'openai-transcription'
+	if (c.kind !== 'chat') c.web_search_protocol = ''
 }
 function endpoint(c: AIConnection, models = false) {
 	const base = c.base_url.trim().replace(/\/+$/, '')
@@ -235,6 +260,67 @@ function savedMatches(c: AIConnection) {
 						:placeholder="initial.connections.some(c => c.id === connection.id && c.has_key) ? t('tcymc.text.saved_leave_blank_to_keep_the_current_key') : t('tcymc.text.enter_a_key_leave_blank_only_if_the')"
 					></label>
 				</div>
+				<details
+					v-if="connection.kind === 'chat'"
+					class="model-options"
+				>
+					<summary>{{ t('webSearch.title') }} · {{ connection.web_search_protocol ? t('webSearch.enabled') : t('webSearch.disabled') }}</summary>
+					<p>{{ t('webSearch.help') }}</p>
+					<div class="fields">
+						<label>{{ t('webSearch.protocol') }}<select
+							v-model="connection.web_search_protocol"
+							:aria-label="t('webSearch.protocol')"
+							class="input"
+						><option
+							v-for="(name, key) in searchProtocols"
+							:key="key"
+							:value="key"
+						>{{ key ? name : t('webSearch.disabled') }}</option></select></label>
+						<template v-if="connection.web_search_protocol">
+							<label>{{ t('webSearch.base') }}<input
+								v-model="connection.web_search_base_url"
+								:aria-label="t('webSearch.base')"
+								class="input"
+								type="url"
+								:placeholder="t('webSearch.inheritBase')"
+							><small>{{ t('webSearch.baseHelp') }}</small></label>
+							<label v-if="connection.web_search_protocol !== 'deepseek'">{{ t('webSearch.model') }}<input
+								v-model="connection.web_search_model"
+								:aria-label="t('webSearch.model')"
+								class="input"
+								:list="`models-${connection.id}`"
+								:placeholder="connection.model"
+							><small>{{ t('webSearch.modelHelp') }}</small></label>
+						</template>
+					</div>
+					<template v-if="connection.web_search_protocol">
+						<p>{{ t('webSearch.endpoint') }} <code>{{ searchEndpoint(connection) }}</code></p>
+						<p>{{ t('webSearch.testHelp') }}</p>
+						<XButton
+							type="button"
+							variant="secondary"
+							:disabled="searchTest.isPending.value"
+							@click="testSearch(connection)"
+						>
+							{{ searchTest.isPending.value ? t('webSearch.testing') : t('webSearch.test') }}
+						</XButton>
+						<template v-if="searchStamps[connection.id] === searchFingerprint(connection)">
+							<p
+								v-if="searchErrors[connection.id]"
+								role="alert"
+							>
+								{{ searchErrors[connection.id] }}
+							</p>
+							<WebSearchEvidence
+								v-if="searchResults[connection.id]"
+								:result="searchResults[connection.id]"
+							/>
+						</template>
+						<p v-else-if="searchStamps[connection.id]">
+							{{ t('webSearch.changed') }}
+						</p>
+					</template>
+				</details>
 				<details
 					v-if="connection.kind === 'chat'"
 					class="model-options"

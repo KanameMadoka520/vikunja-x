@@ -6,6 +6,7 @@ import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
+import WebSearchEvidence from './WebSearchEvidence.vue'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
@@ -28,7 +29,7 @@ const result = computed(() => props.turn.result)
 const now = useNow({interval: 250})
 const lastStep = computed(() => result.value?.steps?.at(-1))
 const activeTool = computed(() => result.value?.stage === 'model' ? lastStep.value?.tool_calls?.at(-1)?.function?.name : result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
-const liveUsage = computed(() => (result.value?.steps ?? []).reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
+const liveUsage = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
 function stepTime(step: ModelStep) {
 	const elapsed = running.value && step.round === lastStep.value?.round && result.value?.stage === 'model' && step.started ? Math.max(step.duration_ms ?? 0, now.value.getTime() - new Date(step.started).getTime()) : step.duration_ms
 	return seconds(elapsed)
@@ -36,6 +37,7 @@ function stepTime(step: ModelStep) {
 const answer = computed(() => result.value?.reply || result.value?.steps?.at(-1)?.text || '')
 const html = computed(() => sanitizeProjectDescription(marked.parse(answer.value, {async: false})))
 const labels = computed<Record<string, string>>(() => ({
+	web_search: t('webSearch.title'),
 	list_projects: t('tcymc.text.find_projects'),
 	list_tasks: t('tcymc.text.find_tasks'),
 	get_task: t('tcymc.text.read_task'),
@@ -165,7 +167,10 @@ async function copy() {
 						class="tool-step"
 					>
 						<summary><Icon :icon="action.success ? 'check' : 'exclamation-circle'" /> {{ labels[action.tool ?? ''] || action.tool }} · {{ action.success ? t('tcymc.text.succeeded') : t('tcymc.text.failed') }} · {{ seconds(action.duration_ms) }}</summary>
-						<strong>{{ t('chat.arguments') }}</strong><pre>{{ pretty(action.arguments) }}</pre><strong>{{ t('chat.actualResult') }}</strong><pre>{{ pretty(action.result) }}</pre>
+						<WebSearchEvidence
+							v-if="action.search"
+							:result="action.search"
+						/><strong>{{ t('chat.arguments') }}</strong><pre>{{ pretty(action.arguments) }}</pre><strong>{{ t('chat.actualResult') }}</strong><pre>{{ pretty(action.result) }}</pre>
 					</details>
 				</section>
 			</details>
@@ -239,6 +244,11 @@ async function copy() {
 					<span v-if="result?.usage?.cache_reported">{{ t('chat.cacheTokens') }}: {{ result.usage.cached }}</span><span v-if="result?.usage?.reasoning_reported">{{ t('chat.reasoningTokens') }}: {{ result.usage.reasoning }}</span>
 				</div><p>{{ t('chat.requestedModel') }}: {{ result.requested_model }} · {{ result.protocol }}</p><code>{{ result.endpoint }}</code><pre>{{ result.system_prompt }}</pre><p>{{ t('chat.metricNotes') }}</p>
 			</details>
+			<WebSearchEvidence
+				v-for="(action, index) in (result?.actions ?? []).filter(a => a.search)"
+				:key="`search-${index}`"
+				:result="action.search!"
+			/>
 			<div class="message-actions">
 				<BaseButton
 					class="message-action"

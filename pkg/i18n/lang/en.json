@@ -192,6 +192,15 @@
     },
     "tcymc": {
         "errors": {
+            "searchRequiredUnavailable": "Enable and configure web search for the selected model connection first.",
+            "searchConfig": "Invalid search protocol or connection type.",
+            "searchOrigin": "Search must use the same HTTPS origin as the chat connection because it shares the saved API key.",
+            "searchDisabled": "Web search is disabled in this connection.",
+            "searchQuery": "The search query must contain 1 to 128 characters.",
+            "searchResponse": "The provider did not return a valid search response. Check the search protocol and endpoint.",
+            "searchIncomplete": "The search response was incomplete or paused by the provider. Check the diagnostic output allowance and retry.",
+            "searchUnverified": "The API responded, but no native search evidence was returned. Model claims alone do not prove web access.",
+            "searchProviderError": "The provider reported a web search tool error. Verify that search is available for this account and model.",
             "e1": "%s must be a valid ID.",
             "e2": "Sign in with a user account to manage or use AI connections.",
             "e3": "Gemini inline audio must be smaller than 14 MiB. Please shorten the recording.",

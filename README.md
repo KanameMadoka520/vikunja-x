@@ -3,9 +3,17 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.18`
+- 版本：`v2.7.1-tcymc.19`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## 阶段清单与可选联网搜索（tcymc.19）
+
+任务描述支持“分组清单”视图：按标题折叠阶段，逐项勾选，显示阶段和整体完成数。通过“插入阶段模板”开始编写；完整描述、链接、笔记仍保存在原字段，不生成额外子任务，也不自动完成整个任务。大量清单默认折叠，桌面和手机均可切回完整描述编辑。
+
+模型连接中可手选 DeepSeek Search API、OpenAI Responses、OpenAI Chat 搜索、Anthropic Web Search 或 Gemini Google Search 适配器。搜索基础地址和模型可单独填写，同源复用密钥；测试使用当前表单，区分真实搜索证据与普通模型响应，展示端点、来源、耗时和用量。配置默认关闭，不推断模型支持列表。输入区支持“自动判断／本轮搜索／本轮不搜索”，分别对应模型决定、强制搜索尝试、移除搜索工具。下一次发送采用当前配置，运行中的任务保持启动配置。
+
+搜索只发送检索词，不携带完整会话或项目记录。搜索作为只读工具执行，网页内容不具备指令或写入权限；原生来源和诊断信息保留在工具记录中。DeepSeek 的原始搜索 API 为 JSON；其他适配器遵循连接的流式设置。详见 [联网搜索协议与使用说明](docs/arona-web-search.md)。
 
 ## 阿罗娜：多模态会话与导出
 

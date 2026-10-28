@@ -54,10 +54,11 @@ type aiSettingsResponse struct {
 }
 type aiTextResponse struct {
 	Body struct {
-		Endpoint string `json:"endpoint" doc:"Actual upstream request URL, without credentials."`
-		Text     string `json:"text" doc:"Processed text."`
-		Original string `json:"original" doc:"Original transcription, before optional cleanup."`
-		Warning  string `json:"warning" doc:"Non-fatal cleanup failure, if any."`
+		Search   *tcyai.WebSearchResult `json:"search,omitempty" doc:"Native search evidence and telemetry for a search test."`
+		Endpoint string                 `json:"endpoint" doc:"Actual upstream request URL, without credentials."`
+		Text     string                 `json:"text" doc:"Processed text."`
+		Original string                 `json:"original" doc:"Original transcription, before optional cleanup."`
+		Warning  string                 `json:"warning" doc:"Non-fatal cleanup failure, if any."`
 	}
 }
 
@@ -135,43 +136,8 @@ func RegisterTCYAIRoutes(api huma.API) {
 		return &singleBody[tcyai.ModelList]{Body: &models}, nil
 	})
 
-	Register(api, op("tcy-ai-test", "POST", "/ai/test", "测试已保存模型的文字响应或语音转写能力"), func(ctx context.Context, in *struct {
-		Body struct {
-			ConnectionID string `json:"connection_id"`
-			Audio        string `json:"audio"`
-			Filename     string `json:"filename"`
-		}
-	}) (*aiTextResponse, error) {
-		uid, err := aiUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-		s, err := tcyai.Load(uid)
-		if err != nil {
-			return nil, aiError(ctx, err)
-		}
-		for _, c := range s.Connections {
-			if c.ID == in.Body.ConnectionID {
-				out := &aiTextResponse{}
-				out.Body.Endpoint = tcyai.Endpoint(c)
-				if c.Kind == "chat" {
-					out.Body.Endpoint = tcyai.AgentEndpoint(c)
-					out.Body.Text, out.Body.Warning, err = tcyai.TestConnection(ctx, c)
-				} else {
-					data, e := decodeAIAudio(in.Body.Audio)
-					if e != nil {
-						return nil, aiError(ctx, e)
-					}
-					out.Body.Text, err = tcyai.Transcribe(ctx, c, in.Body.Filename, data)
-				}
-				if err != nil {
-					return nil, aiError(ctx, err)
-				}
-				return out, nil
-			}
-		}
-		return nil, huma.Error404NotFound(tcylocale.Render(ctx, tcylocale.Error("e43")))
-	})
+	registerAIConnectionTest(api, op)
+
 	Register(api, op("tcy-ai-transcribe", "POST", "/ai/transcribe", "识别上传音频，可选使用独立模型整理文字"), func(ctx context.Context, in *struct {
 		Body struct {
 			Audio    string `json:"audio"`
@@ -568,5 +534,73 @@ func registerAIPreferences(api huma.API, op func(string, string, string, string)
 			return nil, aiError(ctx, err)
 		}
 		return &aiPreferencesResponse{CacheControl: "no-store", Body: p}, nil
+	})
+}
+
+func testAISearch(ctx context.Context, c tcyai.Connection) (*aiTextResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
+	result, err := tcyai.SearchWeb(ctx, c, "Vikunja official documentation")
+	if err != nil {
+		return nil, aiError(ctx, err)
+	}
+	out := &aiTextResponse{}
+	out.Body.Endpoint = result.Endpoint
+	out.Body.Search = &result
+	if !result.Verified {
+		out.Body.Warning = tcylocale.Render(ctx, tcylocale.Error("searchUnverified"))
+	}
+	return out, nil
+}
+
+func registerAIConnectionTest(api huma.API, op func(string, string, string, string) huma.Operation) {
+	Register(api, op("tcy-ai-test", "POST", "/ai/test", "测试已保存模型的文字响应或语音转写能力"), func(ctx context.Context, in *struct {
+		Body struct {
+			ConnectionID string            `json:"connection_id"`
+			WebSearch    bool              `json:"web_search,omitempty" doc:"Test actual web search, not chat or write tools."`
+			Connection   *tcyai.Connection `json:"connection,omitempty" doc:"Optional unsaved connection for search tests; saved secrets only reused on the same origin."`
+			Audio        string            `json:"audio"`
+			Filename     string            `json:"filename"`
+		}
+	}) (*aiTextResponse, error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if in.Body.WebSearch && in.Body.Connection != nil {
+			c, resolveErr := tcyai.ResolveConnection(uid, *in.Body.Connection)
+			if resolveErr != nil {
+				return nil, aiError(ctx, resolveErr)
+			}
+			return testAISearch(ctx, c)
+		}
+		s, err := tcyai.Load(uid)
+		if err != nil {
+			return nil, aiError(ctx, err)
+		}
+		for _, c := range s.Connections {
+			if c.ID == in.Body.ConnectionID {
+				if in.Body.WebSearch {
+					return testAISearch(ctx, c)
+				}
+				out := &aiTextResponse{}
+				out.Body.Endpoint = tcyai.Endpoint(c)
+				if c.Kind == "chat" {
+					out.Body.Endpoint = tcyai.AgentEndpoint(c)
+					out.Body.Text, out.Body.Warning, err = tcyai.TestConnection(ctx, c)
+				} else {
+					data, e := decodeAIAudio(in.Body.Audio)
+					if e != nil {
+						return nil, aiError(ctx, e)
+					}
+					out.Body.Text, err = tcyai.Transcribe(ctx, c, in.Body.Filename, data)
+				}
+				if err != nil {
+					return nil, aiError(ctx, err)
+				}
+				return out, nil
+			}
+		}
+		return nil, huma.Error404NotFound(tcylocale.Render(ctx, tcylocale.Error("e43")))
 	})
 }

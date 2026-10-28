@@ -5,7 +5,7 @@ for (const width of [1440, 390]) {
  test(`Arona attachments persist and export a real PDF at ${width}px`, async ({authenticatedPage: page, apiContext, userToken}, testInfo) => {
   test.setTimeout(120_000)
   await page.setViewportSize({width, height: 900})
-  await page.route('**/api/v2/ai/settings', route => route.fulfill({json: {persona: 'arona', connections: [{id: 'vision', name: 'Vision fixture', kind: 'chat', protocol: 'openai-chat', base_url: 'https://fixture.example/v1', model: 'vision', input_types: ['text', 'image'], resolved: {input_types: ['text', 'image']}}], assistant: 'vision', transcription: '', cleanup: ''}}))
+  await page.route('**/api/v2/ai/settings', route => route.fulfill({json: {persona: 'arona', connections: [{id: 'vision', name: 'Vision fixture', kind: 'chat', protocol: 'openai-chat', base_url: 'https://fixture.example/v1', model: 'vision', web_search_protocol: 'deepseek', input_types: ['text', 'image'], resolved: {input_types: ['text', 'image']}}], assistant: 'vision', transcription: '', cleanup: ''}}))
   const headers = {Authorization: `Bearer ${userToken}`}
   const created = await apiContext.post('/api/v2/ai/conversations', {headers, data: {title: '阿罗娜图片会话'}})
   expect(created.ok()).toBe(true)
@@ -36,9 +36,11 @@ for (const width of [1440, 390]) {
    await route.fulfill({json: snapshot})
   })
   await page.route(`**/api/v2/ai/conversations/${c.id}/events`, route => route.abort())
+  await page.getByLabel('Web search for the next message').selectOption(width === 1440 ? 'required' : 'off')
   await page.getByLabel('Your request').fill('查看这张图片')
   await page.getByRole('button', {name: 'Send request', exact: true}).click()
   await expect.poll(() => sent?.attachment_ids?.length).toBe(1)
+  expect(sent.search_mode).toBe(width === 1440 ? 'required' : 'off')
   await expect(page.locator('.message-attachments .image-button img')).toBeVisible()
   await page.getByRole('button', {name: 'Export conversation', exact: true}).click()
   const dialog = page.getByRole('dialog', {name: 'Export conversation', exact: true})

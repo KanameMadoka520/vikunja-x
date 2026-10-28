@@ -1,4 +1,5 @@
 export interface AssistantOptions {
+ search_mode?: 'auto' | 'off' | 'required'
 	connection_id: string
 	project_id: number
 	mode: 'read' | 'write'
@@ -12,7 +13,7 @@ export interface AssistantOptions {
 }
 export const builtinProfileIDs = ['ask', 'plan', 'assist', 'batch'] as const
 export function profileOptions(id = 'ask'): AssistantOptions {
-	const options: AssistantOptions = {connection_id: '', project_id: 0, mode: 'read', allow_delete: false, approval: 'smart', write_project_ids: [], max_rounds: 8, max_operations: 20, timeout_seconds: 120, token_budget: 0}
+	const options: AssistantOptions = {search_mode: 'auto', connection_id: '', project_id: 0, mode: 'read', allow_delete: false, approval: 'smart', write_project_ids: [], max_rounds: 8, max_operations: 20, timeout_seconds: 120, token_budget: 0}
 	if (id !== 'ask') Object.assign(options, {mode: 'write', max_rounds: 16, max_operations: 40, timeout_seconds: 180})
 	if (id === 'plan') Object.assign(options, {approval: 'review', max_rounds: 12, max_operations: 30})
 	if (id === 'batch') Object.assign(options, {approval: 'review', max_rounds: 24, max_operations: 80, timeout_seconds: 300})

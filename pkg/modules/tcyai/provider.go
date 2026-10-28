@@ -158,6 +158,9 @@ func openAIChat(ctx context.Context, c Connection, input map[string]any, tools [
 	if len(tools) > 0 {
 		input["tools"] = tools
 		input["tool_choice"] = "auto"
+		if c.RequiredTool != "" {
+			input["tool_choice"] = map[string]any{"type": "function", "function": map[string]any{"name": c.RequiredTool}}
+		}
 	}
 	if !c.NonStreaming {
 		input["stream"] = true
@@ -243,6 +246,21 @@ func Endpoint(c Connection) string {
 	return strings.TrimRight(c.BaseURL, "/") + suffix
 }
 func requestJSON(ctx context.Context, c Connection, input any, target any) error {
+	if c.RequiredTool != "" {
+		if body, ok := input.(map[string]any); ok {
+			switch c.EffectiveProtocol() {
+			case "openai-responses":
+				body["tool_choice"] = map[string]any{"type": "function", "name": c.RequiredTool}
+			case "anthropic":
+				body["tool_choice"] = map[string]any{"type": "tool", "name": c.RequiredTool}
+			case "gemini":
+				body["toolConfig"] = map[string]any{"functionCallingConfig": map[string]any{"mode": "ANY", "allowedFunctionNames": []string{c.RequiredTool}}}
+			default:
+				body["tool_choice"] = map[string]any{"type": "function", "function": map[string]any{"name": c.RequiredTool}}
+			}
+		}
+	}
+
 	if !c.NonStreaming {
 		if body, ok := input.(map[string]any); ok && c.EffectiveProtocol() != "gemini" {
 			body["stream"] = true

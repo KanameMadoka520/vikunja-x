@@ -37,6 +37,7 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 	tools := map[int]map[string]any{}
 	arguments := map[int]string{}
 	text, reasoning := "", ""
+	annotations := []any{}
 	event, data := "", ""
 	terminal := false
 	emit := func() error {
@@ -85,6 +86,8 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 					v := textValue(delta, "text")
 					block["text"] = textValue(block, "text") + v
 					o.delta(v, "")
+				case "citations_delta":
+					block["citations"] = append(list(block, "citations"), delta["citation"])
 				case "thinking_delta":
 					v := textValue(delta, "thinking")
 					block["thinking"] = textValue(block, "thinking") + v
@@ -154,6 +157,9 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 			candidates := list(frame, "candidates")
 			if len(candidates) > 0 {
 				candidate := asObject(candidates[0])
+				if metadata := object(candidate, "groundingMetadata"); metadata != nil {
+					response["groundingMetadata"] = metadata
+				}
 				for _, part := range list(object(candidate, "content"), "parts") {
 					block := asObject(part)
 					blocks = append(blocks, block)
@@ -181,6 +187,7 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 					continue
 				}
 				delta := object(choice, "delta")
+				annotations = append(annotations, list(delta, "annotations")...)
 				t, r := textValue(delta, "content"), textValue(delta, "reasoning_content")
 				if r == "" {
 					r = textValue(delta, "reasoning")
@@ -303,7 +310,7 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 	case "anthropic":
 		response["content"] = blocks
 	case "gemini":
-		response["candidates"] = []any{map[string]any{"content": map[string]any{"parts": blocks}, "finishReason": response["finishReason"]}}
+		response["candidates"] = []any{map[string]any{"content": map[string]any{"parts": blocks}, "finishReason": response["finishReason"], "groundingMetadata": response["groundingMetadata"]}}
 	case "openai-responses":
 	default:
 		calls := []any{}
@@ -317,7 +324,7 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 				calls = append(calls, tool)
 			}
 		}
-		response["choices"] = []any{map[string]any{"finish_reason": response["finish_reason"], "message": map[string]any{"role": "assistant", "content": text, "reasoning_content": reasoning, "tool_calls": calls}}}
+		response["choices"] = []any{map[string]any{"finish_reason": response["finish_reason"], "message": map[string]any{"role": "assistant", "content": text, "annotations": annotations, "reasoning_content": reasoning, "tool_calls": calls}}}
 	}
 	return json.Marshal(response)
 }

@@ -32,6 +32,7 @@ type Turn struct {
 	Content string `json:"content" maxLength:"12000" doc:"Plain conversation text."`
 }
 type RunInput struct {
+	SearchMode        string           `json:"search_mode,omitempty" enum:"auto,off,required" doc:"Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering."`
 	Persona           string           `json:"-"`
 	AttachmentIDs     []string         `json:"attachment_ids,omitempty" maxItems:"16" doc:"IDs of files already uploaded to this conversation. Images require an image-capable model."`
 	ServerAttachments []ChatAttachment `json:"-"`
@@ -54,6 +55,8 @@ type RunInput struct {
 	RequestID         string           `json:"request_id" minLength:"8" maxLength:"80" doc:"Unique request key; reuse only when retrying the exact same request."`
 }
 type Action struct {
+	Search *WebSearchResult `json:"search,omitempty" doc:"Structured web search evidence and provider telemetry, when this action searched the web."`
+
 	Round      int    `json:"round" doc:"Model round that requested this operation."`
 	Tool       string `json:"tool" doc:"Invoked tool name."`
 	Arguments  string `json:"arguments" doc:"Validated operation arguments as JSON."`
