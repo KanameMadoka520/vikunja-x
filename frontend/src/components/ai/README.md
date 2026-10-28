@@ -7,4 +7,4 @@ This folder groups the assistant's message, review, preferences, diagnostics, at
 - `export/pdf.ts`: local, selectable-text PDF; only authenticated attachment images are embedded.
 - `export/files.ts`: file-size formatting and Blob download lifecycle.
 
-See [the module integration guide](../../../../../docs/arona-integration.md) for backend entry points, host adapters, storage accounting and migration boundaries. This is an application module, not yet an independent SDK.
+See [the module integration guide](../../../../docs/arona-integration.md) for backend entry points, host adapters, storage accounting and migration boundaries. This is an application module, not yet an independent SDK.
