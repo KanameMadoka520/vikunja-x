@@ -105,7 +105,7 @@ func aiTaskSnapshot(raw []byte) (map[string]any, error) {
 		return nil, err
 	}
 	out := map[string]any{}
-	for _, k := range []string{"id", "project_id", "title", "description", "due_date", "start_date", "end_date", "priority", "done", "updated"} {
+	for _, k := range []string{"id", "project_id", "title", "description", "due_date", "start_date", "end_date", "priority", "done", "hex_color", "percent_done", "is_favorite", "repeat_after", "repeat_mode", "cover_image_attachment_id", "updated"} {
 		out[k] = task[k]
 	}
 	// Reminder row IDs may change when a reminder list is replaced; compare its actual trigger times.
@@ -129,6 +129,28 @@ func (e *aiExecution) prepare(ctx context.Context, name string, raw json.RawMess
 	op := tcyai.Operation{Units: 1, ProjectIDs: []int64{}, After: string(raw)}
 	if !tcyai.IsWriteTool(name) {
 		return op, nil
+	}
+	if name == "update_project" {
+		var a struct {
+			ID int64 `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return op, err
+		}
+		if err := e.scope(a.ID); err != nil {
+			return op, err
+		}
+		data, err := e.read(ctx, "get_project", map[string]any{"id": a.ID})
+		if err != nil {
+			return op, err
+		}
+		project, err := aiProjectSnapshot([]byte(data))
+		if err != nil {
+			return op, err
+		}
+		op.ProjectIDs = []int64{a.ID}
+		op.Before, op.Version, err = aiSnapshotVersion([]map[string]any{project})
+		return op, err
 	}
 	if name == "create_project" || name == "create_label" {
 		if len(e.input.WriteProjectIDs) > 0 {
@@ -172,6 +194,21 @@ func (e *aiExecution) prepare(ctx context.Context, name string, raw json.RawMess
 		pid := int64(task["project_id"].(float64))
 		if err = e.scope(pid); err != nil {
 			return op, err
+		}
+		if destination, ok := change.Changes["project_id"]; ok {
+			var target int64
+			if err = json.Unmarshal(destination, &target); err != nil {
+				return op, err
+			}
+			if err = e.scope(target); err != nil {
+				return op, err
+			}
+			if _, err = e.read(ctx, "get_project", map[string]any{"id": target}); err != nil {
+				return op, err
+			}
+			if !slices.Contains(op.ProjectIDs, target) {
+				op.ProjectIDs = append(op.ProjectIDs, target)
+			}
 		}
 		before = append(before, task)
 		if !slices.Contains(op.ProjectIDs, pid) {
@@ -218,6 +255,9 @@ func (e *aiExecution) execute(ctx context.Context, name string, raw json.RawMess
 	op := tcyai.CurrentOperation(ctx)
 	if op != nil && op.Version != "" && preview.Version != op.Version {
 		return "", tcyai.ToolFailure("STATE_CONFLICT", "The task changed after preparation. Read the current task and prepare a fresh operation.")
+	}
+	if name == "update_project" {
+		return e.mutateProject(ctx, raw, preview)
 	}
 	if name == "update_task" || name == "bulk_update_tasks" || name == "delete_task" {
 		return e.mutateTasks(ctx, name, raw, preview)
@@ -351,4 +391,85 @@ func (e *aiExecution) lockTasks(ctx context.Context, s *xorm.Session, changes []
 		return nil, tcyai.ToolFailure("STATE_CONFLICT", "The task changed before the transaction obtained its lock. Read the current state before retrying.")
 	}
 	return tasks, nil
+}
+
+func aiProjectSnapshot(raw []byte) (map[string]any, error) {
+	var project map[string]any
+	if err := json.Unmarshal(raw, &project); err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	for _, key := range []string{"id", "title", "description", "hex_color", "is_favorite", "identifier", "parent_project_id", "is_archived", "updated"} {
+		out[key] = project[key]
+	}
+	return out, nil
+}
+
+// Lock, merge and recheck business permissions in one transaction, preserving unrelated fields.
+func (e *aiExecution) mutateProject(ctx context.Context, raw json.RawMessage, preview tcyai.Operation) (string, error) {
+	var args struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return "", err
+	}
+	s := db.NewSession()
+	defer s.Close()
+	db.SetSessionContext(ctx, s)
+	locking := s
+	if kind := db.Type(); kind == schemas.MYSQL || kind == schemas.POSTGRES {
+		locking = s.ForUpdate()
+	}
+	project := &models.Project{ID: args.ID}
+	exists, err := locking.ID(args.ID).Get(project)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", tcyai.ToolFailure("NOT_FOUND", "Project no longer exists.")
+	}
+	if err = project.ReadOne(s, e.auth); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(project)
+	if err != nil {
+		return "", err
+	}
+	snapshot, err := aiProjectSnapshot(data)
+	if err != nil {
+		return "", err
+	}
+	_, version, err := aiSnapshotVersion([]map[string]any{snapshot})
+	if err != nil {
+		return "", err
+	}
+	if version != preview.Version {
+		return "", tcyai.ToolFailure("STATE_CONFLICT", "Project changed; read it and prepare a fresh operation.")
+	}
+	if err = json.Unmarshal(raw, project); err != nil {
+		return "", err
+	}
+	can, err := project.CanUpdate(s, e.auth)
+	if err != nil {
+		return "", err
+	}
+	if !can {
+		return "", tcyai.ToolFailure("FORBIDDEN", "Current project permissions deny this change.")
+	}
+	if err = project.Update(s, e.auth); err != nil {
+		return "", err
+	}
+	if err = project.ReadOne(s, e.auth); err != nil {
+		return "", err
+	}
+	if err = ctx.Err(); err != nil {
+		return "", err
+	}
+	if err = s.Commit(); err != nil {
+		return "", &tcyai.ToolError{Code: "WRITE_UNCERTAIN", Message: "Database commit failed; inspect project before retrying.", Uncertain: true}
+	}
+	if op := tcyai.CurrentOperation(ctx); op != nil {
+		op.Verified = true
+	}
+	return marshalAI(project)
 }

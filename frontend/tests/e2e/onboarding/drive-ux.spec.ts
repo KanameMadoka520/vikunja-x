@@ -57,6 +57,12 @@ for (const width of [1440, 360]) {
 		await page.locator('.drive-card').getByRole('button', {name: 'Details and usages', exact: true}).click()
 		const panel = page.locator('.drive-details')
 		await expect(panel).toBeVisible()
+        const iconOffset = await panel.getByRole('button', {name: 'Close dialog'}).evaluate(button => {
+         const b = button.getBoundingClientRect(), icon = button.querySelector('svg')!.getBoundingClientRect()
+         return {x: Math.abs(icon.x + icon.width / 2 - b.x - b.width / 2), y: Math.abs(icon.y + icon.height / 2 - b.y - b.height / 2)}
+        })
+        expect(iconOffset.x).toBeLessThan(.75)
+        expect(iconOffset.y).toBeLessThan(.75)
 		await expect(page.getByRole('dialog', {name: 'Details and usages'})).toHaveCSS('opacity', '1')
 		await page.screenshot({path: testInfo.outputPath('drive-details.png')})
 		expect(await panel.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')

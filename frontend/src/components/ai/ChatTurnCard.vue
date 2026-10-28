@@ -6,6 +6,7 @@ import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
+import OutputSpeed from './OutputSpeed.vue'
 import WebSearchEvidence from './WebSearchEvidence.vue'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
@@ -223,6 +224,11 @@ async function copy() {
 			>
 				{{ t('chat.stopped') }}
 			</p>
+
+			<OutputSpeed
+				v-if="turn.status === 'completed'"
+				:step="lastStep"
+			/>
 
 			<details
 				v-if="result?.system_prompt"

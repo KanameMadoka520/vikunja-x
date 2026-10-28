@@ -198,6 +198,34 @@ export type AiTextResponseBody = {
     warning?: string;
 };
 
+export type ApplicationSnapshot = {
+    /**
+     * Effective application CPU capacity after quota and cpuset; null if unavailable.
+     */
+    cpu_cores?: number | null;
+    /**
+     * Application cgroup CPU delta. 100 percent means one fully used logical CPU; may exceed 100. Null until two samples exist.
+     */
+    cpu_percent?: number | null;
+    /**
+     * Null when trustworthy per-application GPU telemetry is unavailable; never fabricated as zero.
+     */
+    gpu_percent?: number | null;
+    /**
+     * No compute device assigned, or telemetry unsupported. Remote model-provider GPUs are not local application usage.
+     */
+    gpu_status?: 'not_assigned' | 'unavailable';
+    /**
+     * Configured cgroup memory limit, null if unlimited or unavailable.
+     */
+    memory_limit?: number | null;
+    /**
+     * Application cgroup RAM including charged page cache, bytes.
+     */
+    memory_used?: number | null;
+    storage?: StorageSnapshot;
+};
+
 export type AssistantOptions = {
     /**
      * Enable task deletion; destructive actions still require review.
@@ -3163,6 +3191,10 @@ export type Snapshot = {
      */
     readonly $schema?: string;
     /**
+     * Vikunja application container and persistent data metrics, separate from host totals.
+     */
+    application?: ApplicationSnapshot;
+    /**
      * Host logical CPU count from host proc/stat, unaffected by container quotas.
      */
     cpu_cores?: number;
@@ -3215,7 +3247,7 @@ export type Snapshot = {
      */
     memory_used?: number | null;
     /**
-     * UTC sample time. Samples are shared and cached for 15 seconds.
+     * UTC sample time. Samples are shared and cached for 5 seconds.
      */
     sampled?: string;
     /**
@@ -3290,6 +3322,25 @@ export type Status = {
      * When the last migration started. Zero value if the user never migrated from this service.
      */
     readonly started_at?: string;
+};
+
+export type StorageSnapshot = {
+    /**
+     * PostgreSQL current database relation size, including indexes. Excludes WAL, image layers, backups and other databases.
+     */
+    database_bytes?: number | null;
+    /**
+     * Regular-file sizes under application data directory, including uploads and conversations. Symlinks excluded.
+     */
+    files_bytes?: number | null;
+    /**
+     * A bounded asynchronous storage measurement is in progress.
+     */
+    refreshing?: boolean;
+    /**
+     * Last completed storage measurement, refreshed at most once per minute.
+     */
+    sampled?: string | null;
 };
 
 export type Subscription = {
@@ -6448,6 +6499,10 @@ export type SettingsAccessBodyBodyWritable = {
 
 export type SnapshotWritable = {
     /**
+     * Vikunja application container and persistent data metrics, separate from host totals.
+     */
+    application?: ApplicationSnapshot;
+    /**
      * Host logical CPU count from host proc/stat, unaffected by container quotas.
      */
     cpu_cores?: number;
@@ -6500,7 +6555,7 @@ export type SnapshotWritable = {
      */
     memory_used?: number | null;
     /**
-     * UTC sample time. Samples are shared and cached for 15 seconds.
+     * UTC sample time. Samples are shared and cached for 5 seconds.
      */
     sampled?: string;
     /**

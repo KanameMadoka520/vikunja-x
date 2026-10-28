@@ -26,24 +26,25 @@ import (
 )
 
 type Snapshot struct {
-	Scope                string    `json:"scope" enum:"host" doc:"CPU and memory describe the entire host, never the application cgroup."`
-	HostMetricsAvailable bool      `json:"host_metrics_available" doc:"True when explicit read-only host proc files are readable and valid. No silent fallback to container counters."`
-	Version              string    `json:"version" doc:"Running API build version."`
-	Started              time.Time `json:"started" doc:"Application process start, UTC; resets on restart."`
-	UptimeSeconds        int64     `json:"uptime_seconds" doc:"Continuous application process runtime in seconds."`
-	HostUptimeSeconds    *int64    `json:"host_uptime_seconds" doc:"Host time since boot in seconds, independent of application restarts."`
-	Sampled              time.Time `json:"sampled" doc:"UTC sample time. Samples are shared and cached for 15 seconds."`
-	Healthy              bool      `json:"healthy" doc:"Application database and configured Redis are reachable; not a host resource pressure assessment."`
-	CPUPercent           *float64  `json:"cpu_percent" doc:"Host non-idle CPU time excluding I/O wait, across all cores, percent. Null until two valid samples exist."`
-	CPUIOWaitPercent     *float64  `json:"cpu_io_wait_percent" doc:"Host CPU I/O wait delta as a percentage of total CPU time."`
-	CPUStealPercent      *float64  `json:"cpu_steal_percent" doc:"Host CPU steal time delta as a percentage of total CPU time."`
-	CPUCores             float64   `json:"cpu_cores" doc:"Host logical CPU count from host proc/stat, unaffected by container quotas."`
-	LoadAverage          []float64 `json:"load_average" doc:"Host 1, 5 and 15 minute load averages, in that order; empty when unavailable. Not percentages."`
-	MemoryUsed           *uint64   `json:"memory_used" doc:"Host MemTotal minus MemAvailable in bytes; includes all host applications."`
-	MemoryAvailable      *uint64   `json:"memory_available" doc:"Host kernel estimate of available RAM in bytes, including reclaimable caches."`
-	MemoryTotal          *uint64   `json:"memory_total" doc:"Total host RAM in bytes, independent of container limits."`
-	DiskUsed             *uint64   `json:"disk_used" doc:"Used bytes on the host filesystem containing uploaded data, including other applications."`
-	DiskTotal            *uint64   `json:"disk_total" doc:"Data-filesystem capacity: used plus available bytes, matching df usage accounting; not a sum of all mounted filesystems."`
+	Application          ApplicationSnapshot `json:"application" doc:"Vikunja application container and persistent data metrics, separate from host totals."`
+	Scope                string              `json:"scope" enum:"host" doc:"CPU and memory describe the entire host, never the application cgroup."`
+	HostMetricsAvailable bool                `json:"host_metrics_available" doc:"True when explicit read-only host proc files are readable and valid. No silent fallback to container counters."`
+	Version              string              `json:"version" doc:"Running API build version."`
+	Started              time.Time           `json:"started" doc:"Application process start, UTC; resets on restart."`
+	UptimeSeconds        int64               `json:"uptime_seconds" doc:"Continuous application process runtime in seconds."`
+	HostUptimeSeconds    *int64              `json:"host_uptime_seconds" doc:"Host time since boot in seconds, independent of application restarts."`
+	Sampled              time.Time           `json:"sampled" doc:"UTC sample time. Samples are shared and cached for 5 seconds."`
+	Healthy              bool                `json:"healthy" doc:"Application database and configured Redis are reachable; not a host resource pressure assessment."`
+	CPUPercent           *float64            `json:"cpu_percent" doc:"Host non-idle CPU time excluding I/O wait, across all cores, percent. Null until two valid samples exist."`
+	CPUIOWaitPercent     *float64            `json:"cpu_io_wait_percent" doc:"Host CPU I/O wait delta as a percentage of total CPU time."`
+	CPUStealPercent      *float64            `json:"cpu_steal_percent" doc:"Host CPU steal time delta as a percentage of total CPU time."`
+	CPUCores             float64             `json:"cpu_cores" doc:"Host logical CPU count from host proc/stat, unaffected by container quotas."`
+	LoadAverage          []float64           `json:"load_average" doc:"Host 1, 5 and 15 minute load averages, in that order; empty when unavailable. Not percentages."`
+	MemoryUsed           *uint64             `json:"memory_used" doc:"Host MemTotal minus MemAvailable in bytes; includes all host applications."`
+	MemoryAvailable      *uint64             `json:"memory_available" doc:"Host kernel estimate of available RAM in bytes, including reclaimable caches."`
+	MemoryTotal          *uint64             `json:"memory_total" doc:"Total host RAM in bytes, independent of container limits."`
+	DiskUsed             *uint64             `json:"disk_used" doc:"Used bytes on the host filesystem containing uploaded data, including other applications."`
+	DiskTotal            *uint64             `json:"disk_total" doc:"Data-filesystem capacity: used plus available bytes, matching df usage accounting; not a sum of all mounted filesystems."`
 }
 
 type cpuCounters struct {
@@ -71,21 +72,24 @@ func cpuUsage(before, after cpuCounters) (busy, wait, steal *float64) {
 var started = time.Now().UTC()
 var cache struct {
 	sync.Mutex
-	snapshot Snapshot
-	previous cpuCounters
+	snapshot    Snapshot
+	previous    cpuCounters
+	application applicationCounters
 }
 
-// Read performs no directory scans, external commands or background polling.
+// Read shares lightweight counters. Persistent-data scans run asynchronously at most once per minute.
 //
 //nolint:contextcheck // Existing health.Check owns its database/Redis contexts.
 func Read() Snapshot {
 	cache.Lock()
 	defer cache.Unlock()
 	now := time.Now().UTC()
-	if !cache.snapshot.Sampled.IsZero() && now.Sub(cache.snapshot.Sampled) < 15*time.Second {
+	if !cache.snapshot.Sampled.IsZero() && now.Sub(cache.snapshot.Sampled) < 5*time.Second {
 		return cache.snapshot
 	}
 	sample, cpu := measure(config.FilesBasePath.GetString())
+	sample.Application, cache.application = measureApplication(cache.application, now)
+	sample.Application.Storage = readStorage(config.FilesBasePath.GetString())
 	sample.Scope = "host"
 	sample.Version = version.Version
 	sample.Started = started

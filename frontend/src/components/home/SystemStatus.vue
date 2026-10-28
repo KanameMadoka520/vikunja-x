@@ -10,6 +10,8 @@ const base = useBaseStore()
 const visibility = useDocumentVisibility()
 const query = useQuery(computed(() => systemStatusQuery(base.menuActive && visibility.value === 'visible')))
 const data = computed(() => query.data.value)
+const app = computed(() => data.value?.application)
+const appDisk = computed(() => app.value?.storage?.files_bytes != null && app.value?.storage?.database_bytes != null ? app.value.storage.files_bytes + app.value.storage.database_bytes : null)
 const state = computed(() => query.isError.value ? 'offline' : !data.value ? 'loading' : !data.value.host_metrics_available ? 'unconfigured' : data.value.healthy ? 'healthy' : 'degraded')
 function bytes(n?: number | null) {
 	if (n == null) return '—'
@@ -38,6 +40,7 @@ function duration(seconds?: number | null) {
 			<strong>{{ t('systemStatus.title') }}</strong><span :class="state">{{ t(`systemStatus.${state}`) }}</span>
 		</div>
 		<template v-if="data">
+			<strong class="resource-group">{{ t('systemStatus.host') }}</strong>
 			<div
 				v-for="row in rows"
 				:key="row.key"
@@ -58,6 +61,30 @@ function duration(seconds?: number | null) {
 			<div class="runtime">
 				<span>{{ t('systemStatus.hostUptime', {duration: duration(data.host_uptime_seconds)}) }}</span>
 			</div>
+			<div
+				v-if="app"
+				class="application-resources"
+			>
+				<strong class="resource-group">{{ t('systemStatus.application') }}</strong>
+				<div class="resource-row">
+					<span>{{ t('systemStatus.appCPU') }}</span><strong class="resource-value">{{ app.cpu_percent == null ? '—' : `${app.cpu_percent.toFixed(1)}%` }}</strong><small>{{ app.cpu_cores ? t('systemStatus.cores', {n: app.cpu_cores}) : '—' }} · {{ t('systemStatus.appCPUScale') }}</small>
+				</div>
+				<div class="app-data-row">
+					<span>{{ t('systemStatus.gpu') }}</span><strong>{{ t(app.gpu_status === 'not_assigned' ? 'systemStatus.gpuNone' : 'systemStatus.gpuUnavailable') }}</strong>
+				</div>
+				<div class="app-data-row">
+					<span>{{ t('systemStatus.appMemory') }}</span><strong>{{ bytes(app.memory_used) }}</strong>
+				</div>
+				<div class="app-data-row">
+					<span>{{ t('systemStatus.appFiles') }}</span><strong>{{ bytes(app.storage?.files_bytes) }}</strong>
+				</div>
+				<div class="app-data-row">
+					<span>{{ t('systemStatus.appDatabase') }}</span><strong>{{ bytes(app.storage?.database_bytes) }}</strong>
+				</div>
+				<div class="app-data-row">
+					<span>{{ t('systemStatus.appDisk') }}</span><strong>{{ bytes(appDisk) }}</strong>
+				</div>
+			</div>
 			<div class="runtime">
 				<span>{{ t('systemStatus.uptime', {duration: duration(data.uptime_seconds)}) }}</span><a
 					:href="`https://github.com/KanameMadoka520/vikunja-x/releases/tag/${data.version}`"
@@ -67,7 +94,9 @@ function duration(seconds?: number | null) {
 			</div>
 			<details>
 				<summary>{{ t('systemStatus.measurement') }}</summary>
-				<p>{{ t('systemStatus.hostSource') }}</p><p>{{ t('systemStatus.cpuHelp') }}</p>
+				<p>{{ t('systemStatus.hostSource') }}</p><p>{{ t('systemStatus.appCPUHelp') }}</p><p>{{ t('systemStatus.appStorageHelp') }}</p><p v-if="app?.gpu_status === 'not_assigned'">
+					{{ t('systemStatus.appGPUHelp') }}
+				</p><p>{{ t('systemStatus.storageSampled') }} {{ app?.storage?.sampled ? new Date(app.storage.sampled).toLocaleString() : '—' }}</p><p>{{ t('systemStatus.cpuHelp') }}</p>
 				<p>{{ t('systemStatus.ioWait') }} {{ data.cpu_io_wait_percent == null ? '—' : `${data.cpu_io_wait_percent.toFixed(1)}%` }} · {{ t('systemStatus.steal') }} {{ data.cpu_steal_percent == null ? '—' : `${data.cpu_steal_percent.toFixed(1)}%` }}</p>
 				<p>{{ t('systemStatus.memoryHelp') }}</p><p>{{ t('systemStatus.loadHelp') }}</p><p>{{ t('systemStatus.diskHelp') }}</p><p>{{ t('systemStatus.refreshHelp') }}</p><p>{{ t('systemStatus.sampled') }} {{ data.sampled ? new Date(data.sampled).toLocaleString() : '—' }}</p>
 			</details>
@@ -129,4 +158,13 @@ button {background: transparent;
 border: 0;
 color: var(--link);
 cursor: pointer;}
+.resource-group {display: block;
+margin-block: .5rem;}
+.application-resources {border-block-start: 1px solid var(--grey-200);
+padding-block: .25rem .5rem;}
+.app-data-row {display: flex;
+gap: .5rem;
+justify-content: space-between;
+margin-block: .35rem;}
+.app-data-row strong {text-align: end;}
 </style>

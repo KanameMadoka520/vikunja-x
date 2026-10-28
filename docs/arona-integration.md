@@ -12,9 +12,12 @@
 | 人设 | `pkg/modules/tcyai/persona.go` | 只影响表达，不授予权限 |
 | HTTP 适配 | `pkg/routes/api/v2/tcy_ai*.go` | 人类账号认证、配置与 Vikunja 执行器 |
 | UI 功能目录 | `frontend/src/components/ai/` | 消息、审核、偏好、调试、`attachments/` 与 `export/` |
+| 悬浮宿主 | `frontend/src/components/ai/FloatingArona.vue` | 延迟加载同一聊天组件、账户隔离、页面上下文和任务弹窗层级；收起不停止任务 |
 | 页面装配 | `frontend/src/views/TcyAssistant.vue` | 路由上下文、输入、会话选择和站点布局 |
 | 客户端适配 | `frontend/src/client/queries/{tcyAi,tcyConversations,conversationEvents,chatAttachments,assistantPreferences}.ts` | 生成客户端、账号上下文防护与缓存 |
 | 产品工具适配 | `pkg/modules/tcyai/{tools,discovery}.go`、`pkg/routes/api/v2/tcy_ai_execution.go` | 工具目录、参数验证、逐次权限检查与实际变更 |
+
+聊天组件可传入 `embedded`、`conversationId`、`contextProjectId`、`contextTaskId`，通过 `update:conversationId` 和 `activity` 事件与宿主通信；嵌入时不修改宿主 URL 或页面标题。成功写入后的刷新通过 `useRefreshAgentChanges` 对接宿主缓存。
 
 移植时复制 `tcyai` 与 `components/ai` 功能目录，再替换宿主适配。这是边界明确的产品模块，**不是可以直接安装的独立 SDK**。
 

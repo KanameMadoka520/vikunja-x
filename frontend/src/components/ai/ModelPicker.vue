@@ -143,6 +143,9 @@ position: relative;
 padding-inline-end: 2.75rem;
 }
 .picker-toggle {
+display: grid;
+place-items: center;
+line-height: 1;
 position: absolute;
 inset-block: 0;
 inset-inline-end: 0;

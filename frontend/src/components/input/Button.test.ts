@@ -83,4 +83,17 @@ describe('Button', () => {
 		expect(wrapper.attributes('disabled')).toBe('')
 		expect(wrapper.attributes('aria-disabled')).toBeUndefined()
 	})
+ it('does not leave a blank flex item beside a standalone icon', () => {
+  const wrapper = mount(Button, {props: {icon: 'plus'}, attrs: {'aria-label': 'Add'}})
+  expect(wrapper.classes()).toContain('is-icon-only')
+  expect(wrapper.find('span').exists()).toBe(false)
+  expect(wrapper.attributes('aria-label')).toBe('Add')
+ })
+ it('puts the accessible label outside the layout for explicit icon-only buttons', () => {
+  const wrapper = mount(Button, {props: {icon: 'stop', iconOnly: true}, slots: {default: 'Stop request'}})
+  expect(wrapper.classes()).toContain('is-icon-only')
+  expect(wrapper.get('span.is-sr-only').text()).toBe('Stop request')
+  expect(wrapper.find('.icon.is-small').exists()).toBe(false)
+ })
+
 })

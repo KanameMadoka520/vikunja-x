@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
+const props = withDefaults(defineProps<{embedded?: boolean, conversationId?: string, contextProjectId?: number, contextTaskId?: number}>(), {embedded: false, conversationId: '', contextProjectId: 0, contextTaskId: 0})
+const emit = defineEmits<{'update:conversationId': [id: string], activity: [running: boolean], navigationBusy: [busy: boolean]}>()
 const {t} = useI18n({useScope: 'global'})
 import {audioChatFile} from '@/helpers/tcyAudio'
 import {useConversationEvents} from '@/client/queries/conversationEvents'
-import {computed, onBeforeUnmount, ref, watch, nextTick} from 'vue'
+import {computed, onBeforeUnmount, ref, watch, nextTick, useId} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useQuery} from '@tanstack/vue-query'
 import {aiSettingsQuery, useCleanupAI, useTranscribeAI} from '@/client/queries/tcyAi'
@@ -35,10 +37,13 @@ import type {ChatTurn, ReviewInput} from '@/client/generated'
 import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
 import {captureClientRequestContext, isClientRequestContextCurrent, isRequestContextAbort} from '@/client/requestContext'
 
-useTitle(() => t('tcymc.text.ai_task_assistant'))
+const promptID = useId()
+const composerInput = ref<HTMLTextAreaElement>()
+if (!props.embedded) useTitle(() => t('tcymc.text.ai_task_assistant'))
 const route = useRoute()
-const projectID = ref(Number(route.query.project) || 0)
-const contextTaskID = computed(() => Number(route.query.task) || 0)
+const contextProject = computed(() => props.embedded ? props.contextProjectId : Number(route.query.project) || 0)
+const projectID = ref(0)
+const contextTaskID = computed(() => props.embedded ? props.contextTaskId : Number(route.query.task) || 0)
 const {projectsArray} = useProjects()
 const settings = useQuery(aiSettingsQuery())
 const router = useRouter()
@@ -50,7 +55,15 @@ const paused = computed(() => active.value?.turns?.at(-1)?.result?.pause)
 const refreshChanges = useRefreshAgentChanges()
 const listPage = ref(1)
 const sessions = useQuery(computed(() => conversationsQuery(listPage.value)))
-const chatID = computed(() => typeof route.query.chat === 'string' ? route.query.chat : '')
+const chatID = computed(() => props.embedded ? props.conversationId : typeof route.query.chat === 'string' ? route.query.chat : '')
+async function navigateConversation(id: string) {
+	if (props.embedded) { emit('update:conversationId', id); await nextTick() }
+	else await router.replace({name: 'tcy-ai', query: {...route.query, chat: id || undefined}})
+}
+function stillHere(location?: string) { return !disposed && (props.embedded || route.name === 'tcy-ai' && (!location || route.fullPath === location)) }
+watch(contextProject, (value, old) => {
+	if (projectID.value === old || projectID.value === 0) projectID.value = value
+}, {immediate: true})
 const events = useConversationEvents(chatID)
 const current = useQuery(computed(() => ({...conversationQuery(chatID.value), refetchInterval: events.connected.value ? false : 1000})))
 const active = computed(() => current.data.value)
@@ -92,10 +105,10 @@ async function addFiles(files: File[]) {
 		let id = chatID.value
 		if (!id) {
 			const created = await create.mutateAsync()
-			if (disposed || route.fullPath !== location || !isClientRequestContextCurrent(requestContext)) return
+			if (!stillHere(location) || !isClientRequestContextCurrent(requestContext)) return
 			id = created.id!
 			saveOptions(id, currentOptions.value, selectedProfile.value)
-			await router.replace({name: 'tcy-ai', query: {...route.query, chat: id}})
+			await navigateConversation(id)
 		}
 		for (const file of files) { await uploadFile.mutateAsync({id, file, signal: fileController.signal}) }
 	} catch (e) { if (!isRequestContextAbort(e) && !fileController.signal.aborted) notice.value = t('chatFiles.uploadFailed') }
@@ -165,13 +178,13 @@ watch([() => preferences.data.value, active, chatID], ([value, conversation, id]
 	const defaultID = value.default_profile || 'ask'
 	const custom = value.profiles?.find(p => p.id === defaultID)
 	const options = saved?.options ?? (last ? normalizeOptions(last) : custom ? normalizeOptions(custom.options) : profileOptions(defaultID))
-	if (Number(route.query.project)) options.project_id = Number(route.query.project)
+	if (contextProject.value) options.project_id = contextProject.value
 	applyOptions(options, saved?.profile ?? (last ? '' : defaultID), false)
 	initializedChat.value = id
 }, {immediate: true})
 watch(mode, value => {if (value === 'read') allowDelete.value = false})
 function resizeComposer() {
-	const el = document.getElementById('ai-prompt') as HTMLTextAreaElement | null
+	const el = composerInput.value
 	if (!el) return
 	el.style.height = 'auto'
 	el.style.height = `${Math.min(el.scrollHeight, 180)}px`
@@ -188,6 +201,7 @@ const audioStage = ref('')
 const elapsed = ref(0)
 const editingBusy = computed(() => Boolean(pendingMessage.value) || uploadingFiles.value || removeFile.isPending.value || Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
 const busy = computed(() => !optionsReady.value || editingBusy.value || activeRun.value || Boolean(paused.value))
+watch([activeRun, editingBusy], ([running, editing]) => { emit('activity', running || editing); emit('navigationBusy', editing) }, {immediate: true})
 const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
 let recorder: MediaRecorder | undefined
@@ -198,7 +212,7 @@ let disposed = false
 async function selectConversation(id: string) {
 	if (editingBusy.value) return
 	drafts.set(chatID.value, prompt.value)
-	await router.replace({name: 'tcy-ai', query: {...route.query, chat: id}})
+	await navigateConversation(id)
 	prompt.value = drafts.get(id) ?? ''
 	original.value = ''
 	sidebarOpen.value = false
@@ -210,7 +224,7 @@ async function newConversation() {
 	try {
 		const location = route.fullPath
 		const conversation = await create.mutateAsync()
-		if (route.name !== 'tcy-ai' || route.fullPath !== location) return
+		if (!stillHere(location)) return
 		await selectConversation(conversation.id!)
 	} catch { return }
 }
@@ -233,7 +247,7 @@ async function submit() {
 		approval: approval.value,
 		write_project_ids: [...writeProjectIDs.value], max_rounds: maxRounds.value, max_operations: maxOperations.value,
 		timeout_seconds: timeoutSeconds.value, token_budget: tokenBudget.value,
-		page_context: JSON.stringify({page: route.name, project_id: projectID.value, task_id: Number(route.query.task) || undefined}),
+		page_context: JSON.stringify({page: route.name, project_id: projectID.value, task_id: contextTaskID.value || undefined}),
 		request_id: crypto.randomUUID(),
 		connection_id: selectedConnection.value,
 	}
@@ -247,9 +261,9 @@ async function submit() {
 			const created = await create.mutateAsync()
 			target = created.id!
 			if (pendingMessage.value) pendingMessage.value.chat = target
-			if (route.name !== 'tcy-ai' || route.fullPath !== location) return
+			if (!stillHere(location)) return
 			saveOptions(target, currentOptions.value, selectedProfile.value)
-			await router.replace({name: 'tcy-ai', query: {...route.query, chat: target}})
+			await navigateConversation(target)
 		}
 		await send.mutateAsync({id: target, body: request})
 		if (chatID.value === target && !prompt.value) {
@@ -279,12 +293,12 @@ async function manage(kind: 'rename' | 'delete' | 'stop' | 'compact' | 'fork', t
 			turnId,
 			connectionId: selectedConnection.value,
 		})
-		if (route.name !== 'tcy-ai' || chatID.value !== id) return
+		if (!stillHere() || chatID.value !== id) return
 		rename.value = false
 		if (kind === 'fork' && result?.id) await selectConversation(result.id)
 		if (kind === 'delete') {
 			prompt.value = ''
-			await router.replace({name: 'tcy-ai', query: {project: route.query.project}})
+			await navigateConversation('')
 		}
 	} catch { return }
 }
@@ -301,9 +315,11 @@ function composerKeydown(event: KeyboardEvent) {
 	}
 }
 
-watch(() => active.value?.turns?.at(-1)?.status, (status, previous) => {
-	if (previous === 'running' && status !== 'running') refreshChanges.mutate()
-})
+watch(() => {
+	const turn = active.value?.turns?.at(-1)
+	const writes = turn?.result?.actions?.filter(a => a.success && !/^(list_|get_|find_tools|ask_user|web_search)/.test(a.tool || '')).length ?? 0
+	return writes ? `${turn?.id}:${writes}` : ''
+}, (value, previous) => { if (value && value !== previous) refreshChanges.mutate() })
 let scrollFrame = 0
 function stopFollowing() {
 	cancelAnimationFrame(scrollFrame)
@@ -420,7 +436,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<div class="tcy-assistant">
+	<div
+		class="tcy-assistant"
+		:class="{'is-embedded': embedded}"
+	>
 		<header class="assistant-heading">
 			<div class="heading-actions">
 				<BaseButton
@@ -799,10 +818,11 @@ onBeforeUnmount(() => {
 						{{ t('chatFiles.imageModelRequired') }}
 					</p>
 					<label
-						for="ai-prompt"
+						:for="promptID"
 						class="composer-label is-sr-only"
 					>{{ t('tcymc.text.your_request') }}</label><textarea
-						id="ai-prompt"
+						:id="promptID"
+						ref="composerInput"
 						v-model="prompt"
 						data-tour="ai-prompt"
 						class="textarea"
@@ -928,6 +948,7 @@ onBeforeUnmount(() => {
 							variant="primary"
 							icon="stop"
 							class="send"
+							icon-only
 							:aria-disabled="action.isPending.value"
 							@click="manage('stop')"
 						>
@@ -937,6 +958,7 @@ onBeforeUnmount(() => {
 							variant="primary"
 							icon="arrow-up"
 							class="send"
+							icon-only
 							type="submit"
 							:aria-disabled="busy || !hasAssistant || (!prompt.trim() && !draftFiles.length) || imageMismatch"
 						>
@@ -1394,7 +1416,8 @@ opacity: 0;
 transform: translateY(5px);
 }
 @media (width <= 800px) {
- .compact-label { display: none; }
+ .compact-label { display: none;
+}
  .chat-shell.with-history {
 grid-template-columns: minmax(0, 1fr);
 }
@@ -1468,7 +1491,8 @@ clip-path: inset(50%);
 white-space: nowrap;
 }
 }
-.notice-info { color: var(--text-light); }
+.notice-info { color: var(--text-light);
+}
 .search-mode-row {
  display: flex;
  align-items: center;
@@ -1493,5 +1517,40 @@ white-space: nowrap;
 }
 }
 .toolbar-button.is-recording { color: var(--danger);
+}
+.is-embedded {
+ .compact-label { display: none;
+}
+ .chat-shell.with-history { grid-template-columns: minmax(0, 1fr);
+}
+ .chat-sidebar { position: absolute;
+inset: 0 auto 0 0;
+inline-size: min(300px, 88%);
+z-index: 5;
+box-shadow: 8px 0 40px #00000022;
+}
+ .assistant-heading { padding: .25rem .5rem;
+flex-wrap: nowrap;
+}
+ .assistant-heading h1 { display: none;
+}
+ .model-switch { min-inline-size: 0;
+}
+ .model-switch select { max-inline-size: 9rem;
+}
+ .conversation { padding: .75rem;
+}
+ .conversation-toolbar { padding-inline: .5rem;
+}
+ .composer { inline-size: calc(100% - 1rem);
+padding: .6rem;
+margin-block-end: .5rem;
+}
+ .composer-context { flex-wrap: wrap;
+}
+ .welcome h2 { font-size: 1.25rem;
+}
+ .live-connection { font-size: .6rem;
+}
 }
 </style>

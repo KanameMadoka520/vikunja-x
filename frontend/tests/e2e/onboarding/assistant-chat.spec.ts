@@ -1,5 +1,10 @@
 import {test, expect} from '../../support/fixtures'
 import type {Page} from '@playwright/test'
+import {createProjects} from '../project/prepareProjects'
+import {TaskFactory} from '../../factories/task'
+import {BucketFactory} from '../../factories/bucket'
+import {TaskBucketFactory} from '../../factories/task_buckets'
+import {apiRootUrl} from '../../support/apiUrl'
 
 async function chatServer(page: Page, withReview = false, live = false) {
 	await page.route('**/api/v2/ai/preferences', route => route.fulfill({json: {revision: 0, default_profile: 'ask', profiles: []}}))
@@ -30,7 +35,7 @@ async function chatServer(page: Page, withReview = false, live = false) {
 			c.turns.push({id: crypto.randomUUID(), request_id: body.request_id, prompt: body.message, status: 'completed', result: {
 				configuration: {connection_id: body.connection_id, project_id: body.project_id, mode: body.mode, approval: body.approval, allow_delete: body.allow_delete, write_project_ids: body.write_project_ids, max_rounds: body.max_rounds, max_operations: body.max_operations, timeout_seconds: body.timeout_seconds, token_budget: body.token_budget}, reply: '**Saved answer**', model: 'actual-fixture', requested_model: 'requested', protocol: 'anthropic', endpoint: 'https://fixture.example/v1/messages', system_prompt: 'Actual request prompt', duration_ms: 2000, first_token_ms: 125, first_text_ms: 500,
 				usage: {input: 30, output: 20, reported: true, cached: 5, cache_reported: true},
-				steps: [{round: 1, loaded_tools: ['list_projects', 'find_tools'], tool_schema_bytes: 1200, catalog_schema_bytes: 8000, catalog_tool_count: 20, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', duration_ms: 2000}],
+				steps: [{round: 1, loaded_tools: ['list_projects', 'find_tools'], tool_schema_bytes: 1200, catalog_schema_bytes: 8000, catalog_tool_count: 20, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', streaming: true, first_token_ms: 125, usage: {reported: true, output: 20}, duration_ms: 2000}],
 				actions: [{round: 1, tool: 'list_projects', arguments: '{}', result: '{"items":[]}', success: true, duration_ms: 10}],
 			}})
 		}
@@ -80,7 +85,8 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	await page.setViewportSize({width: 1440, height: 900})
 	await expect(page.locator('.profile-switch select')).toHaveValue('ask')
 	await page.getByLabel('Your request').fill('First message')
-	await page.getByLabel('Your request').press('Enter')
+	await expect(page.getByRole('button', {name: 'Send request', exact: true})).toBeEnabled()
+		await page.getByLabel('Your request').press('Enter')
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
 	await page.evaluate(() => scrollTo(0, 0))
 	expect((await page.locator('.composer').boundingBox())!.y + (await page.locator('.composer').boundingBox())!.height).toBeLessThanOrEqual(900)
@@ -103,6 +109,7 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	await expect(page.locator('.conversation-title')).toHaveText('Reusable session')
 	for (let n = 0; n < 4; n++) {
 		await page.getByLabel('Your request').fill(`Message ${n + 2}`)
+		await expect(page.getByRole('button', {name: 'Send request', exact: true})).toBeEnabled()
 		await page.getByLabel('Your request').press('Enter')
 		await expect(page.locator('.chat-turn')).toHaveCount(n + 2)
 	}
@@ -370,4 +377,125 @@ test('failed send restores the draft and removes the pending row', async ({authe
  await expect(page.getByText('The message could not be sent. Your draft has been kept.')).toBeVisible()
  await expect(page.getByLabel('Your request')).toHaveValue('Keep this unsent draft')
  await expect(page.locator('.chat-turn')).toHaveCount(0)
+})
+
+for (const width of [1440, 390, 320]) {
+ test(`icon centers and completed output speed at ${width}px`, async ({authenticatedPage: page}, testInfo) => {
+  const server = await chatServer(page)
+  await page.setViewportSize({width, height: 900})
+  await page.goto('/ai')
+  const sendButton = page.getByRole('button', {name: 'Send request', exact: true})
+  async function expectCentered(selector: string) {
+   const measurements = await page.locator(selector).evaluateAll(buttons => buttons.filter(b => b.getBoundingClientRect().width > 0).map(button => {
+    const b = button.getBoundingClientRect(), svg = button.querySelector('svg')!.getBoundingClientRect()
+    return {dx: Math.abs(svg.x + svg.width / 2 - b.x - b.width / 2), dy: Math.abs(svg.y + svg.height / 2 - b.y - b.height / 2)}
+   }))
+   expect(measurements.length).toBeGreaterThan(0)
+   for (const m of measurements) { expect(m.dx).toBeLessThan(0.75); expect(m.dy).toBeLessThan(0.75) }
+  }
+  await expect(sendButton).toBeVisible()
+  await expectCentered('.composer .send')
+  await page.getByLabel('Your request').fill('Measure the final model response')
+  await expectCentered('.composer .send')
+  await sendButton.click()
+  await expect(page.locator('.output-speed > summary')).toContainText('10.1 tokens/s')
+  const c = [...server.conversations.values()][0]
+  // The preceding model request and a long tool call must not affect the final response speed.
+  c.turns[0].result.duration_ms = 90000
+  c.turns[0].result.usage.output = 9999
+  c.turns[0].result.steps = [{round: 1, model: 'tool-model', streaming: true, duration_ms: 20000, first_token_ms: 10000, usage: {reported: true, output: 999}}, {round: 2, model: 'final-model', text: 'Saved answer', streaming: true, duration_ms: 3000, first_token_ms: 1000, usage: {reported: true, output: 101}}]
+  await page.reload()
+  await expect(page.locator('.output-speed > summary')).toHaveText('Output speed: 50.0 tokens/s')
+  await page.locator('.output-speed > summary').click()
+  await expect(page.locator('.speed-explanation')).toContainText('final-model')
+  await expect(page.locator('.speed-calculation')).toHaveText('(101 − 1) ÷ 2 s')
+  c.turns[0].status = 'running'
+  c.turns[0].result.reply = ''
+  await page.reload()
+  await expect(page.locator('.output-speed')).toHaveCount(0)
+  await expect(page.getByRole('button', {name: 'Stop execution', exact: true})).toBeVisible()
+  await expectCentered('.composer .send')
+  await expectCentered('.toolbar-button:not(:has(.compact-label))')
+  await page.screenshot({path: testInfo.outputPath(`chat-stop-centered-${width}.png`), animations: 'disabled'})
+  c.turns[0].status = 'completed'; c.turns[0].result.steps[1].streaming = false
+  await page.reload()
+  await expect(page.locator('.output-speed > summary')).toHaveText('Request-average speed: 33.7 tokens/s')
+  c.turns[0].result.steps[1].usage.reported = false
+  await page.reload()
+  await expect(page.locator('.output-speed > summary')).toHaveText('Output speed: Unavailable')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+ })
+}
+
+for (const width of [1440, 390, 320]) {
+ test(`floating Arona ${width}px preserves the page and continues when minimized`, async ({authenticatedPage: page}, testInfo) => {
+  const server = await chatServer(page, false, true)
+  await page.setViewportSize({width, height: 900})
+  await page.goto('/user/settings/general')
+  await expect(page).toHaveTitle(/General Settings/)
+  const originalURL = page.url()
+  const originalTitle = await page.title()
+  await page.getByRole('button', {name: 'Open floating Arona', exact: true}).click()
+  const panel = page.getByRole('region', {name: 'Arona', exact: true})
+  await expect(panel).toBeVisible()
+  await panel.getByLabel('Your request').fill('Keep working while I browse')
+  await expect(panel.getByRole('button', {name: 'Send request', exact: true})).toBeEnabled()
+  await panel.getByRole('button', {name: 'Send request', exact: true}).click()
+  await expect(panel.locator('.thinking-status')).toBeVisible()
+  expect(page.url()).toBe(originalURL)
+  expect(await page.title()).toBe(originalTitle)
+  const box = await panel.boundingBox()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(width)
+  await panel.getByRole('button', {name: 'Minimize Arona (keep working)', exact: true}).click()
+  await expect(panel).toBeHidden()
+  await page.getByRole('button', {name: 'Open floating Arona', exact: true}).click()
+  await expect(panel.locator('.chat-markdown')).toContainText('Saved after background execution')
+  expect(server.sends()).toBe(1)
+  await page.screenshot({path: testInfo.outputPath(`floating-${width}.png`)})
+  const id = [...server.conversations.keys()][0]
+  await panel.getByRole('button', {name: 'Open full conversation page', exact: true}).click()
+  await expect(page).toHaveURL(new RegExp(`/ai\\?chat=${id}`))
+  await expect(page.locator('.chat-markdown')).toContainText('Saved after background execution')
+  await expect(page.locator('.floating-arona')).toHaveCount(0)
+ })
+}
+
+
+test('floating Arona refreshes the visible task and follows task dialog context', async ({authenticatedPage: page, apiContext}) => {
+ const server = await chatServer(page, false, true)
+ await createProjects(1)
+ await TaskFactory.create(1, {title: 'Before agent change'})
+ await BucketFactory.create(1, {id: 1, project_view_id: 4})
+ await TaskBucketFactory.create(1, {task_id: 1, bucket_id: 1, project_view_id: 4})
+ await page.setViewportSize({width: 1440, height: 900})
+ await page.goto('/projects/1/4')
+ await page.getByText('Before agent change', {exact: true}).click()
+ await expect(page.locator('dialog.task-detail-view-modal[open]')).toBeVisible()
+ await page.getByRole('button', {name: 'Open floating Arona', exact: true}).click()
+ const panel = page.getByRole('region', {name: 'Arona', exact: true})
+ await panel.press('Escape')
+ await expect(panel).toBeHidden()
+ await expect(page.locator('dialog.task-detail-view-modal[open]')).toBeVisible()
+ await page.getByRole('button', {name: 'Open floating Arona', exact: true}).click()
+ await panel.getByLabel('Your request').fill('Rename the current task')
+ await expect(panel.getByRole('button', {name: 'Send request', exact: true})).toBeEnabled()
+ const sent = page.waitForRequest(r => r.url().endsWith('/messages') && r.method() === 'POST')
+ await panel.getByRole('button', {name: 'Send request', exact: true}).click()
+ const request = (await sent).postDataJSON()
+ expect(JSON.parse(request.page_context)).toMatchObject({project_id: 1, task_id: 1})
+ const token = await page.evaluate(() => localStorage.getItem('token'))
+ const root = apiRootUrl(process.env.API_URL || 'http://127.0.0.1:3456') + '/api/v2'
+ const response = await apiContext.patch(`${root}/tasks/1`, {headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json'}, data: {title: 'Changed by agent fixture'}})
+ expect(response.ok()).toBe(true)
+ const conversation = [...server.conversations.values()][0]
+ conversation.turns[0].result.actions = [{tool: 'update_task', success: true, arguments: '{"id":1}', result: '{}'}]
+ await expect(page.locator('.task-view')).toContainText('Changed by agent fixture')
+ await panel.getByRole('button', {name: 'Minimize Arona (keep working)', exact: true}).click()
+ // Return to the project without a reload; the same floating conversation survives.
+ await page.getByRole('button', {name: 'Close dialog', exact: true}).click()
+ await expect(page.locator('dialog.task-detail-view-modal[open]')).toHaveCount(0)
+ await page.getByRole('button', {name: 'Open floating Arona', exact: true}).click()
+ await expect(panel.locator('.user-message')).toContainText('Rename the current task')
+ expect(server.sends()).toBe(1)
 })

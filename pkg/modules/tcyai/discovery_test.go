@@ -19,6 +19,7 @@ package tcyai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,4 +112,20 @@ func TestTCYAICurrentPermissionsOverrideHistory(t *testing.T) {
 			assert.NotContains(t, state.Available, "create_project")
 		}
 	}
+}
+
+//nolint:gosmopolitan // Bilingual discovery keywords.
+func TestAppearanceToolDiscovery(t *testing.T) {
+	for _, query := range []string{"color", "hex_color", "颜色", "progress", "percent_done", "favorite", "repeat", "move", "cover"} {
+		state := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "write"})
+		result, err := state.discover(json.RawMessage(fmt.Sprintf(`{"query":%q}`, query)))
+		require.NoError(t, err)
+		assert.Contains(t, result, `"name":"update_task"`, query)
+	}
+	for _, raw := range []string{`{"id":1,"hex_color":"#123456"}`, `{"id":1,"hex_color":"invalid"}`, `{"id":1,"percent_done":101}`, `{"id":1,"repeat_mode":9}`, `{"id":1,"project_id":0}`} {
+		_, err := ValidateTool("update_task", json.RawMessage(raw), RunInput{Mode: "write"})
+		require.Error(t, err, raw)
+	}
+	_, err := ValidateTool("update_project", json.RawMessage(`{"id":1,"hex_color":"123456"}`), RunInput{Mode: "read"})
+	require.Error(t, err)
 }

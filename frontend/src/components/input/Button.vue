@@ -7,6 +7,7 @@
 				'is-loading': showLoading,
 				'has-no-shadow': !shadow || variant === 'tertiary',
 				'is-danger': danger,
+				'is-icon-only': icon && (iconOnly || !$slots.default),
 			}
 		]"
 		:disabled="disabled"
@@ -17,7 +18,7 @@
 	>
 		<template v-if="icon">
 			<Icon
-				v-if="!$slots.default"
+				v-if="iconOnly || !$slots.default"
 				:icon="icon"
 				:style="{color: iconColor}"
 			/>
@@ -31,7 +32,10 @@
 				/>
 			</span>
 		</template>
-		<span>
+		<span
+			v-if="$slots.default"
+			:class="{'is-sr-only': iconOnly}"
+		>
 			<slot />
 		</span>
 	</BaseButton>
@@ -52,6 +56,7 @@ const props = defineProps({
 	variant: {type: String as PropType<ButtonTypes>, default: 'primary'},
 	icon: {type: [String, Array, Object] as PropType<IconProp>, default: undefined},
 	iconColor: {type: String, default: undefined},
+	iconOnly: {type: Boolean, default: false},
 	loading: {type: Boolean, default: false},
 	disabled: {type: Boolean, default: false},
 	shadow: {type: Boolean, default: true},
@@ -98,6 +103,15 @@ const showLoading = useDelayedLoading(() => props.loading)
 	line-height: 1;
 	padding-inline: .5rem;
 	gap: .25rem;
+
+    &.is-icon-only {
+        gap: 0;
+        min-inline-size: $button-height;
+    }
+    > svg {
+        display: block;
+        flex-shrink: 0;
+    }
 
 	// Default/Primary variant colors
 	background-color: var(--primary);

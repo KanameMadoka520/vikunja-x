@@ -101,6 +101,12 @@ for (const width of [1440, 390]) {
   await model.press('Escape')
   await expect(model).toHaveValue('my-custom-model')
   await page.getByRole('button', {name: '展开模型列表'}).click()
+  const offset = await page.getByRole('button', {name: '展开模型列表'}).evaluate(button => {
+   const b = button.getBoundingClientRect(), icon = button.querySelector('svg')!.getBoundingClientRect()
+   return {x: Math.abs(icon.x + icon.width / 2 - b.x - b.width / 2), y: Math.abs(icon.y + icon.height / 2 - b.y - b.height / 2)}
+  })
+  expect(offset.x).toBeLessThan(.75)
+  expect(offset.y).toBeLessThan(.75)
   const popup = page.locator('.picker-popup')
   await expect(popup).toBeVisible()
   const box = (await popup.boundingBox())!

@@ -18,7 +18,13 @@
 
 package systemstatus
 
+import "time"
+
 // Unsupported host counters remain unavailable, never replaced by process metrics.
 func measure(_ string) (Snapshot, cpuCounters) {
 	return Snapshot{Scope: "host", LoadAverage: []float64{}}, cpuCounters{}
+}
+
+func measureApplication(_ applicationCounters, _ time.Time) (ApplicationSnapshot, applicationCounters) {
+	return ApplicationSnapshot{GPUStatus: "unavailable"}, applicationCounters{}
 }
