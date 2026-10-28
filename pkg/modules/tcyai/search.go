@@ -173,7 +173,7 @@ func searchRequest(s Connection, prompt string) map[string]any {
 		body["messages"] = []any{map[string]any{"role": "user", "content": prompt}}
 		body["max_tokens"] = s.Capabilities().MaxOutputTokens
 		body["tools"] = []any{map[string]any{"type": "web_search_20250305", "name": "web_search"}}
-		body["tool_choice"] = map[string]any{"type": "tool", "name": "web_search"}
+		body["tool_choice"] = map[string]any{"type": "auto"}
 	case "gemini":
 		body = map[string]any{"contents": []any{map[string]any{"role": "user", "parts": []any{map[string]any{"text": prompt}}}}, "tools": []any{map[string]any{"google_search": map[string]any{}}}}
 		if limit := s.Capabilities().MaxOutputTokens; limit > 0 {
