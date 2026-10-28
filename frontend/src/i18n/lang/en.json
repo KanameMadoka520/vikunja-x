@@ -1176,6 +1176,7 @@
       "chooseDueDate": "Click here to set a due date",
       "chooseStartDate": "Click here to set a start date",
       "chooseEndDate": "Click here to set an end date",
+      "removeProgress": "Remove progress",
       "removeDueDate": "Remove due date",
       "removeStartDate": "Remove start date",
       "removeEndDate": "Remove end date",

@@ -112,7 +112,7 @@ describe('TaskDetailView draft', () => {
 		expect(dueDatePicker(wrapper).props('modelValue')).toEqual(new Date('2024-01-01T10:00:00Z'))
 	})
 
-	it('reseeds the draft from the response of a save', async () => {
+	it('saves only progress and preserves unrelated draft fields', async () => {
 		sdk.patchTasksRead.mockImplementation(async () => ({data: serverTask(1, {percent_done: 0.9, due_date: '2024-03-03T10:00:00Z'})}))
 		const wrapper = await mountDetail()
 
@@ -120,6 +120,36 @@ describe('TaskDetailView draft', () => {
 		await flushPromises()
 
 		expect(sdk.patchTasksRead).toHaveBeenCalledOnce()
-		expect(wrapper.findAllComponents(Datepicker)[0]?.props('modelValue')).toEqual(new Date('2024-03-03T10:00:00Z'))
+		expect(wrapper.findAllComponents(Datepicker)[0]?.props('modelValue')).toEqual(new Date('2024-01-01T10:00:00Z'))
+		expect(sdk.patchTasksRead.mock.calls[0][0].body).toEqual([{op: 'add', path: '/percent_done', value: 0.9}])
 	})
+	it('ignores duplicate progress submissions while saving', async () => {
+		let resolve!: (value: unknown) => void
+		sdk.patchTasksRead.mockImplementationOnce(() => new Promise(done => {resolve = done}))
+		const wrapper = await mountDetail()
+		const progress = wrapper.findComponent(PercentDoneSelect)
+		progress.vm.$emit('update:modelValue', 0.5)
+		progress.vm.$emit('update:modelValue', 0.8)
+		await flushPromises()
+		expect(sdk.patchTasksRead).toHaveBeenCalledOnce()
+		expect(progress.props('disabled')).toBe(true)
+		resolve({data: serverTask(1, {percent_done: 0.5})})
+		await flushPromises()
+		expect(progress.props('modelValue')).toBe(0.5)
+		expect(progress.props('disabled')).toBe(false)
+	})
+
+	it('does not overwrite progress after navigating to a different task during save', async () => {
+		let resolve!: (value: unknown) => void
+		sdk.patchTasksRead.mockImplementationOnce(() => new Promise(done => {resolve = done}))
+		const wrapper = await mountDetail()
+		wrapper.findComponent(PercentDoneSelect).vm.$emit('update:modelValue', 0)
+		await flushPromises()
+		await wrapper.setProps({taskId: 2})
+		await flushPromises()
+		resolve({data: serverTask(1, {percent_done: 0})})
+		await flushPromises()
+		expect(wrapper.findComponent(PercentDoneSelect).props('modelValue')).toBe(0.25)
+	})
+
 })

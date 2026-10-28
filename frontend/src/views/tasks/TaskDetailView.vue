@@ -170,12 +170,27 @@
 									<Icon icon="percent" />
 									{{ $t('task.attributes.percentDone') }}
 								</div>
-								<PercentDoneSelect
-									:ref="e => setFieldRef('percentDone', e)"
-									v-model="task.percent_done"
-									:disabled="!canWrite"
-									@update:modelValue="setPercentDone"
-								/>
+								<div class="progress-input">
+									<PercentDoneSelect
+										:ref="e => setFieldRef('percentDone', e)"
+										:model-value="task.percent_done"
+										:disabled="!canWrite || percentDoneSaving"
+										@update:modelValue="setPercentDone"
+									/>
+									<BaseButton
+										v-if="canWrite"
+										class="remove-progress"
+										:disabled="percentDoneSaving"
+										:aria-busy="percentDoneSaving"
+										@click="setPercentDone(0)"
+									>
+										<Icon
+											:icon="percentDoneSaving ? 'spinner' : 'times'"
+											:spin="percentDoneSaving"
+										/>
+										{{ $t('task.detail.removeProgress') }}
+									</BaseButton>
+								</div>
 							</div>
 						</CustomTransition>
 						<CustomTransition
@@ -1236,13 +1251,27 @@ async function setPriority(priority: number) {
 	return saveTask(newTask)
 }
 
-async function setPercentDone(percentDone: number) {
-	const newTask: ITask = {
-		...task.value,
-		percent_done: percentDone,
-	}
+const percentDoneSaving = ref(false)
 
-	return saveTask(newTask)
+async function setPercentDone(percentDone: number) {
+	if (!canWrite.value || percentDoneSaving.value) return
+	if (percentDone === task.value.percent_done) {
+		activeFields.percentDone = percentDone > 0
+		return
+	}
+	const taskId = task.value.id!
+	percentDoneSaving.value = true
+	try {
+		const updated = await updateTask.mutateAsync({id: taskId, percent_done: percentDone})
+		if (props.taskId !== taskId || task.value.id !== taskId) return
+		task.value.percent_done = updated.percent_done ?? percentDone
+		activeFields.percentDone = task.value.percent_done > 0
+		success({message: t('task.detail.updateSuccess')})
+	} catch (cause) {
+		error(cause)
+	} finally {
+		percentDoneSaving.value = false
+	}
 }
 
 async function removeRepeatAfter() {
@@ -1324,6 +1353,27 @@ h2 .button {
 
 .icon.is-grey {
 	color: var(--grey-400);
+}
+
+.progress-input {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: .75rem;
+}
+
+.remove-progress {
+	display: inline-flex;
+	align-items: center;
+	gap: .35rem;
+	color: var(--danger);
+	padding: .5rem 0;
+	font-size: .875rem;
+
+	&:disabled {
+		opacity: .6;
+		cursor: wait;
+	}
 }
 
 .date-input {

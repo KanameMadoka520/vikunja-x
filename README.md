@@ -3,9 +3,13 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.13`
+- 版本：`v2.7.1-tcymc.14`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## 任务进度的设置与移除（tcymc.14）
+
+任务详情的进度选择框旁新增“移除进度”：将进度恢复为 0 并收起进度栏，列表和看板的进度条同步消失，可随时通过“设置进度”重新添加。进度与任务完成状态独立，移除进度不会将任务标记为未完成，也不会修改描述、日期或其他字段。保存期间阻止重复提交；失败时保留原进度、提示错误，允许重试。只读共享任务不提供移除操作。
 
 ## 一键截图脱敏（tcymc.13）
 

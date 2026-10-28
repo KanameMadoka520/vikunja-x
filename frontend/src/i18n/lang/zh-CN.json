@@ -1188,6 +1188,7 @@
 				"timeTracking": "记录工时",
 				"duplicate": "复制"
 			},
+			"removeProgress": "移除进度",
 			"removeDueDate": "移除截止日期",
 			"removeStartDate": "移除开始日期",
 			"removeEndDate": "移除结束日期",

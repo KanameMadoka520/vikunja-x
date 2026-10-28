@@ -77,6 +77,7 @@ import {
 	faSortUp,
 	faStar as faStarSolid,
 	faStop,
+	faSpinner,
 	faTachometerAlt,
 	faTags,
 	faTasks,
@@ -119,6 +120,7 @@ import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
 
 import type {FontAwesomeIcon as FontAwesomeIconFixedTypes} from '@/types/vue-fontawesome'
 
+library.add(faSpinner)
 library.add(faBold)
 library.add(faCodeBranch)
 library.add(faCompass)
