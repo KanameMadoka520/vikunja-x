@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {watch, ref, nextTick, onBeforeUnmount} from 'vue'
+import UploadProgressRow from './UploadProgressRow.vue'
 import {useI18n} from 'vue-i18n'
 import {imagePrompt, uploads, uploadsExpanded, type ImageChoice} from '@/helpers/uploadTransport'
 const {t} = useI18n({useScope: 'global'})
@@ -97,20 +98,11 @@ function size(bytes: number) { return (bytes / 1024 / 1024).toFixed(2) + ' MiB' 
 			v-if="uploadsExpanded"
 			class="upload-rows"
 		>
-			<section
+			<UploadProgressRow
 				v-for="row in uploads"
 				:key="row.id"
-				class="upload-row"
-			>
-				<strong>{{ row.names }}</strong><span role="status">{{ t(`flow.${row.stage}`) }}<template v-if="row.stage === 'uploading' && row.total"> · {{ Math.floor(row.loaded / row.total * 100) }}%</template></span>
-				<progress
-					v-if="!['done','error','cancelled'].includes(row.stage)"
-					:value="row.stage === 'uploading' && row.total ? row.loaded : undefined"
-					:max="row.total || 1"
-					:aria-label="t(`flow.${row.stage}`)"
-				/>
-				<small v-if="row.sentBytes">{{ size(row.originalBytes) }} → {{ size(row.sentBytes) }}</small><small v-if="row.error">{{ row.error }}</small>
-			</section>
+				:row="row"
+			/>
 			<button
 				class="clear-uploads"
 				@click="uploads = uploads.filter(row => !['done','error','cancelled'].includes(row.stage))"
@@ -185,18 +177,6 @@ cursor: pointer;
 .upload-rows { max-block-size: 35dvh;
 overflow: auto;
 padding: .75rem 1rem;
-}
-.upload-row { display: grid;
-gap: .35rem;
-margin-block-end: .8rem;
-font-size: .8rem;
-overflow-wrap: anywhere;
-}
-.upload-row progress { inline-size: 100%;
-block-size: .35rem;
-accent-color: var(--primary);
-}
-.upload-row small, .upload-row span { color: var(--text-light);
 }
 .clear-uploads { border: 0;
 background: transparent;

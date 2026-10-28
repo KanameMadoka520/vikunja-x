@@ -2,7 +2,7 @@ import {assertClientRequestContext, captureClientRequestContext} from '@/client/
 import {ref, shallowRef} from 'vue'
 import {i18n} from '@/i18n'
 
-export type UploadRecord = {id: string; names: string; stage: 'preparing' | 'converting' | 'uploading' | 'processing' | 'done' | 'error' | 'cancelled'; loaded: number; total: number; error?: string; originalBytes: number; sentBytes: number}
+export type UploadRecord = {id: string; names: string; stage: 'preparing' | 'converting' | 'uploading' | 'processing' | 'done' | 'error' | 'cancelled'; loaded: number; total: number; error?: string; originalBytes: number; sentBytes: number; targetPath: string; bytesPerSecond: number; averageBytesPerSecond: number; elapsedMs: number}
 export type ImageChoice = {mode: 'original' | 'webp'; quality: number; maxSide: number}
 export const uploads = shallowRef<UploadRecord[]>([])
 export const imagePrompt = shallowRef<{files: File[]; resolve: (choice: ImageChoice | null) => void} | null>(null)
@@ -65,7 +65,7 @@ export const uploadAwareFetch: typeof fetch = async (input, init) => {
 	const files = Array.from(form.values()).filter((item): item is File => item instanceof File)
 	const images = files.filter(file => file.type.startsWith('image/'))
 	const id = crypto.randomUUID()
-	uploads.value = [{id, names: files.map(file => file.name).join(', '), stage: 'preparing' as const, loaded: 0, total: 0, originalBytes: files.reduce((sum, f) => sum + f.size, 0), sentBytes: 0}, ...uploads.value].slice(0, 12)
+	uploads.value = [{id, names: files.map(file => file.name).join(', '), stage: 'preparing' as const, loaded: 0, total: 0, originalBytes: files.reduce((sum, f) => sum + f.size, 0), sentBytes: 0, targetPath: new URL(request.url).pathname, bytesPerSecond: 0, averageBytesPerSecond: 0, elapsedMs: 0}, ...uploads.value].slice(0, 12)
 	let mode: ImageChoice['mode'] | undefined
 	try {
 		let body = form
@@ -73,7 +73,7 @@ export const uploadAwareFetch: typeof fetch = async (input, init) => {
 			const choice = await chooseImageUpload(images, request.signal)
 			if (!choice) throw new DOMException('Upload cancelled', 'AbortError')
 			mode = choice.mode
-			update(id, {stage: 'converting'})
+			update(id, {stage: choice.mode === 'webp' ? 'converting' : 'preparing'})
 			body = new FormData()
 			for (const [key, value] of form) {
 				if (request.signal.aborted) throw new DOMException('Upload cancelled', 'AbortError')
@@ -95,9 +95,36 @@ export const uploadAwareFetch: typeof fetch = async (input, init) => {
 			const abort = () => xhr.abort()
 			request.signal.addEventListener('abort', abort, {once: true})
 			activeRequests.add(abort)
-			const cleanup = () => { request.signal.removeEventListener('abort', abort); activeRequests.delete(abort) }
-			xhr.upload.onprogress = event => update(id, {loaded: event.loaded, total: event.lengthComputable ? event.total : 0, stage: event.lengthComputable && event.loaded >= event.total ? 'processing' : 'uploading'})
-			xhr.upload.onload = () => update(id, {stage: 'processing'})
+			const started = performance.now()
+			let loaded = 0
+			let total = 0
+			let sampleAt = started
+			let sampleBytes = 0
+			let transferring = true
+			const tick = () => {
+				const now = performance.now()
+				const elapsedMs = Math.max(0, now - started)
+				const patch: Partial<UploadRecord> = {elapsedMs}
+				if (transferring) patch.averageBytesPerSecond = loaded * 1000 / Math.max(1, elapsedMs)
+				if (transferring && now > sampleAt) {
+					patch.bytesPerSecond = Math.max(0, loaded - sampleBytes) * 1000 / (now - sampleAt)
+					sampleAt = now
+					sampleBytes = loaded
+				}
+				update(id, patch)
+			}
+			const timer = setInterval(tick, 500)
+			const cleanup = () => { tick(); clearInterval(timer); request.signal.removeEventListener('abort', abort); activeRequests.delete(abort) }
+			xhr.upload.onprogress = event => {
+				loaded = event.loaded
+				total = event.lengthComputable ? event.total : 0
+				update(id, {loaded, total})
+			}
+			xhr.upload.onload = () => {
+				tick()
+				transferring = false
+				update(id, {stage: 'processing', bytesPerSecond: 0})
+			}
 			xhr.onerror = () => { cleanup(); reject(new TypeError(t('flow.networkError'))) }
 			xhr.onabort = () => { cleanup(); reject(new DOMException('Upload cancelled', 'AbortError')) }
 			xhr.onload = () => {
@@ -107,11 +134,20 @@ export const uploadAwareFetch: typeof fetch = async (input, init) => {
 					const index = line.indexOf(':')
 					if (index > 0) headers.append(line.slice(0, index), line.slice(index + 1).trim())
 				}
-				update(id, {stage: xhr.status >= 200 && xhr.status < 300 ? 'done' : 'error'})
+				let failed = xhr.status < 200 || xhr.status >= 300
+				let failure = failed ? t('flow.httpError', {status: xhr.status}) : undefined
+				// Attachment uploads may report individual failures in a successful HTTP response.
+				if (!failed && headers.get('content-type')?.includes('json')) {
+					try {
+						const result = JSON.parse(new TextDecoder().decode(xhr.response))
+						if (Array.isArray(result.errors) && result.errors.length) {failed = true; failure = t('flow.filesFailed')}
+					} catch { /* The SDK reports malformed responses. */ }
+				}
+				update(id, {stage: failed ? 'error' : 'done', error: failure, bytesPerSecond: 0})
 				resolve(new Response(xhr.status === 204 ? null : xhr.response, {status: xhr.status, statusText: xhr.statusText, headers}))
 			}
 			if (request.signal.aborted) { cleanup(); reject(new DOMException('Upload cancelled', 'AbortError')); return }
-			xhr.send(body)
+			try { xhr.send(body) } catch (cause) { cleanup(); reject(cause) }
 		})
 		return response
 	} catch (error) {

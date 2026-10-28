@@ -17,11 +17,29 @@
 		>
 
 		<ProgressBar
-			v-if="uploadBatch !== null"
+			v-if="uploadBatch !== null && !taskUploads.length"
 			:value="uploadProgress"
 			:aria-label="$t('task.attachment.upload')"
 			is-primary
 		/>
+
+		<div
+			v-if="taskUploads.length"
+			class="attachment-upload-status"
+			:aria-label="$t('flow.uploads')"
+		>
+			<UploadProgressRow
+				v-for="row in taskUploads"
+				:key="row.id"
+				:row="row"
+			/>
+			<BaseButton
+				class="clear-task-uploads"
+				@click="clearFinishedUploads"
+			>
+				{{ $t('flow.clearFinished') }}
+			</BaseButton>
+		</div>
 
 		<div
 			v-if="attachments.length > 0"
@@ -251,6 +269,8 @@ import {useDropZone} from '@vueuse/core'
 
 import User from '@/components/misc/User.vue'
 import ProgressBar from '@/components/misc/ProgressBar.vue'
+import UploadProgressRow from '@/components/misc/UploadProgressRow.vue'
+import {uploads} from '@/helpers/uploadTransport'
 import Loading from '@/components/misc/Loading.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 
@@ -307,6 +327,12 @@ function eventTargetsEditor(event: Event | null | undefined): boolean {
 const updateTask = useUpdateTaskMutation()
 const {t} = useI18n({useScope: 'global'})
 
+const taskUploads = computed(() => uploads.value.filter(row => row.targetPath.endsWith(`/tasks/${props.task.id}/attachments`)))
+function clearFinishedUploads() {
+	const finished = new Set(taskUploads.value.filter(row => ['done', 'error', 'cancelled'].includes(row.stage)).map(row => row.id))
+	uploads.value = uploads.value.filter(row => !finished.has(row.id))
+}
+
 const attachments = computed(() => props.task.attachments ?? [])
 const uploadMutation = useUploadAttachmentsMutation()
 let uploadController: AbortController | undefined
@@ -317,7 +343,7 @@ const uploadBatch = ref<{
 	completed: number,
 	total: number,
 } | null>(null)
-// the fetch client reports no byte progress, so the first file can only be shown as indeterminate
+// Brief fallback while the SDK prepares the request; byte-level status takes over once transport starts.
 const uploadProgress = computed(() => uploadBatch.value === null || uploadBatch.value.completed === 0
 	? undefined
 	: (uploadBatch.value.completed / uploadBatch.value.total) * 100)
@@ -874,5 +900,17 @@ async function chooseDriveFile(file: DriveEntry) {
 	padding: .25rem .35rem;
 	border-radius: 4px;
 	font-size: .75rem;
+}
+.attachment-upload-status {
+	margin-block: 1rem;
+	padding: .5rem 1rem;
+	border: 1px solid var(--grey-200);
+	border-radius: .75rem;
+	background: var(--grey-100);
+}
+.clear-task-uploads {
+	color: var(--primary);
+	padding-block: .5rem;
+	font-size: .85rem;
 }
 </style>
