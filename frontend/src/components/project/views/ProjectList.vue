@@ -78,6 +78,7 @@
 								:can-mark-as-done="canWrite || isPseudoProject"
 								:the-task="t"
 								:all-tasks="allTasks"
+								:hierarchy="hierarchy"
 								@taskUpdated="updateTasks"
 							>
 								<span
@@ -117,7 +118,7 @@ import SortPopup from '@/components/project/partials/SortPopup.vue'
 import {useTaskList} from '@/composables/useTaskList'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
 import {useCurrentProject} from '@/composables/useCurrentProject'
-import {shouldShowTaskInListView} from '@/composables/useTaskListFiltering'
+import {buildTaskHierarchy} from '@/helpers/taskHierarchy'
 import {PERMISSIONS as Permissions} from '@/constants/permissions'
 import {calculateItemPosition} from '@/helpers/calculateItemPosition'
 import type {TaskResponse} from '@/client/queries/tasks'
@@ -165,8 +166,9 @@ const showLoading = useDelayedLoading(loading)
 const positionMutation = useUpdateTaskPositionMutation()
 
 const dragTasks = ref<TaskResponse[] | null>(null)
+const hierarchy = computed(() => buildTaskHierarchy(allTasks.value))
 const tasks = computed({
-	get: () => dragTasks.value ?? allTasks.value.filter(task => shouldShowTaskInListView(task, allTasks.value)),
+	get: () => dragTasks.value ?? hierarchy.value.roots,
 	set: value => { dragTasks.value = value },
 })
 watch([projectId, () => props.viewId], () => { dragTasks.value = null })

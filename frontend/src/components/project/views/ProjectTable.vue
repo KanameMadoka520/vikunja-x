@@ -269,6 +269,7 @@
 												{{ t.title }}
 											</RouterLink>
 										</TaskGlanceTooltip>
+										<TaskHierarchySummary :task="t" />
 									</td>
 									<td v-if="activeColumns.priority">
 										<PriorityLabel
@@ -351,6 +352,7 @@ import User from '@/components/misc/User.vue'
 import PriorityLabel from '@/components/tasks/partials/PriorityLabel.vue'
 import Labels from '@/components/tasks/partials/Labels.vue'
 import TaskGlanceTooltip from '@/components/tasks/partials/TaskGlanceTooltip.vue'
+import TaskHierarchySummary from '@/components/tasks/partials/TaskHierarchySummary.vue'
 import DateTableCell from '@/components/tasks/partials/DateTableCell.vue'
 import CommentCount from '@/components/tasks/partials/CommentCount.vue'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'

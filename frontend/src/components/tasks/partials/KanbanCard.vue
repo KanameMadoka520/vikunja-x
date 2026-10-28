@@ -72,6 +72,8 @@
 				{{ projectTitle }}
 			</span>
 
+			<TaskHierarchySummary :task="task" />
+
 			<ProgressBar
 				v-if="task.percent_done > 0"
 				class="task-progress"
@@ -134,6 +136,7 @@ import Done from '@/components/misc/Done.vue'
 import Labels from '@/components/tasks/partials/Labels.vue'
 import ChecklistSummary from './ChecklistSummary.vue'
 import CommentCount from './CommentCount.vue'
+import TaskHierarchySummary from './TaskHierarchySummary.vue'
 
 import {getHexColor, getTaskIdentifier} from '@/helpers/task'
 import type {Task as ITask} from '@/client/generated'

@@ -1126,6 +1126,7 @@
 		"projectColor": "项目颜色"
 	},
 	"task": {
+    "hierarchy": {"parent": "上级：{title}", "children": "子任务 {done}/{total} 已完成", "expand": "展开「{title}」的子任务", "collapse": "收起「{title}」的子任务", "directOnly": "仅统计直属子任务；完成子任务不会自动完成上级任务。", "done": "已完成", "pending": "未完成"},
 		"new": "新建任务",
 		"createSuccess": "成功创建任务",
 		"addReminder": "添加提醒...",

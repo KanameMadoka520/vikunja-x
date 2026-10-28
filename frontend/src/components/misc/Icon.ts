@@ -56,6 +56,8 @@ import {
 	faImage,
 	faKeyboard,
 	faLayerGroup,
+	faLevelUpAlt,
+	faChevronRight,
 	faList,
 	faListOl,
 	faLock,
@@ -121,6 +123,8 @@ import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
 import type {FontAwesomeIcon as FontAwesomeIconFixedTypes} from '@/types/vue-fontawesome'
 
 library.add(faSpinner)
+library.add(faLevelUpAlt)
+library.add(faChevronRight)
 library.add(faBold)
 library.add(faCodeBranch)
 library.add(faCompass)

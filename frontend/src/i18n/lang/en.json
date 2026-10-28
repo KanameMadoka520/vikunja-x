@@ -1149,6 +1149,7 @@
     }
   },
   "task": {
+    "hierarchy": {"parent": "Parent: {title}", "children": "Subtasks {done}/{total} done", "expand": "Expand subtasks of {title}", "collapse": "Collapse subtasks of {title}", "directOnly": "Direct subtasks only. Completing them does not automatically complete the parent task.", "done": "Completed", "pending": "Not completed"},
     "new": "Create a task",
     "createSuccess": "The task was successfully created.",
     "bulkCreateUnexpectedResponse": "The server returned an unexpected number of created tasks.",

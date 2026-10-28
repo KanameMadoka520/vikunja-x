@@ -184,22 +184,36 @@
 					:icon="['far', 'star']"
 				/>
 			</BaseButton>
+			<TaskHierarchySummary
+				class="list-task-hierarchy"
+				:task="task"
+				:inline-tree="nestedChildren.length > 0"
+				:expanded="childrenExpanded"
+				@toggle="childrenExpanded = !childrenExpanded"
+			/>
+
 			<slot />
 		</div>
-		<template v-if="typeof task.related_tasks?.subtask !== 'undefined'">
-			<template v-for="subtask in task.related_tasks.subtask">
-				<template v-if="getTaskById(subtask.id)">
-					<single-task-in-project
-						:key="subtask.id"
-						:the-task="getTaskById(subtask.id)!"
-						:disabled="disabled"
-						:can-mark-as-done="canMarkAsDone"
-						:all-tasks="allTasks"
-						class="subtask-nested"
-					/>
-				</template>
-			</template>
-		</template>
+		<div
+			v-if="childrenExpanded && nestedChildren.length"
+			class="subtask-branch"
+			:style="depth >= 4 ? {'margin-inline-start': '0'} : undefined"
+		>
+			<SingleTaskInProject
+				v-for="subtask in nestedChildren"
+				:key="subtask.id"
+				:the-task="subtask"
+				:disabled="disabled"
+				:is-archived="isArchived"
+				:can-mark-as-done="canMarkAsDone"
+				:all-tasks="allTasks"
+				:hierarchy="resolvedHierarchy"
+				:depth="depth + 1"
+				:style="depth >= 4 ? {'margin-inline-start': '0'} : undefined"
+				class="subtask-nested"
+				@taskUpdated="emit('taskUpdated', $event)"
+			/>
+		</div>
 	</div>
 </template>
 
@@ -215,6 +229,8 @@ import Labels from '@/components/tasks/partials/Labels.vue'
 import TaskGlanceTooltip from '@/components/tasks/partials/TaskGlanceTooltip.vue'
 import DeferTask from '@/components/tasks/partials/DeferTask.vue'
 import ChecklistSummary from '@/components/tasks/partials/ChecklistSummary.vue'
+import TaskHierarchySummary from './TaskHierarchySummary.vue'
+import {buildTaskHierarchy, type TaskHierarchy} from '@/helpers/taskHierarchy'
 import CommentCount from '@/components/tasks/partials/CommentCount.vue'
 
 import ProgressBar from '@/components/misc/ProgressBar.vue'
@@ -245,25 +261,26 @@ const props = withDefaults(defineProps<{
 	disabled?: boolean,
 	canMarkAsDone?: boolean,
 	allTasks?: ITask[],
+	hierarchy?: TaskHierarchy,
+	depth?: number,
 }>(), {
 	isArchived: false,
 	showProject: false,
 	disabled: false,
 	canMarkAsDone: true,
 	allTasks: () => [],
+	hierarchy: undefined,
+	depth: 0,
 })
 
 const emit = defineEmits<{
 	'taskUpdated': [task: ITask],
 }>()
 
-function getTaskById(taskId: number | undefined): ITask | undefined {
-	if (typeof props.allTasks === 'undefined' || props.allTasks.length === 0) {
-		return undefined
-	}
-
-	return props.allTasks.find(t => t.id === taskId)
-}
+const resolvedHierarchy = computed(() => props.hierarchy ?? buildTaskHierarchy(props.allTasks))
+const nestedChildren = computed(() => resolvedHierarchy.value.children.get(props.theTask.id!) ?? [])
+const childrenExpanded = ref(true)
+watch(() => props.theTask.id, () => {childrenExpanded.value = true})
 
 const {t} = useI18n({useScope: 'global'})
 
@@ -603,8 +620,25 @@ defineExpose({
 	}
 }
 
+.list-task-hierarchy {
+	flex: 1 0 100%;
+	padding-inline-start: 1.8rem;
+}
+.subtask-branch {
+	border-inline-start: 2px solid var(--grey-300);
+	margin-inline-start: 1rem;
+}
 .subtask-nested {
-	margin-inline-start: 1.75rem;
+	margin-inline-start: 1rem;
+	position: relative;
+}
+.subtask-nested::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: -1rem;
+	inset-block-start: 1.1rem;
+	inline-size: .8rem;
+	border-block-start: 2px solid var(--grey-300);
 }
 
 :deep(.popup) {

@@ -1,6 +1,7 @@
 import {useMutation, type QueryClient} from '@tanstack/vue-query'
 import {
 	tasksCreate,
+	tasksRead,
 	patchTasksRead,
 	tasksDelete,
 	tasksBulkCreate,
@@ -332,11 +333,24 @@ export function removeTaskLabelMutationOptions() {
 	})
 }
 
+async function refreshTaskRelations(client: QueryClient, ids: number[]) {
+	const context = captureClientRequestContext()
+	const results = await Promise.allSettled([...new Set(ids)].map(task => tasksRead({path: {task}})))
+	assertClientRequestContext(context)
+	for (const result of results) {
+		if (result.status !== 'fulfilled' || result.value.data.id === undefined) continue
+		const task = result.value.data
+		// Patch relation metadata only. Preserve already loaded board pages and concurrent task edits.
+		mapTaskEverywhere(client, task.id!, current => normalizeTask({...current, related_tasks: task.related_tasks}))
+	}
+}
+
 export function createTaskRelationMutationOptions() {
 	return contextMutationOptions({
 		mutationFn: async ({taskId, ...body}: TaskRelationWritable & {taskId: number}) =>
 			(await tasksRelationsCreate({path: {task: taskId}, body})).data,
 		onSettled: async ({taskId, other_task_id}, client) => {
+			await refreshTaskRelations(client, [taskId, ...(other_task_id ? [other_task_id] : [])])
 			await invalidateTaskMembership(client, taskId, 'active')
 			if (other_task_id) await invalidateTaskMembership(client, other_task_id, 'active')
 		},
@@ -348,6 +362,7 @@ export function deleteTaskRelationMutationOptions() {
 			await tasksRelationsDelete({path})
 		},
 		onSettled: async ({task, otherTask}, client) => {
+			await refreshTaskRelations(client, [task, otherTask])
 			await invalidateTaskMembership(client, task, 'active')
 			await invalidateTaskMembership(client, otherTask, 'active')
 		},
