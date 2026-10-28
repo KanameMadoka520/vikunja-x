@@ -31,7 +31,7 @@ import {
 } from '@/client/queries/tcyConversations'
 import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
-import type {ReviewInput} from '@/client/generated'
+import type {ChatTurn, ReviewInput} from '@/client/generated'
 import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
 import {captureClientRequestContext, isClientRequestContextCurrent, isRequestContextAbort} from '@/client/requestContext'
 
@@ -54,6 +54,12 @@ const chatID = computed(() => typeof route.query.chat === 'string' ? route.query
 const events = useConversationEvents(chatID)
 const current = useQuery(computed(() => ({...conversationQuery(chatID.value), refetchInterval: events.connected.value ? false : 1000})))
 const active = computed(() => current.data.value)
+const pendingMessage = ref<{chat: string, originChat: string, turn: ChatTurn}>()
+const visibleTurns = computed(() => {
+	const turns = active.value?.turns ?? []
+	const pending = pendingMessage.value
+	return pending && [pending.chat, pending.originChat].includes(chatID.value) && !turns.some(turn => turn.request_id === pending.turn.request_id) ? [...turns, pending.turn] : turns
+})
 const canCompact = computed(() => (active.value?.turns?.length ?? 0) > (active.value?.compactions?.at(-1)?.through ?? 0))
 const activeRun = computed(() => Boolean(active.value?.compacting || active.value?.turns?.some(turn => turn.status === 'running')))
 const sidebarOpen = ref(false)
@@ -180,7 +186,7 @@ const audioInput = ref<HTMLInputElement>()
 const recording = ref(false)
 const audioStage = ref('')
 const elapsed = ref(0)
-const editingBusy = computed(() => uploadingFiles.value || removeFile.isPending.value || Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
+const editingBusy = computed(() => Boolean(pendingMessage.value) || uploadingFiles.value || removeFile.isPending.value || Boolean(audioStage.value) || review.isPending.value || create.isPending.value || send.isPending.value || action.isPending.value || transcribe.isPending.value || cleanup.isPending.value || recording.value)
 const busy = computed(() => !optionsReady.value || editingBusy.value || activeRun.value || Boolean(paused.value))
 const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
@@ -231,26 +237,31 @@ async function submit() {
 		request_id: crypto.randomUUID(),
 		connection_id: selectedConnection.value,
 	}
+	pendingMessage.value = {chat: id, originChat: id, turn: {id: request.request_id, request_id: request.request_id, prompt: message, attachments: [...draftFiles.value], status: 'running'}}
+	prompt.value = ''
+	stickToBottom.value = true
+	const requestContext = captureClientRequestContext()
+	let target = id
 	try {
-		let target = id
 		if (!target) {
 			const created = await create.mutateAsync()
 			target = created.id!
+			if (pendingMessage.value) pendingMessage.value.chat = target
 			if (route.name !== 'tcy-ai' || route.fullPath !== location) return
 			saveOptions(target, currentOptions.value, selectedProfile.value)
 			await router.replace({name: 'tcy-ai', query: {...route.query, chat: target}})
 		}
 		await send.mutateAsync({id: target, body: request})
-		if (chatID.value === target && prompt.value === originalPrompt) {
-			prompt.value = ''
+		if (chatID.value === target && !prompt.value) {
 			drafts.delete(target)
 			original.value = ''
-			stickToBottom.value = true
 		}
 	} catch (e) {
-		if (isRequestContextAbort(e)) return
+		if (isRequestContextAbort(e) || !isClientRequestContextCurrent(requestContext)) return
+		if (chatID.value === target && !prompt.value) prompt.value = originalPrompt
 		notice.value = t('chat.sendFailed')
-	}
+	} finally { pendingMessage.value = undefined }
+
 }
 
 async function manage(kind: 'rename' | 'delete' | 'stop' | 'compact' | 'fork', turnId?: string) {
@@ -293,10 +304,39 @@ function composerKeydown(event: KeyboardEvent) {
 watch(() => active.value?.turns?.at(-1)?.status, (status, previous) => {
 	if (previous === 'running' && status !== 'running') refreshChanges.mutate()
 })
-watch(() => active.value?.turns?.at(-1)?.result, async () => {
-	await nextTick()
-	if (stickToBottom.value && thread.value) thread.value.scrollTo({top: thread.value.scrollHeight, behavior: 'instant'})
-})
+let scrollFrame = 0
+function stopFollowing() {
+	cancelAnimationFrame(scrollFrame)
+	scrollFrame = 0
+}
+function trackScroll() {
+	if (!scrollFrame && thread.value) stickToBottom.value = thread.value.scrollHeight - thread.value.scrollTop - thread.value.clientHeight < 120
+}
+function userScroll(event: WheelEvent) {
+	if (event.deltaY < 0) { stopFollowing(); stickToBottom.value = false }
+}
+function followOutput() {
+	if (!stickToBottom.value || scrollFrame) return
+	const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+	let previous = performance.now()
+	const follow = (now: number) => {
+		const el = thread.value
+		if (!el || !stickToBottom.value) { scrollFrame = 0; return }
+		const target = el.scrollHeight - el.clientHeight
+		const distance = target - el.scrollTop
+		if (reducedMotion || Math.abs(distance) < 1 || Math.abs(distance) > el.clientHeight) {
+			el.scrollTop = target; scrollFrame = 0; return
+		}
+		// Time-based easing follows new text without restarting a browser smooth-scroll animation.
+		el.scrollTop += distance * (1 - Math.exp(-Math.max(8, now - previous) / 45))
+		previous = now
+		scrollFrame = requestAnimationFrame(follow)
+	}
+	scrollFrame = requestAnimationFrame(follow)
+}
+watch([visibleTurns, () => active.value?.turns?.at(-1)?.result], followOutput, {flush: 'post'})
+onBeforeUnmount(stopFollowing)
+
 
 async function processAudio(file: Blob, filename: string) {
 	if (file.size > 16 * 1024 * 1024) { notice.value = t('tcymc.text.audio_must_not_exceed_16_mib'); return }
@@ -571,10 +611,12 @@ onBeforeUnmount(() => {
 							<Icon icon="pen" />
 						</BaseButton><BaseButton
 							class="toolbar-button"
+							:aria-label="t('chat.compact')"
+							:title="t('chat.compact')"
 							:aria-disabled="busy || !canCompact"
 							@click="!busy && canCompact && manage('compact')"
 						>
-							<Icon icon="compress" /> {{ t('chat.compact') }}
+							<Icon icon="compress" /><span class="compact-label">{{ t('chat.compact') }}</span>
 						</BaseButton><BaseButton
 							class="toolbar-button"
 							:aria-label="t('chat.delete')"
@@ -649,10 +691,13 @@ onBeforeUnmount(() => {
 				<div
 					ref="thread"
 					class="conversation"
-					@scroll="thread && (stickToBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 120)"
+					@scroll.passive="trackScroll"
+					@wheel.passive="userScroll"
+					@touchstart.passive="stopFollowing"
+					@pointerdown="stopFollowing"
 				>
 					<div
-						v-if="!active?.turns?.length"
+						v-if="!visibleTurns.length"
 						class="welcome"
 					>
 						<AronaAvatar size="large" /><h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
@@ -671,9 +716,10 @@ onBeforeUnmount(() => {
 					</div>
 					<TransitionGroup name="message-reveal">
 						<ChatTurnCard
-							v-for="turn in active?.turns"
-							:key="turn.id"
+							v-for="turn in visibleTurns"
+							:key="turn.request_id || turn.id"
 							:turn="turn"
+							:sending="turn === pendingMessage?.turn"
 							:conversation-id="chatID"
 							:busy="busy"
 							:review-busy="review.isPending.value || action.isPending.value"
@@ -1008,6 +1054,8 @@ gap: .35rem;
 min-inline-size: 0;
 }
 .toolbar-button {
+flex-shrink: 0;
+white-space: nowrap;
 display: inline-flex;
 align-items: center;
 justify-content: center;
@@ -1137,12 +1185,17 @@ padding: .25rem 1.5rem;
 min-inline-size: 0;
 }
 .conversation-title {
+min-inline-size: 0;
+flex: 1;
 overflow: hidden;
 text-overflow: ellipsis;
 white-space: nowrap;
 font-size: .8rem;
 color: var(--text-light);
 font-weight: 400;
+}
+.toolbar-actions {
+flex-shrink: 0;
 }
 .rename-form {
 display: flex;
@@ -1341,6 +1394,7 @@ opacity: 0;
 transform: translateY(5px);
 }
 @media (width <= 800px) {
+ .compact-label { display: none; }
  .chat-shell.with-history {
 grid-template-columns: minmax(0, 1fr);
 }

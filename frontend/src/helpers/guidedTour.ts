@@ -7,6 +7,7 @@ export interface GuideStep {
 	target: string
 	route?: string
 	sidebar?: boolean
+ settingsTab?: 'chat' | 'roles'
 }
 
 export const guides: Record<GuideId, {
@@ -66,19 +67,23 @@ export const guides: Record<GuideId, {
 			{
 				id: 'connections',
 				target: 'ai-connections',
+				settingsTab: 'chat',
 				route: 'user.settings.ai',
 			},
 			{
 				id: 'addConnection',
 				target: 'ai-add',
+				settingsTab: 'chat',
 			},
 			{
 				id: 'roles',
 				target: 'ai-roles',
+				settingsTab: 'roles',
 			},
 			{
 				id: 'saveModels',
 				target: 'ai-save',
+				settingsTab: 'roles',
 			},
 			{
 				id: 'permissions',

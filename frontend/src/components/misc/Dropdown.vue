@@ -41,9 +41,9 @@
 </template>
 
 <script setup lang="ts">
-import {ref, nextTick, watch, computed, type PropType} from 'vue'
+import {ref, nextTick, watch, computed, onBeforeUnmount, type PropType} from 'vue'
 import {onClickOutside} from '@vueuse/core'
-import {computePosition, autoPlacement, offset, shift, size} from '@floating-ui/dom'
+import {computePosition, autoPlacement, offset, shift, size, autoUpdate} from '@floating-ui/dom'
 import type {IconProp} from '@fortawesome/fontawesome-svg-core'
 
 import CustomTransition from '@/components/misc/CustomTransition.vue'
@@ -69,6 +69,8 @@ defineSlots<{
 
 const initialMount = ref(false)
 const open = ref(false)
+const positioned = ref(false)
+let stopPositioning: (() => void) | undefined
 
 const dropdown = ref<HTMLElement>()
 const dropdownMenu = ref<HTMLElement>()
@@ -117,10 +119,13 @@ async function updatePosition() {
 		],
 	})
 
+	if (!open.value) return
 	dropdownPosition.value = {x, y}
+	positioned.value = true
 }
 
 const dropdownMenuStyle = computed(() => ({
+	visibility: positioned.value ? 'visible' as const : 'hidden' as const,
 	left: `${dropdownPosition.value.x}px`,
 	top: `${dropdownPosition.value.y}px`,
 	'--hover-offset': `${dropdownMenuOffset.value}px`,
@@ -151,11 +156,15 @@ function focusTrigger() {
 	}
 }
 
-watch(open, (isOpen) => {
-	if (isOpen) {
-		updatePosition()
-	}
+watch(open, async isOpen => {
+	stopPositioning?.()
+	stopPositioning = undefined
+	positioned.value = false
+	if (!isOpen) return
+	await nextTick()
+	if (open.value && dropdown.value && dropdownMenu.value) stopPositioning = autoUpdate(dropdown.value, dropdownMenu.value, updatePosition)
 })
+onBeforeUnmount(() => stopPositioning?.())
 
 onClickOutside(dropdown, (e) => {
 	if (!open.value) {

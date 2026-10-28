@@ -212,6 +212,10 @@ async function showStep() {
 		let target: HTMLElement | null = null
 		// Settings load asynchronously; wait for their real content, never create demo data.
 		for (let attempt = 0; attempt < 40 && ticket === generation; attempt++) {
+			if (current.settingsTab) {
+				window.dispatchEvent(new CustomEvent('vikunja:ai-settings-tab', {detail: current.settingsTab}))
+				await nextTick()
+			}
 			const candidate = document.querySelector<HTMLElement>(selector)
 			if (candidate && candidate.getBoundingClientRect().width > 0
 				&& candidate.getBoundingClientRect().height > 0) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useNow} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {marked} from 'marked'
@@ -16,17 +16,20 @@ const props = withDefaults(defineProps<{
 	conversationId?: string
 	turn: ChatTurn
 	busy: boolean
+ sending?: boolean
  reviewBusy?: boolean
-}>(), {reviewBusy: false, conversationId: ''})
+}>(), {reviewBusy: false, sending: false, conversationId: ''})
 const emit = defineEmits<{
 	fork: [id: string]
  review: [input: ReviewInput]
 }>()
 const {t} = useI18n({useScope: 'global'})
 const copied = ref(false)
+const executionOpen = ref(false)
 const running = computed(() => props.turn.status === 'running')
 const result = computed(() => props.turn.result)
-const now = useNow({interval: 250})
+const {now, pause, resume} = useNow({interval: 1000, controls: true})
+watch(running, value => value ? resume() : pause(), {immediate: true})
 const lastStep = computed(() => result.value?.steps?.at(-1))
 const activeTool = computed(() => result.value?.stage === 'model' ? lastStep.value?.tool_calls?.at(-1)?.function?.name : result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
 const liveUsage = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
@@ -87,10 +90,10 @@ async function copy() {
 					v-if="running"
 					class="run-status"
 					role="status"
-				>{{ t('chat.running') }}</span>
+				>{{ t(sending ? 'chat.sending' : 'chat.running') }}</span>
 			</div>
 			<div
-				v-if="running"
+				v-if="running && !sending"
 				class="live-run-panel"
 				role="status"
 			>
@@ -102,77 +105,80 @@ async function copy() {
 			<details
 				v-if="result?.steps?.length"
 				class="execution"
+				@toggle="executionOpen = ($event.target as HTMLDetailsElement).open"
 			>
 				<summary><Icon icon="sitemap" /> {{ t('chat.thinkingAndSteps') }} · {{ t('chat.rounds', {count: result.steps.length}) }} · {{ t('chat.operations', {count: result.actions?.length ?? 0}) }}</summary>
-				<section
-					v-for="step in result.steps"
-					:key="step.round"
-					class="model-step"
-				>
-					<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ stepTime(step) }}</span></header><p
-						v-if="step.loaded_tools?.length"
-						class="step-note"
+				<template v-if="executionOpen">
+					<section
+						v-for="step in result.steps"
+						:key="step.round"
+						class="model-step"
 					>
-						{{ t('assistantUI.toolFootprint', {count: step.loaded_tools.length, total: step.catalog_tool_count, size: ((step.tool_schema_bytes ?? 0) / 1024).toFixed(1), full: ((step.catalog_schema_bytes ?? 0) / 1024).toFixed(1)}) }}<br><code>{{ step.loaded_tools.join(', ') }}</code>
-					</p>
-					<p
-						v-if="!running && step.requested_streaming && !step.streaming"
-						class="step-note"
-					>
-						{{ t('flow.streamIgnored') }}
-					</p>
-					<p
-						v-if="step.http_status"
-						class="step-note"
-					>
-						HTTP {{ step.http_status }}<span v-if="step.request_id"> · {{ t('debug.upstreamID') }}: {{ step.request_id }}</span>
-					</p>
-					<details
-						v-if="step.reasoning"
-						class="reasoning"
-						:open="running && step.round === result.steps.length"
-					>
-						<summary>{{ t('chat.providerReasoning') }}</summary><p>{{ step.reasoning }}</p>
-					</details>
-					<p
-						v-else
-						class="step-note"
-					>
-						{{ t('chat.noReasoning') }}
-					</p>
-					<p
-						v-if="step.text && step.round !== result.steps.length"
-						class="step-text"
-					>
-						{{ step.text }}
-					</p>
-					<details
-						v-for="call in (step.tool_calls ?? []).filter(call => !(result?.actions ?? []).some(action => action.round === step.round && action.tool === call.function?.name))"
-						:key="call.id || call.function?.name"
-						class="tool-step tool-draft"
-						:open="running"
-					>
-						<summary><Icon icon="code" />{{ labels[call.function?.name ?? ''] || call.function?.name }} · {{ t(running && step.round === lastStep?.round && result?.stage === 'model' ? 'flow.toolDraft' : 'flow.toolProposed') }}</summary><pre>{{ pretty(call.function?.arguments) }}</pre>
-					</details>
-					<div
-						v-for="receipt in (result.operations ?? []).filter(op => op.status === 'running' && step.round === lastStep?.round)"
-						:key="receipt.id"
-						class="tool-inflight"
-					>
-						<span class="working-orbit" />{{ labels[receipt.tool ?? ''] || receipt.tool }} · {{ t('flow.toolExecuting') }}
-					</div>
-					<details
-						v-for="(action, actionIndex) in (result?.actions ?? []).filter(a => a.round === step.round)"
-						:key="actionIndex"
-						class="tool-step"
-					>
-						<summary><Icon :icon="action.success ? 'check' : 'exclamation-circle'" /> {{ labels[action.tool ?? ''] || action.tool }} · {{ action.success ? t('tcymc.text.succeeded') : t('tcymc.text.failed') }} · {{ seconds(action.duration_ms) }}</summary>
-						<WebSearchEvidence
-							v-if="action.search"
-							:result="action.search"
-						/><strong>{{ t('chat.arguments') }}</strong><pre>{{ pretty(action.arguments) }}</pre><strong>{{ t('chat.actualResult') }}</strong><pre>{{ pretty(action.result) }}</pre>
-					</details>
-				</section>
+						<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ stepTime(step) }}</span></header><p
+							v-if="step.loaded_tools?.length"
+							class="step-note"
+						>
+							{{ t('assistantUI.toolFootprint', {count: step.loaded_tools.length, total: step.catalog_tool_count, size: ((step.tool_schema_bytes ?? 0) / 1024).toFixed(1), full: ((step.catalog_schema_bytes ?? 0) / 1024).toFixed(1)}) }}<br><code>{{ step.loaded_tools.join(', ') }}</code>
+						</p>
+						<p
+							v-if="!running && step.requested_streaming && !step.streaming"
+							class="step-note"
+						>
+							{{ t('flow.streamIgnored') }}
+						</p>
+						<p
+							v-if="step.http_status"
+							class="step-note"
+						>
+							HTTP {{ step.http_status }}<span v-if="step.request_id"> · {{ t('debug.upstreamID') }}: {{ step.request_id }}</span>
+						</p>
+						<details
+							v-if="step.reasoning"
+							class="reasoning"
+							:open="running && step.round === result.steps.length"
+						>
+							<summary>{{ t('chat.providerReasoning') }}</summary><p>{{ step.reasoning }}</p>
+						</details>
+						<p
+							v-else
+							class="step-note"
+						>
+							{{ t('chat.noReasoning') }}
+						</p>
+						<p
+							v-if="step.text && step.round !== result.steps.length"
+							class="step-text"
+						>
+							{{ step.text }}
+						</p>
+						<details
+							v-for="call in (step.tool_calls ?? []).filter(call => !(result?.actions ?? []).some(action => action.round === step.round && action.tool === call.function?.name))"
+							:key="call.id || call.function?.name"
+							class="tool-step tool-draft"
+							:open="running"
+						>
+							<summary><Icon icon="code" />{{ labels[call.function?.name ?? ''] || call.function?.name }} · {{ t(running && step.round === lastStep?.round && result?.stage === 'model' ? 'flow.toolDraft' : 'flow.toolProposed') }}</summary><pre>{{ pretty(call.function?.arguments) }}</pre>
+						</details>
+						<div
+							v-for="receipt in (result.operations ?? []).filter(op => op.status === 'running' && step.round === lastStep?.round)"
+							:key="receipt.id"
+							class="tool-inflight"
+						>
+							<span class="working-orbit" />{{ labels[receipt.tool ?? ''] || receipt.tool }} · {{ t('flow.toolExecuting') }}
+						</div>
+						<details
+							v-for="(action, actionIndex) in (result?.actions ?? []).filter(a => a.round === step.round)"
+							:key="actionIndex"
+							class="tool-step"
+						>
+							<summary><Icon :icon="action.success ? 'check' : 'exclamation-circle'" /> {{ labels[action.tool ?? ''] || action.tool }} · {{ action.success ? t('tcymc.text.succeeded') : t('tcymc.text.failed') }} · {{ seconds(action.duration_ms) }}</summary>
+							<WebSearchEvidence
+								v-if="action.search"
+								:result="action.search"
+							/><strong>{{ t('chat.arguments') }}</strong><pre>{{ pretty(action.arguments) }}</pre><strong>{{ t('chat.actualResult') }}</strong><pre>{{ pretty(action.result) }}</pre>
+						</details>
+					</section>
+				</template>
 			</details>
 			<AgentReviewCard
 				:turn="turn"
@@ -196,7 +202,7 @@ async function copy() {
 				class="thinking-status"
 				role="status"
 			>
-				<Icon icon="bolt" /> {{ t('chat.waiting') }}
+				<Icon icon="bolt" /> {{ t(sending ? 'chat.sending' : 'chat.waiting') }}
 			</p>
 			<p
 				v-if="result?.error"

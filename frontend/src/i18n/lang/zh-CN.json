@@ -1,4 +1,21 @@
 {
+	"modelSettings": {
+		"tabs": "模型设置分页",
+		"chat": "文字与多模态",
+		"transcription": "语音识别",
+		"roles": "功能分配",
+		"saveConnection": "保存此连接",
+		"saveRoles": "保存功能分配",
+		"saved": "已保存",
+		"saveConnectionFirst": "请先单独保存连接，再将它分配给功能。其他连接未保存的修改会保留在草稿中。",
+		"removeConfirm": "确定删除此已保存连接吗？使用它的功能将停用，其他连接不受影响。"
+	},
+	"modelPicker": {
+		"browse": "展开模型列表",
+		"hint": "共 {count} 个模型 · 输入可筛选，也可填写自定义模型 ID",
+		"empty": "请先获取模型列表，也可以直接填写模型 ID。",
+		"noMatch": "没有匹配的模型，可以保留手动填写的模型 ID。"
+	},
   "stages": {
     "title": "分组清单",
     "fullDescription": "完整描述",
@@ -14,6 +31,8 @@
     "retry": "重试保存"
   },
   "webSearch": {
+		"sourceCount": "参考来源 · {count}",
+		"technicalDetails": "请求与用量详情",
     "turnMode": "下一条消息的联网搜索方式",
     "modeHelp": "自动：模型理解你的话后决定是否搜索；本轮搜索：要求先调用搜索工具；本轮不搜索：不给本轮提供搜索工具。",
     "auto": "自动判断",
@@ -2337,6 +2356,7 @@
 		"systemPrompt": "内置提示词与工具",
 		"availableTools": "可用工具定义",
 		"promptNote": "这里展示当前系统提示词。每次请求还会附带已保存的会话上下文和你的消息；实际使用的系统提示词也保存在对应回复中。",
+		"sending": "正在发送…",
 		"sendFailed": "消息未能发出，已保留输入内容。",
 		"deleteConfirm": "删除此会话及其模型上下文？这不会删除任务或项目。",
 		"forkConfirm": "从这条回复创建新会话？已发生的任务和项目变更仍然保留；分支不会撤销或重新执行这些操作。",

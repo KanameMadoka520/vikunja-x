@@ -1,4 +1,21 @@
 {
+	"modelSettings": {
+		"tabs": "Model settings sections",
+		"chat": "Text & vision",
+		"transcription": "Speech recognition",
+		"roles": "Feature defaults",
+		"saveConnection": "Save this connection",
+		"saveRoles": "Save feature defaults",
+		"saved": "Saved",
+		"saveConnectionFirst": "Save a connection before assigning it to a feature. Other connection drafts are kept separate.",
+		"removeConfirm": "Remove this saved connection? Features using it will be disabled. Other connections will be kept."
+	},
+	"modelPicker": {
+		"browse": "Browse available models",
+		"hint": "{count} models · type to filter or enter any model ID",
+		"empty": "Fetch models first, or enter a model ID manually.",
+		"noMatch": "No matching models. You can keep the manually entered ID."
+	},
   "stages": {
     "title": "Grouped checklist",
     "fullDescription": "Full description",
@@ -14,6 +31,8 @@
     "retry": "Retry saving"
   },
   "webSearch": {
+		"sourceCount": "Sources · {count}",
+		"technicalDetails": "Request and usage details",
     "turnMode": "Web search for the next message",
     "modeHelp": "Auto lets the model interpret your request and choose whether to search. Required forces a search attempt. Off hides the tool for this turn.",
     "auto": "Auto",
@@ -2337,6 +2356,7 @@
 		"systemPrompt": "Built-in prompt and tools",
 		"availableTools": "Available tool definitions",
 		"promptNote": "This is the current system prompt. Each message also includes saved conversation context and your request. Its actual prompt is saved with the response.",
+		"sending": "Sending…",
 		"sendFailed": "The message could not be sent. Your draft has been kept.",
 		"deleteConfirm": "Delete this conversation and its saved model context? This does not delete tasks or projects.",
 		"forkConfirm": "Create a new conversation through this response? Existing task and project changes remain in place; branching does not undo or replay them.",

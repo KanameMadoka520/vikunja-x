@@ -27,7 +27,7 @@ async function chatServer(page: Page, withReview = false, live = false) {
 		if (action === 'messages') {
 			sends++
 			c.title ||= body.message
-			c.turns.push({id: crypto.randomUUID(), prompt: body.message, status: 'completed', result: {
+			c.turns.push({id: crypto.randomUUID(), request_id: body.request_id, prompt: body.message, status: 'completed', result: {
 				configuration: {connection_id: body.connection_id, project_id: body.project_id, mode: body.mode, approval: body.approval, allow_delete: body.allow_delete, write_project_ids: body.write_project_ids, max_rounds: body.max_rounds, max_operations: body.max_operations, timeout_seconds: body.timeout_seconds, token_budget: body.token_budget}, reply: '**Saved answer**', model: 'actual-fixture', requested_model: 'requested', protocol: 'anthropic', endpoint: 'https://fixture.example/v1/messages', system_prompt: 'Actual request prompt', duration_ms: 2000, first_token_ms: 125, first_text_ms: 500,
 				usage: {input: 30, output: 20, reported: true, cached: 5, cache_reported: true},
 				steps: [{round: 1, loaded_tools: ['list_projects', 'find_tools'], tool_schema_bytes: 1200, catalog_schema_bytes: 8000, catalog_tool_count: 20, model: 'actual-fixture', reasoning: 'Provider thinking fixture', text: 'Saved answer', duration_ms: 2000}],
@@ -223,6 +223,7 @@ test('live thinking, real usage and tool drafts remain observable after leaving 
 	await page.getByLabel('Your request').press('Enter')
 	await expect(page.locator('.live-run-panel')).toContainText('Receiving model stream')
 	await expect(page.locator('.live-run-panel')).toContainText('30 Input')
+	await page.locator('.execution > summary').click()
 	await expect(page.locator('.reasoning')).toContainText('Checking accessible projects as data arrives')
 	await expect(page.locator('.tool-draft')).toContainText('Receiving proposed tool arguments')
 	const url=page.url()
@@ -321,4 +322,52 @@ test('permission switching survives reload, uses current request settings and re
  await expect(page.locator('.composer-hint')).toContainText(/Review/i)
  const restored = await send('Continue original')
  expect(restored.mode).toBe('write'); expect(restored.approval).toBe('review')
+})
+
+for (const width of [1440, 390]) {
+ test(`sending is immediate and sources stay collapsed at ${width}px`, async ({authenticatedPage: page}, testInfo) => {
+  const server = await chatServer(page)
+  let unblock!: () => void
+  const gate = new Promise<void>(resolve => { unblock = resolve })
+  await page.route('**/ai/conversations/*/messages', async route => { await gate; await route.fallback() })
+  await page.setViewportSize({width, height: 900})
+  await page.goto('/ai')
+  await page.getByLabel('Your request').fill('Show sources without blocking the composer')
+  await page.getByLabel('Your request').press('Enter')
+  await expect(page.locator('.user-message p')).toHaveText('Show sources without blocking the composer')
+  await expect(page.getByLabel('Your request')).toHaveValue('')
+  await expect(page.locator('.thinking-status')).toHaveText('Sending…')
+  await page.locator('.chat-turn').evaluate(el => { el.setAttribute('data-identity-check', 'same-node') })
+  unblock()
+  await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
+  await expect(page.locator('.chat-turn')).toHaveCount(1)
+  await expect(page.locator('.chat-turn')).toHaveAttribute('data-identity-check', 'same-node')
+  expect((await page.locator('.conversation-toolbar').boundingBox())!.height).toBeLessThan(65)
+  const c = [...server.conversations.values()][0]
+  c.turns[0].result.actions = [{round: 1, tool: 'web_search', success: true, search: {verified: true, protocol: 'deepseek', endpoint: 'https://api.deepseek.com/v1/tools/search', duration_ms: 123, sources: [{title: 'Vikunja documentation', url: 'https://vikunja.io/docs/'}, {title: 'Vue performance', url: 'https://vuejs.org/guide/best-practices/performance'}]}}]
+  await page.reload()
+  const evidence = page.locator('.assistant-message > .web-evidence')
+  await expect(evidence.locator('.sources-disclosure')).not.toHaveAttribute('open')
+  await expect(evidence.getByRole('link')).toHaveCount(0)
+  await evidence.locator('.sources-disclosure > summary').click()
+  await expect(evidence.getByRole('link', {name: 'Vikunja documentation'})).toBeVisible()
+  await expect(evidence.locator('.source-diagnostics')).not.toHaveAttribute('open')
+  await evidence.locator('.source-diagnostics > summary').click()
+  await expect(evidence.locator('code')).toHaveText('https://api.deepseek.com/v1/tools/search')
+  await evidence.locator('.sources-disclosure > summary').click()
+  await expect(evidence.getByRole('link')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({path: testInfo.outputPath(`chat-sources-${width}.png`), animations: 'disabled'})
+ })
+}
+
+test('failed send restores the draft and removes the pending row', async ({authenticatedPage: page}) => {
+ await chatServer(page)
+ await page.route('**/ai/conversations/*/messages', route => route.fulfill({status: 503, json: {message: 'Fixture unavailable'}}))
+ await page.goto('/ai')
+ await page.getByLabel('Your request').fill('Keep this unsent draft')
+ await page.getByLabel('Your request').press('Enter')
+ await expect(page.getByText('The message could not be sent. Your draft has been kept.')).toBeVisible()
+ await expect(page.getByLabel('Your request')).toHaveValue('Keep this unsent draft')
+ await expect(page.locator('.chat-turn')).toHaveCount(0)
 })

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {useEventListener} from '@vueuse/core'
+import ModelPicker from './ModelPicker.vue'
 import WebSearchEvidence from './WebSearchEvidence.vue'
 import type {WebSearchResult} from '@/client/generated'
 import {useI18n} from 'vue-i18n'
@@ -23,6 +25,18 @@ const draft = ref<Settings>(initialDraft())
 const baseline = ref(JSON.stringify(initialDraft()))
 const dirty = computed(() => JSON.stringify(draft.value) !== baseline.value)
 const saveError = ref('')
+const activeTab = ref<'chat' | 'transcription' | 'roles'>('chat')
+useEventListener(window, 'vikunja:ai-settings-tab', (event: Event) => {
+	const tab = (event as CustomEvent).detail
+	if (['chat', 'transcription', 'roles'].includes(tab)) activeTab.value = tab
+})
+const visibleConnections = computed(() => draft.value.connections.filter(c => c.kind === activeTab.value))
+const savingPart = ref('')
+const cardErrors = ref<Record<string, string>>({})
+const savedCards = ref<Record<string, string>>({})
+function cardStamp(c: AIConnection) { return JSON.stringify(c) }
+function persisted(id: string) { return props.initial.connections.some(c => c.id === id) }
+
 watch(() => props.initial, () => {
 	if (dirty.value) return
 	draft.value = initialDraft()
@@ -62,30 +76,68 @@ async function testSearch(c: AIConnection) {
 }
 
 function addConnection() {
-	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: 'chat', protocol: 'openai-chat', context_window: 0, max_output_tokens: 0, input_types: [], output_token_field: '', web_search_protocol: '', web_search_base_url: '', web_search_model: '', api_key: '', has_key: false})
+	draft.value.connections.push({id: crypto.randomUUID(), name: '', base_url: '', model: '', kind: activeTab.value === 'transcription' ? 'transcription' : 'chat', protocol: activeTab.value === 'transcription' ? 'openai-transcription' : 'openai-chat', context_window: 0, max_output_tokens: 0, input_types: [], output_token_field: '', web_search_protocol: '', web_search_base_url: '', web_search_model: '', api_key: '', has_key: false})
 }
 
-function removeConnection(id: string) {
-	draft.value.connections = draft.value.connections.filter(c => c.id !== id)
-	for (const role of ['assistant', 'transcription', 'cleanup'] as const) {
-		if (draft.value[role] === id) draft.value[role] = ''
+function savePayload(settings: Settings) {
+	return {...settings, connections: settings.connections.map(c => ({web_search_protocol: c.web_search_protocol, web_search_base_url: c.web_search_base_url, web_search_model: c.web_search_model, id: c.id, name: c.name, kind: c.kind, protocol: c.protocol, base_url: c.base_url, model: c.model, api_key: c.api_key, non_streaming: c.non_streaming, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0, input_types: c.input_types, output_token_field: c.output_token_field}))}
+}
+async function saveConnection(connection: AIConnection) {
+	if (save.isPending.value) return
+	const id = connection.id
+	const submitted = cardStamp(connection)
+	const payload = initialDraft()
+	const index = payload.connections.findIndex(c => c.id === id)
+	if (index < 0) payload.connections.push({...connection})
+	else payload.connections[index] = {...connection}
+	// A changed connection purpose must not leave incompatible role assignments.
+	for (const role of ['assistant', 'cleanup', 'transcription'] as const) {
+		if (payload[role] === id && connection.kind !== (role === 'transcription' ? 'transcription' : 'chat')) payload[role] = ''
 	}
+	savingPart.value = id; cardErrors.value[id] = ''; delete savedCards.value[id]
+	try {
+		const saved = initialDraft(await save.mutateAsync(savePayload(payload)))
+		const currentIndex = draft.value.connections.findIndex(c => c.id === id)
+		const clean = saved.connections.find(c => c.id === id)!
+		if (currentIndex >= 0 && cardStamp(draft.value.connections[currentIndex]) === submitted) {
+			draft.value.connections[currentIndex] = clean
+			savedCards.value[id] = cardStamp(clean)
+		}
+		baseline.value = JSON.stringify(saved)
+	} catch (error) {
+		if (!isRequestContextAbort(error)) cardErrors.value[id] = error instanceof Error ? error.message : t('settingsDraft.failed')
+	} finally { savingPart.value = '' }
 }
-
-async function saveSettings() {
+async function removeConnection(id: string) {
+	if (save.isPending.value) return
+	if (persisted(id)) {
+		if (!window.confirm(t('modelSettings.removeConfirm'))) return
+		const payload = initialDraft()
+		payload.connections = payload.connections.filter(c => c.id !== id)
+		for (const role of ['assistant', 'transcription', 'cleanup'] as const) if (payload[role] === id) payload[role] = ''
+		savingPart.value = id; cardErrors.value[id] = ''
+		try { baseline.value = JSON.stringify(initialDraft(await save.mutateAsync(savePayload(payload)))) }
+		catch (error) { if (!isRequestContextAbort(error)) cardErrors.value[id] = error instanceof Error ? error.message : t('settingsDraft.failed'); return }
+		finally { savingPart.value = '' }
+	}
+	draft.value.connections = draft.value.connections.filter(c => c.id !== id)
+	for (const role of ['assistant', 'transcription', 'cleanup'] as const) if (draft.value[role] === id) draft.value[role] = ''
+}
+async function saveRoles() {
 	if (save.isPending.value) return
 	saveError.value = ''
-	const submitted = JSON.stringify(draft.value)
-	try {
-		const saved = await save.mutateAsync({...draft.value, connections: draft.value.connections.map(c => ({web_search_protocol: c.web_search_protocol, web_search_base_url: c.web_search_base_url, web_search_model: c.web_search_model, id: c.id, name: c.name, kind: c.kind, protocol: c.protocol, base_url: c.base_url, model: c.model, api_key: c.api_key, non_streaming: c.non_streaming, context_window: c.context_window || 0, max_output_tokens: c.max_output_tokens || 0, input_types: c.input_types, output_token_field: c.output_token_field}))})
-		const clean = initialDraft(saved)
-		if (JSON.stringify(draft.value) === submitted) draft.value = clean
-		baseline.value = JSON.stringify(clean)
-	} catch (error) {
-		if (isRequestContextAbort(error)) return
-		saveError.value = error instanceof Error ? error.message : t('settingsDraft.failed')
+	const roles = {assistant: draft.value.assistant, transcription: draft.value.transcription, cleanup: draft.value.cleanup, persona: draft.value.persona}
+	const payload = {...initialDraft(), ...roles}
+	if ([roles.assistant, roles.transcription, roles.cleanup].some(id => id && !payload.connections.some(c => c.id === id))) {
+		saveError.value = t('modelSettings.saveConnectionFirst'); return
 	}
-
+	savingPart.value = 'roles'
+	try {
+		const clean = initialDraft(await save.mutateAsync(savePayload(payload)))
+		for (const role of ['assistant', 'transcription', 'cleanup'] as const) if (draft.value[role] === roles[role]) draft.value[role] = clean[role]
+		baseline.value = JSON.stringify(clean)
+	} catch (error) { if (!isRequestContextAbort(error)) saveError.value = error instanceof Error ? error.message : t('settingsDraft.failed') }
+	finally { savingPart.value = '' }
 }
 
 async function testConnection(id: string, kind: string) {
@@ -122,6 +174,8 @@ const protocolNames = {'openai-chat': 'OpenAI Chat Completions', 'openai-respons
 function changeKind(c: AIConnection) {
 	c.protocol = c.kind === 'chat' ? 'openai-chat' : 'openai-transcription'
 	if (c.kind !== 'chat') c.web_search_protocol = ''
+	activeTab.value = c.kind
+	for (const role of ['assistant', 'cleanup', 'transcription'] as const) if (draft.value[role] === c.id && c.kind !== (role === 'transcription' ? 'transcription' : 'chat')) draft.value[role] = ''
 }
 function endpoint(c: AIConnection, models = false) {
 	const base = c.base_url.trim().replace(/\/+$/, '')
@@ -171,10 +225,7 @@ function savedMatches(c: AIConnection) {
 </script>
 
 <template>
-	<form
-		class="tcy-settings"
-		@submit.prevent="saveSettings"
-	>
+	<div class="tcy-settings">
 		<header>
 			<p class="eyebrow">
 				VIKUNJA X
@@ -189,23 +240,42 @@ function savedMatches(c: AIConnection) {
 			{{ t('settingsDraft.unsaved') }}
 		</p>
 
-		<section class="tcy-panel">
+		<nav
+			class="model-tabs"
+			:aria-label="t('modelSettings.tabs')"
+		>
+			<button
+				v-for="tab in (['chat', 'transcription', 'roles'] as const)"
+				:key="tab"
+				type="button"
+				:class="{'is-selected': activeTab === tab}"
+				:aria-pressed="activeTab === tab"
+				@click="activeTab = tab"
+			>
+				{{ t(`modelSettings.${tab}`) }}<span v-if="tab !== 'roles'">{{ draft.connections.filter(c => c.kind === tab).length }}</span>
+			</button>
+		</nav>
+		<section
+			v-show="activeTab !== 'roles'"
+			class="tcy-panel"
+		>
 			<h3 data-tour="ai-connections">
 				<Icon icon="link" /> {{ t('tcymc.text.model_connections') }}
 			</h3>
 			<p>{{ t('tcymc.text.choose_your_provider_s_protocol_and_include_its') }}</p>
 			<p
-				v-if="!draft.connections.length"
+				v-if="!visibleConnections.length"
 				class="empty"
 			>
 				{{ t('tcymc.text.no_connections_yet_add_one_then_assign_it') }}
 			</p>
-			<fieldset
-				v-for="(connection, index) in draft.connections"
+			<form
+				v-for="(connection, index) in visibleConnections"
 				:key="connection.id"
 				class="connection"
+				@submit.prevent="saveConnection(connection)"
 			>
-				<legend>{{ t('tcymc.text.connection') }} {{ index + 1 }} · {{ connection.name || t('tcymc.text.new_model') }}</legend>
+				<h4>{{ t('tcymc.text.connection') }} {{ index + 1 }} · {{ connection.name || t('tcymc.text.new_model') }}</h4>
 				<p
 					v-if="changedAddress(connection)"
 					class="notification is-warning"
@@ -241,17 +311,13 @@ function savedMatches(c: AIConnection) {
 						placeholder="https://api.example.com/v1"
 						autocomplete="off"
 					></label>
-					<label>{{ t('tcymc.text.model_id') }}<input
+					<ModelPicker
 						v-model="connection.model"
-						:list="`models-${connection.id}`"
-						class="input"
-						required
+						:models="loadedModels(connection)"
+						:label="t('tcymc.text.model_id')"
 						:placeholder="t('tcymc.text.model_name_provided_by_your_service')"
-					><datalist :id="`models-${connection.id}`"><option
-						v-for="model in loadedModels(connection)"
-						:key="model"
-						:value="model"
-					/></datalist></label>
+						required
+					/>
 					<label>{{ t('tcymc.apiKey') }}<input
 						v-model="connection.api_key"
 						class="input"
@@ -284,13 +350,14 @@ function savedMatches(c: AIConnection) {
 								type="url"
 								:placeholder="t('webSearch.inheritBase')"
 							><small>{{ t('webSearch.baseHelp') }}</small></label>
-							<label v-if="connection.web_search_protocol !== 'deepseek'">{{ t('webSearch.model') }}<input
-								v-model="connection.web_search_model"
-								:aria-label="t('webSearch.model')"
-								class="input"
-								:list="`models-${connection.id}`"
-								:placeholder="connection.model"
-							><small>{{ t('webSearch.modelHelp') }}</small></label>
+							<div v-if="connection.web_search_protocol !== 'deepseek'">
+								<ModelPicker
+									v-model="connection.web_search_model"
+									:models="loadedModels(connection)"
+									:label="t('webSearch.model')"
+									:placeholder="connection.model"
+								/><small>{{ t('webSearch.modelHelp') }}</small>
+							</div>
 						</template>
 					</div>
 					<template v-if="connection.web_search_protocol">
@@ -421,7 +488,28 @@ function savedMatches(c: AIConnection) {
 				>
 					{{ modelNotice[connection.id] }}
 				</p><small>{{ t('tcymc.text.save_connection_changes_before_testing_you_can_fetch') }}</small>
-			</fieldset>
+
+				<div class="card-save">
+					<XButton
+						type="submit"
+						icon="save"
+						:disabled="save.isPending.value"
+					>
+						{{ savingPart === connection.id ? t('tcymc.text.saving') : t('modelSettings.saveConnection') }}
+					</XButton>
+					<span
+						v-if="savedCards[connection.id] === cardStamp(connection)"
+						role="status"
+					>{{ t('modelSettings.saved') }}</span>
+				</div>
+				<p
+					v-if="cardErrors[connection.id]"
+					role="alert"
+					class="notification is-danger"
+				>
+					{{ t('settingsDraft.retained') }} {{ cardErrors[connection.id] }}
+				</p>
+			</form>
 			<XButton
 				variant="secondary"
 				type="button"
@@ -433,7 +521,7 @@ function savedMatches(c: AIConnection) {
 				{{ t('tcymc.text.add_model_connection') }}
 			</XButton>
 			<label
-				v-if="speechModels.length"
+				v-if="activeTab === 'transcription' && speechModels.length"
 				class="audio-test"
 			>{{ t('tcymc.text.audio_file_for_connection_testing') }}<input
 				type="file"
@@ -451,7 +539,11 @@ function savedMatches(c: AIConnection) {
 				>{{ endpointResult }}</code>
 			</p>
 		</section>
-		<section class="tcy-panel">
+		<form
+			v-show="activeTab === 'roles'"
+			class="tcy-panel"
+			@submit.prevent="saveRoles"
+		>
 			<h3 data-tour="ai-roles">
 				<Icon icon="sitemap" /> {{ t('tcymc.text.models_for_each_feature') }}
 			</h3>
@@ -467,6 +559,7 @@ function savedMatches(c: AIConnection) {
 					v-for="c in chatModels"
 					:key="c.id"
 					:value="c.id"
+					:disabled="!persisted(c.id)"
 				>{{ c.name }} · {{ c.model }}</option></select><small>{{ t('tcymc.text.choose_a_model_with_tool_calling_to_read') }}</small></label>
 				<label>{{ t('tcymc.text.speech_recognition') }}<select
 					v-model="draft.transcription"
@@ -475,6 +568,7 @@ function savedMatches(c: AIConnection) {
 					v-for="c in speechModels"
 					:key="c.id"
 					:value="c.id"
+					:disabled="!persisted(c.id)"
 				>{{ c.name }} · {{ c.model }}</option></select><small>{{ t('tcymc.text.turn_recordings_or_uploaded_audio_into_text') }}</small></label>
 				<label>{{ t('tcymc.text.transcript_cleanup') }}<select
 					v-model="draft.cleanup"
@@ -483,9 +577,19 @@ function savedMatches(c: AIConnection) {
 					v-for="c in chatModels"
 					:key="c.id"
 					:value="c.id"
+					:disabled="!persisted(c.id)"
 				>{{ c.name }} · {{ c.model }}</option></select><small>{{ t('tcymc.text.improve_wording_and_punctuation_without_changing_tasks') }}</small></label>
 			</div>
-		</section>
+			<p>{{ t('modelSettings.saveConnectionFirst') }}</p>
+			<XButton
+				type="submit"
+				icon="save"
+				data-tour="ai-save"
+				:disabled="save.isPending.value"
+			>
+				{{ savingPart === 'roles' ? t('tcymc.text.saving') : t('modelSettings.saveRoles') }}
+			</XButton>
+		</form>
 		<p
 			v-if="saveError"
 			class="notification is-danger"
@@ -495,24 +599,55 @@ function savedMatches(c: AIConnection) {
 		</p>
 		<div class="actions">
 			<XButton
-				variant="primary"
-				type="submit"
-				icon="save"
-				data-tour="ai-save"
-				:disabled="save.isPending.value"
-			>
-				{{ save.isPending.value ? t('tcymc.text.saving') : t('tcymc.text.save_settings') }}
-			</XButton><XButton
 				variant="secondary"
 				:to="{name: 'tcy-ai'}"
 			>
 				{{ t('tcymc.text.open_ai_assistant') }}
 			</XButton>
 		</div>
-	</form>
+	</div>
 </template>
 
 <style scoped>
+.model-tabs {
+ display: flex;
+ gap: .35rem;
+ padding: .25rem;
+ border-radius: .85rem;
+ background: var(--grey-100);
+}
+.model-tabs button {
+ flex: 1;
+ border: 0;
+ border-radius: .65rem;
+ padding: .7rem .45rem;
+ min-block-size: 44px;
+ background: transparent;
+ color: var(--text-light);
+ cursor: pointer;
+ font: inherit;
+ font-size: .85rem;
+}
+.model-tabs button.is-selected {
+ background: var(--site-background);
+ color: var(--text);
+ box-shadow: 0 1px 4px #00000011;
+}
+.model-tabs span {
+ margin-inline-start: .4rem;
+ font-size: .7rem;
+}
+.card-save {
+ display: flex;
+ align-items: center;
+ gap: .75rem;
+ margin-block-start: 1rem;
+}
+.card-save span {
+ color: var(--text-light);
+ font-size: .8rem;
+}
+
 .model-options {
  padding: .85rem 1rem;
  border: 1px solid var(--grey-200);
@@ -575,7 +710,7 @@ h3 {
 	border: 1px solid var(--grey-200);
 	border-radius: .5rem;
 }
-legend {
+.connection h4 {
 	padding-inline: .5rem;
 	font-weight: 600;
 }

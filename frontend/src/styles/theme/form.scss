@@ -9,7 +9,7 @@
 
 .input,
 .textarea {
-  transition: all $transition;
+  transition: border-color $transition, background-color $transition, box-shadow $transition;
   box-shadow: none;
 
   &.is-active,

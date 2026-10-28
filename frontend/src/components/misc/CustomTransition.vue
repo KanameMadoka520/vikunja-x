@@ -40,7 +40,7 @@ $flash-background-duration: 750ms;
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity $transition-duration;
+  transition: opacity .14s ease-out;
 }
 
 .fade-enter-from,
@@ -58,4 +58,7 @@ $flash-background-duration: 750ms;
   inline-size: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+ .fade-enter-active, .fade-leave-active, .width-enter-active, .width-leave-active { transition: none; }
+}
 </style>
