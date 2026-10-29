@@ -122,6 +122,14 @@ func restoreRetryState(ctx context.Context, record *conversationFile, c Connecti
 	in := retryInput(turn)
 	in.ServerHistory, in.Summary = history, summary
 	state := NewAgentState(ctx, c, in)
+	state.CacheStable = false
+	if n := len(turn.Result.Steps); n > 0 {
+		for _, name := range turn.Result.Steps[n-1].LoadedTools {
+			if name == "invoke_tool" {
+				state.CacheStable = true
+			}
+		}
+	}
 	// Keep the original date, page context and permission instructions for this same run.
 	state.Messages[0].Content = turn.Result.SystemPrompt
 	state.Messages = append(state.Messages[:state.HistoryStart], record.Contexts[index]...)

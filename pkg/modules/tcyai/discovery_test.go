@@ -28,6 +28,7 @@ import (
 
 func TestTCYAIDeferredTools(t *testing.T) {
 	state := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "write", AllowDelete: true})
+	state.CacheStable = false // Legacy persisted runs keep the old deferred-header transport.
 	require.Len(t, state.Available, 5)
 	assert.NotContains(t, state.Available, "update_task")
 	initial, err := json.Marshal(state.tools())

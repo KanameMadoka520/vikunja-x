@@ -2814,5 +2814,15 @@
     "revision": "Configuration revision",
     "conflictHelp": "If someone else saved first, reload before making your changes again.",
     "keyChange": "The API address has changed. Enter the key again before saving; the old key will not be forwarded to a new address."
-  }
+  },
+  "cacheEfficiency": {
+    "callTool": "Run discovered tool",
+    "deferredTools": "Stable entry points; discovered parameters are appended to history. KB measures top-level declarations, not billed tokens.",
+  "hitRate": "Cache hit rate",
+  "read": "Cache reads / measured input",
+  "uncached": "Input not read from cache",
+  "explanation": "Weighted by provider-reported input tokens. Non-read input may include cache writes; it is not the new message size or a cost estimate.",
+  "partial": "Includes {reported}/{total} requests with cache data; unreported requests are not counted as zero hits.",
+  "unreported": "The provider has not reported cache usage; a hit rate is unavailable."
+}
 }

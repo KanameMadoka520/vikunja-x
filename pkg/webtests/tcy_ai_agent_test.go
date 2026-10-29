@@ -64,7 +64,7 @@ func TestTCYAIAgentExecution(t *testing.T) {
 			}
 		}
 		name, args := request.Tool, request.Args
-		if last.Role == "tool" && !strings.Contains(last.Content, `"note":"These tools`) {
+		if last.Role == "tool" && !strings.Contains(last.Content, `"note":"These tools`) && !strings.Contains(last.Content, `"transport":"invoke_tool_v1"`) {
 			name = ""
 		}
 		loaded := false
@@ -72,6 +72,17 @@ func TestTCYAIAgentExecution(t *testing.T) {
 			fn, _ := tool["function"].(map[string]any)
 			if fn["name"] == request.Tool {
 				loaded = true
+			}
+		}
+		if !loaded && last.Role == "tool" && fixtureDiscoveredTool(last.Content, request.Tool) {
+			loaded = true
+			if name != "" {
+				wrapped, err := json.Marshal(map[string]any{"name": name, "arguments": args})
+				if !assert.NoError(t, err) {
+					return
+				}
+				name = "invoke_tool"
+				args = wrapped
 			}
 		}
 		if name != "" && !loaded {
@@ -342,4 +353,22 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	require.True(t, conv.Turns[0].Result.Actions[0].Success, conv.Turns[0].Result.Actions[0].Result)
 	assert.Equal(t, 404, humaRequest(t, e, "GET", fmt.Sprintf("/api/v2/tasks/%d", doomed), "", token, "").Code)
 
+}
+
+func fixtureDiscoveredTool(content, name string) bool {
+	var result struct {
+		Transport string `json:"transport"`
+		Tools     []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if json.Unmarshal([]byte(content), &result) != nil || result.Transport != "invoke_tool_v1" {
+		return false
+	}
+	for _, tool := range result.Tools {
+		if tool.Name == name {
+			return true
+		}
+	}
+	return false
 }

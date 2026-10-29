@@ -159,15 +159,14 @@ func TestTCYWebSearchTurnPolicy(t *testing.T) {
 					return
 				}
 				raw, _ := json.Marshal(body["tools"])
-				if mode == "off" {
-					assert.NotContains(t, string(raw), `"name":"web_search"`)
-				} else {
-					assert.Contains(t, string(raw), `"name":"web_search"`)
-				}
+				assert.Contains(t, string(raw), `"name":"web_search"`, "stable entry points do not change with policy; backend enforces off")
+				messages, _ := json.Marshal(body["messages"])
+				assert.Contains(t, string(messages), `\"search_mode\":\"`+mode+`\"`)
+
 				if mode == "required" && chatCalls == 1 {
 					assert.Equal(t, "auto", body["tool_choice"])
 					requireTools := list(body, "tools")
-					assert.Len(t, requireTools, 1)
+					assert.Len(t, requireTools, 7)
 					_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"","tool_calls":[{"id":"s1","type":"function","function":{"name":"web_search","arguments":"{\"query\":\"Vikunja docs\"}"}}]},"finish_reason":"tool_calls"}]}`))
 					return
 				}

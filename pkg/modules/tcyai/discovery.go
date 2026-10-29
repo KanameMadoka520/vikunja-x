@@ -88,11 +88,26 @@ func (state *AgentState) discover(raw json.RawMessage) (string, error) {
 		state.Available = append(state.Available, m.entry.Name)
 	}
 	state.trimTools()
+	if state.CacheStable {
+		definitions := []map[string]any{}
+		for _, selectedTool := range selected {
+			for _, t := range state.catalog() {
+				if toolName(t) == selectedTool.Name {
+					definitions = append(definitions, t["function"].(map[string]any))
+				}
+			}
+		}
+		data, err := json.Marshal(map[string]any{"transport": "invoke_tool_v1", "execution_configuration": runOptions(state.Input), "tools": definitions, "matched": total, "more_available": total > len(selected), "note": "Call invoke_tool with name and arguments matching these parameters. Reuse these definitions while in context; current execution_context and server checks govern permissions."})
+		return string(data), err
+	}
 	data, err := json.Marshal(map[string]any{"tools": selected, "execution_configuration": runOptions(state.Input), "permission_note": "Mode and scope are current execution restrictions, not account ACL results. No matches does not prove account permission denial. Rediscover after changing mode. A nonempty write_project_ids forbids creating new projects; clear that restriction to permit project creation within account permissions.", "matched": total, "more_available": total > len(selected), "note": "These tools are loaded for subsequent rounds. Full parameter schemas are in tool declarations, not this result. Search a more specific name if needed."})
 	return string(data), err
 }
 
 func (state *AgentState) trimTools() {
+	if state.CacheStable {
+		return
+	}
 	// Preserve core tools and pending calls. The working set converges back to
 	// eight deferred definitions when no additional queued calls need pinning.
 	pinned := map[string]bool{"web_search": state.SearchEnabled}

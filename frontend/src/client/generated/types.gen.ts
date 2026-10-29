@@ -256,7 +256,7 @@ export type AssistantOptions = {
      */
     project_id?: number;
     /**
-     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     * Per-turn web search policy: auto lets the model choose; off forbids search execution; required forces a search attempt before answering.
      */
     search_mode?: 'auto' | 'off' | 'required';
     /**
@@ -2995,7 +2995,7 @@ export type RunInput = {
      */
     request_id?: string;
     /**
-     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     * Per-turn web search policy: auto lets the model choose; off forbids search execution; required forces a search attempt before answering.
      */
     search_mode?: 'auto' | 'off' | 'required';
     /**
@@ -6463,7 +6463,7 @@ export type RunInputWritable = {
      */
     request_id?: string;
     /**
-     * Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering.
+     * Per-turn web search policy: auto lets the model choose; off forbids search execution; required forces a search attempt before answering.
      */
     search_mode?: 'auto' | 'off' | 'required';
     /**

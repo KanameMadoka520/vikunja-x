@@ -85,7 +85,7 @@ func TestTCYAIIntegration(t *testing.T) {
 		}
 		modelCalls++
 		last := input.Messages[len(input.Messages)-1]
-		if (last.Role == "tool" && !strings.Contains(last.Content, `"note":"These tools`)) || mode == "text" {
+		if (last.Role == "tool" && !strings.Contains(last.Content, `"note":"These tools`) && !strings.Contains(last.Content, `"transport":"invoke_tool_v1"`)) || mode == "text" {
 			_, err := fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"已完成处理"}}]}`)
 			assert.NoError(t, err)
 			return
@@ -110,6 +110,15 @@ func TestTCYAIIntegration(t *testing.T) {
 				if fn["name"] == name {
 					loaded = true
 				}
+			}
+			if !loaded && last.Role == "tool" && fixtureDiscoveredTool(last.Content, name) {
+				loaded = true
+				wrapped, err := json.Marshal(map[string]any{"name": name, "arguments": json.RawMessage(args)})
+				if !assert.NoError(t, err) {
+					return
+				}
+				name = "invoke_tool"
+				args = string(wrapped)
 			}
 			if !loaded {
 				args = fmt.Sprintf(`{"query":%q}`, name)

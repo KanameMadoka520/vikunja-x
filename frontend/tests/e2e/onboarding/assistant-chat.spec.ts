@@ -530,3 +530,32 @@ for (const width of [1440, 390, 320]) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
  })
 }
+
+for (const width of [1440, 390, 320]) {
+	test(`cache efficiency uses weighted reported input and fits ${width}px`, async ({authenticatedPage: page}) => {
+		const server = await chatServer(page)
+		const id = crypto.randomUUID()
+		server.conversations.set(id, {id, title: 'Cache metrics', turns: [{id: crypto.randomUUID(), prompt: 'Metrics fixture', status: 'completed', result: {
+			system_prompt: 'Stable instructions', reply: 'Done', model: 'fixture', steps: [
+				{round: 1, model: 'fixture', usage: {reported: true, input: 100, cached: 90, cache_reported: true}},
+				{round: 2, model: 'fixture', usage: {reported: true, input: 900, cached: 450, cache_reported: true}},
+				{round: 3, model: 'fixture', usage: {reported: true, input: 100, cached: 0, cache_reported: false}},
+			], actions: [],
+		}}], compactions: []})
+		await page.setViewportSize({width, height: 900})
+		await page.goto(`/ai?chat=${id}`)
+		await page.reload()
+		await page.locator('.request-details > summary').click()
+		const total = page.locator('.run-metrics [data-testid="cache-usage"]')
+		await expect(total).toContainText('54.0%')
+		await expect(total).toContainText('540 / 1,000')
+		await expect(total).toContainText('460')
+		await expect(total).toContainText('2/3')
+		await page.locator('.execution > summary').click()
+		const steps = page.locator('.model-step [data-testid="cache-usage"]')
+		await expect(steps.nth(0)).toContainText('90.0%')
+		await expect(steps.nth(1)).toContainText('50.0%')
+		await expect(steps.nth(2)).toContainText('has not reported')
+		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+	})
+}

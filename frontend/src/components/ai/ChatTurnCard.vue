@@ -8,6 +8,7 @@ import XButton from '@/components/input/Button.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
 import OutputSpeed from './OutputSpeed.vue'
+import CacheUsage from './CacheUsage.vue'
 import WebSearchEvidence from './WebSearchEvidence.vue'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
@@ -33,7 +34,12 @@ const result = computed(() => props.turn.result)
 const {now, pause, resume} = useNow({interval: 1000, controls: true})
 watch(running, value => value ? resume() : pause(), {immediate: true})
 const lastStep = computed(() => result.value?.steps?.at(-1))
-const activeTool = computed(() => result.value?.stage === 'model' ? lastStep.value?.tool_calls?.at(-1)?.function?.name : result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
+const activeTool = computed(() => result.value?.stage === 'model' ? (lastStep.value?.tool_calls?.at(-1) ? callName(lastStep.value.tool_calls.at(-1)!) : undefined) : result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
+const cacheUsages = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].map(step => step.usage))
+function callName(call: {function?: {name?: string, arguments?: string}}) {
+	if (call.function?.name !== 'invoke_tool') return call.function?.name ?? ''
+	try { const name = JSON.parse(call.function.arguments ?? '{}').name; return typeof name === 'string' ? name : 'invoke_tool' } catch {return 'invoke_tool'}
+}
 const liveUsage = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
 function stepTime(step: ModelStep) {
 	const elapsed = running.value && step.round === lastStep.value?.round && result.value?.stage === 'model' && step.started ? Math.max(step.duration_ms ?? 0, now.value.getTime() - new Date(step.started).getTime()) : step.duration_ms
@@ -43,6 +49,7 @@ const answer = computed(() => result.value?.reply || result.value?.steps?.at(-1)
 const html = computed(() => sanitizeProjectDescription(marked.parse(answer.value, {async: false})))
 const labels = computed<Record<string, string>>(() => ({
 	web_search: t('webSearch.title'),
+	invoke_tool: t('cacheEfficiency.callTool'),
 	list_projects: t('tcymc.text.find_projects'),
 	list_tasks: t('tcymc.text.find_tasks'),
 	get_task: t('tcymc.text.read_task'),
@@ -116,11 +123,12 @@ async function copy() {
 						:key="step.round"
 						class="model-step"
 					>
-						<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ stepTime(step) }}</span></header><p
+						<header><strong>{{ t('chat.round', {count: step.round}) }}</strong><span>{{ step.model }} · {{ stepTime(step) }}</span></header>
+						<CacheUsage :usages="[step.usage]" /><p
 							v-if="step.loaded_tools?.length"
 							class="step-note"
 						>
-							{{ t('assistantUI.toolFootprint', {count: step.loaded_tools.length, total: step.catalog_tool_count, size: ((step.tool_schema_bytes ?? 0) / 1024).toFixed(1), full: ((step.catalog_schema_bytes ?? 0) / 1024).toFixed(1)}) }}<br><code>{{ step.loaded_tools.join(', ') }}</code>
+							{{ t('assistantUI.toolFootprint', {count: step.loaded_tools.length, total: step.catalog_tool_count, size: ((step.tool_schema_bytes ?? 0) / 1024).toFixed(1), full: ((step.catalog_schema_bytes ?? 0) / 1024).toFixed(1)}) }}<br><code>{{ step.loaded_tools.join(', ') }}</code><small v-if="step.loaded_tools.includes('invoke_tool')"> · {{ t('cacheEfficiency.deferredTools') }}</small>
 						</p>
 						<p
 							v-if="!running && step.requested_streaming && !step.streaming"
@@ -154,12 +162,12 @@ async function copy() {
 							{{ step.text }}
 						</p>
 						<details
-							v-for="call in (step.tool_calls ?? []).filter(call => !(result?.actions ?? []).some(action => action.round === step.round && action.tool === call.function?.name))"
+							v-for="call in (step.tool_calls ?? []).filter(call => !(result?.actions ?? []).some(action => action.round === step.round && action.tool === callName(call)))"
 							:key="call.id || call.function?.name"
 							class="tool-step tool-draft"
 							:open="running"
 						>
-							<summary><Icon icon="code" />{{ labels[call.function?.name ?? ''] || call.function?.name }} · {{ t(running && step.round === lastStep?.round && result?.stage === 'model' ? 'flow.toolDraft' : 'flow.toolProposed') }}</summary><pre>{{ pretty(call.function?.arguments) }}</pre>
+							<summary><Icon icon="code" />{{ labels[callName(call)] || callName(call) }} · {{ t(running && step.round === lastStep?.round && result?.stage === 'model' ? 'flow.toolDraft' : 'flow.toolProposed') }}</summary><pre>{{ pretty(call.function?.arguments) }}</pre>
 						</details>
 						<div
 							v-for="receipt in (result.operations ?? []).filter(op => op.status === 'running' && step.round === lastStep?.round)"
@@ -271,7 +279,7 @@ async function copy() {
 					<span v-if="result?.usage?.reported">{{ t('chat.inputTokens') }}: {{ result.usage.input }} · {{ t('chat.outputTokens') }}: {{ result.usage.output }} · {{ t('chat.totalTokens') }}: {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }}</span>
 					<span v-else>{{ t('chat.tokens') }}: {{ t('chat.unavailable') }}</span>
 					<span v-if="result?.usage?.reported && result.usage.partial">{{ t('chat.partialUsage') }}</span>
-					<span v-if="result?.usage?.cache_reported">{{ t('chat.cacheTokens') }}: {{ result.usage.cached }}</span><span v-if="result?.usage?.reasoning_reported">{{ t('chat.reasoningTokens') }}: {{ result.usage.reasoning }}</span>
+					<CacheUsage :usages="cacheUsages" /><span v-if="result?.usage?.reasoning_reported">{{ t('chat.reasoningTokens') }}: {{ result.usage.reasoning }}</span>
 				</div><p>{{ t('chat.requestedModel') }}: {{ result.requested_model }} · {{ result.protocol }}</p><code>{{ result.endpoint }}</code><pre>{{ result.system_prompt }}</pre><p>{{ t('chat.metricNotes') }}</p>
 			</details>
 			<WebSearchEvidence

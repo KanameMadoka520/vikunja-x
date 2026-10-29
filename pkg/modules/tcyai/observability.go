@@ -139,14 +139,26 @@ func providerUsage(protocol string, raw []byte) (Usage, string) {
 		_, result.CacheReported = u["cachedContentTokenCount"]
 		_, result.ReasoningReported = u["thoughtsTokenCount"]
 	default:
-		result.Input = number(u, "input_tokens") + number(u, "prompt_tokens")
-		result.Output = number(u, "output_tokens") + number(u, "completion_tokens")
+		result.Input = number(u, "input_tokens")
+		if _, ok := u["input_tokens"]; !ok {
+			result.Input = number(u, "prompt_tokens")
+		}
+		result.Output = number(u, "output_tokens")
+		if _, ok := u["output_tokens"]; !ok {
+			result.Output = number(u, "completion_tokens")
+		}
 		details := object(u, "input_tokens_details")
 		if len(details) == 0 {
 			details = object(u, "prompt_tokens_details")
 		}
 		result.Cached = number(details, "cached_tokens")
 		_, result.CacheReported = details["cached_tokens"]
+		if !result.CacheReported {
+			if _, ok := u["prompt_cache_hit_tokens"]; ok {
+				result.CacheReported = true
+				result.Cached = number(u, "prompt_cache_hit_tokens")
+			}
+		}
 		details = object(u, "output_tokens_details")
 		if len(details) == 0 {
 			details = object(u, "completion_tokens_details")

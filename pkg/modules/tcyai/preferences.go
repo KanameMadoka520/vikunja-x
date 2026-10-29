@@ -24,7 +24,7 @@ import (
 
 // Profiles contain execution preferences, never messages, credentials or permissions grants.
 type AssistantOptions struct {
-	SearchMode      string  `json:"search_mode,omitempty" enum:"auto,off,required" doc:"Per-turn web search policy: auto lets the model choose; off removes the tool; required forces a search attempt before answering."`
+	SearchMode      string  `json:"search_mode,omitempty" enum:"auto,off,required" doc:"Per-turn web search policy: auto lets the model choose; off forbids search execution; required forces a search attempt before answering."`
 	ConnectionID    string  `json:"connection_id" maxLength:"80" doc:"Empty follows the configured assistant connection."`
 	ProjectID       int64   `json:"project_id" minimum:"0" doc:"Context project only, not a permission boundary."`
 	Mode            string  `json:"mode" enum:"read,write" doc:"Read only or execute writes within existing account permissions."`
