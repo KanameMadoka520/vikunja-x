@@ -72,6 +72,10 @@ func (state *AgentState) discover(raw json.RawMessage) (string, error) {
 			matches = append(matches, match{e, score})
 		}
 	}
+	// An exact tool name requests that contract only, not substring neighbors.
+	if len(terms) == 1 && slices.ContainsFunc(matches, func(m match) bool { return m.entry.Name == query }) {
+		matches = slices.DeleteFunc(matches, func(m match) bool { return m.entry.Name != query })
+	}
 	sort.SliceStable(matches, func(i, j int) bool { return matches[i].score > matches[j].score })
 	total := len(matches)
 	if len(matches) > args.Limit {

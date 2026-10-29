@@ -3,9 +3,15 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.22`
+- 版本：`v2.7.1-tcymc.23`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## 工具定义兼容与流式错误诊断（tcymc.23）
+
+修复当前模型上游在读取批量修改工具的可清空颜色参数时直接返回流式错误的问题。用 `anyOf` 表达“空字符串或六位十六进制颜色”，保留相同的服务器校验与清空能力，兼容已保存会话加载的工具。准确搜索 `update_task` 等工具名时仅加载对应工具；自然语言搜索仍支持多个相关结果，批量工具仍可按需发现。
+
+HTTP 200 后返回的流式错误现在保留上游错误类型、说明和请求编号，写入诊断记录；Responses 的 `response.failed` 不再被当作正常结束。错误详情做密钥脱敏和长度限制，已报告用量继续保留。最后一条可安全续跑的失败消息仍可点击「重试并继续」，无需重发用户消息。
 
 ## 中断恢复与个人 Bark 推送（tcymc.22）
 

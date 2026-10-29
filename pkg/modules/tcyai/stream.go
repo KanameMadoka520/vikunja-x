@@ -52,8 +52,8 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 		if err := json.Unmarshal([]byte(data), &frame); err != nil {
 			return err
 		}
-		if object(frame, "error") != nil || event == "error" {
-			return tcylocale.Error("chatStreamInterrupted")
+		if object(frame, "error") != nil || event == "error" || textValue(frame, "type") == "error" {
+			return streamProviderError(frame, o)
 		}
 		switch protocol {
 		case "anthropic":
@@ -145,6 +145,12 @@ func readStream(reader io.Reader, protocol string, o *observation) ([]byte, erro
 				o.delta("", textValue(frame, "delta"))
 			case "response.completed", "response.incomplete", "response.failed":
 				response = asObject(frame["response"])
+				if textValue(frame, "type") == "response.failed" || object(response, "error") != nil {
+					if failedResponse, err := json.Marshal(response); err == nil {
+						captureResponse(o, protocol, failedResponse)
+					}
+					return streamProviderError(response, o)
+				}
 				terminal = true
 			}
 		case "gemini":
@@ -412,4 +418,63 @@ func upstreamError(status int, reader io.Reader, key string) error {
 		message = message[:1500]
 	}
 	return tcylocale.Error("chatUpstream", status, message)
+}
+
+// ProviderStreamError represents a structured error after HTTP headers succeeded.
+// request() redacts the configured key before it can reach saved diagnostics.
+type ProviderStreamError struct{ Type, Message, RequestID string }
+
+func (e *ProviderStreamError) Error() string {
+	return "MODEL_STREAM_ERROR: " + e.Type + ": " + e.Message + " (" + e.RequestID + ")"
+}
+func streamProviderError(frame map[string]any, o *observation) error {
+	detail := object(frame, "error")
+	if detail == nil {
+		detail = frame
+	}
+	kind := textValue(detail, "code")
+	if kind == "" {
+		kind = textValue(detail, "type")
+	}
+	if kind == "" {
+		kind = "upstream_error"
+	}
+	message := textValue(detail, "message")
+	if message == "" {
+		message = "The provider returned a stream error without a message."
+	}
+	id := textValue(detail, "request_id")
+	if id == "" {
+		id = textValue(frame, "request_id")
+	}
+	if o != nil {
+		o.step.StopReason = "error"
+		if id != "" {
+			o.step.RequestID = id
+		} else {
+			id = o.step.RequestID
+		}
+	}
+	return &ProviderStreamError{Type: kind, Message: message, RequestID: id}
+}
+func (e *ProviderStreamError) redact(key string) {
+	clean := func(value string, limit int) string {
+		if key != "" {
+			value = strings.ReplaceAll(value, key, "[redacted]")
+		}
+		value = strings.Map(func(r rune) rune {
+			if r < 32 && r != '\n' && r != '\t' {
+				return -1
+			}
+			return r
+		}, value)
+		chars := []rune(value)
+		if len(chars) > limit {
+			chars = chars[:limit]
+		}
+		return string(chars)
+	}
+	e.Type = clean(e.Type, 100)
+	e.Message = clean(e.Message, 1500)
+	e.RequestID = clean(e.RequestID, 256)
 }

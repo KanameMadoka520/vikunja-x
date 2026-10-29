@@ -19,8 +19,13 @@ package tcyai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"code.vikunja.io/api/pkg/config"
 
 	"code.vikunja.io/api/pkg/i18n"
 
@@ -112,4 +117,65 @@ func TestTCYAIToolSchemas(t *testing.T) {
 		assert.NotNil(t, required)
 	}
 	assert.NotContains(t, upstreamError(400, strings.NewReader(`{"error":{"message":"invalid secret-key schema"}}`), "secret-key").Error(), "secret-key")
+}
+
+func TestTCYAIClearableColorValidation(t *testing.T) {
+	for _, name := range []string{"update_task", "update_project", "bulk_update_tasks"} {
+		for _, tc := range []struct {
+			value any
+			valid bool
+		}{{"", true}, {"aBc012", true}, {"123456", true}, {"#123456", false}, {"12345", false}, {"1234567", false}, {"gggggg", false}, {123456, false}, {nil, false}} {
+			t.Run(fmt.Sprintf("%s/%v", name, tc.value), func(t *testing.T) {
+				args := map[string]any{"id": 1, "hex_color": tc.value}
+				if name == "bulk_update_tasks" {
+					args = map[string]any{"updates": []any{map[string]any{"id": 1, "changes": map[string]any{"hex_color": tc.value}}}}
+				}
+				raw, err := json.Marshal(args)
+				require.NoError(t, err)
+				_, err = ValidateTool(name, raw, RunInput{Mode: "write"})
+				if tc.valid {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+				}
+			})
+		}
+	}
+}
+
+func TestTCYAIProviderStreamError(t *testing.T) {
+	i18n.Init()
+	old := config.OutgoingRequestsAllowNonRoutableIPs.GetBool()
+	config.OutgoingRequestsAllowNonRoutableIPs.Set(true)
+	t.Cleanup(func() { config.OutgoingRequestsAllowNonRoutableIPs.Set(old) })
+	for _, tc := range []struct {
+		protocol, frame string
+		input           int64
+	}{
+		{"openai-responses", `{"type":"error","error":{"type":"api_error","message":"Upstream generation failed secret-key","request_id":"recipe-secret-key"}}`, 0},
+		{"openai-responses", `{"type":"response.failed","response":{"status":"failed","usage":{"input_tokens":42,"output_tokens":0},"error":{"code":"api_error","message":"Upstream generation failed secret-key","request_id":"recipe-secret-key"}}}`, 42},
+		{"anthropic", `{"type":"error","error":{"type":"api_error","message":"Upstream generation failed secret-key"},"request_id":"recipe-secret-key"}`, 0},
+		{"openai-chat", `{"error":{"type":"api_error","message":"Upstream generation failed secret-key","request_id":"recipe-secret-key"}}`, 0},
+	} {
+		t.Run(tc.protocol+fmt.Sprint(tc.input), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, err := fmt.Fprintf(w, "data: %s\n\n", tc.frame)
+				assert.NoError(t, err)
+			}))
+			defer server.Close()
+			ctx, o := withObservation(context.Background(), 1, "model", nil)
+			_, err := Chat(ctx, Connection{BaseURL: server.URL, Model: "model", Protocol: tc.protocol, APIKey: "secret-key"}, []Message{{Role: "user", Content: "Hello"}}, nil)
+			var providerErr *ProviderStreamError
+			require.ErrorAs(t, err, &providerErr)
+			assert.Equal(t, "api_error", providerErr.Type)
+			assert.Equal(t, "recipe-[redacted]", o.step.RequestID)
+			assert.Equal(t, "error", o.step.StopReason)
+			assert.Equal(t, tc.input, o.step.Usage.Input)
+			assert.NotContains(t, err.Error(), "secret-key")
+			explained := ExplainError(ctx, err)
+			assert.Contains(t, explained, "Upstream generation failed [redacted]")
+			assert.Contains(t, explained, "recipe-[redacted]")
+		})
+	}
 }

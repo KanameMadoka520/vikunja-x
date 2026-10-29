@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -112,6 +113,11 @@ func request(ctx context.Context, c Connection, method, suffix, contentType stri
 			o = &observation{start: time.Now()}
 		}
 		raw, err = readStream(resp.Body, c.EffectiveProtocol(), o)
+		var streamError *ProviderStreamError
+		if errors.As(err, &streamError) {
+			streamError.redact(c.APIKey)
+			o.step.RequestID = streamError.RequestID
+		}
 	} else {
 		raw, err = io.ReadAll(io.LimitReader(resp.Body, 32*1024*1024+1))
 	}

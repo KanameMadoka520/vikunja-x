@@ -36,9 +36,10 @@ func TestTCYAIDeferredTools(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("initial definitions: %d bytes vs full %d bytes (%.1f%% reduction)", len(initial), len(full), 100*(1-float64(len(initial))/float64(len(full))))
 	require.Less(t, len(initial)*2, len(full))
-	result, err := state.discover(json.RawMessage(`{"query":"update_task", "limit":1}`))
+	result, err := state.discover(json.RawMessage(`{"query":"update_task", "limit":5}`))
 	require.NoError(t, err)
 	assert.Contains(t, state.Available, "update_task")
+	assert.NotContains(t, state.Available, "bulk_update_tasks")
 	assert.NotContains(t, result, "parameters")
 	assert.NotContains(t, result, "properties")
 	var directory struct {

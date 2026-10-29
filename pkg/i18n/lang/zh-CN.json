@@ -271,6 +271,7 @@
             "chatMissing": "找不到这条会话或消息。",
 			"chatBusy": "仍有操作正在运行，请先停止或等待完成。",
 			"chatRequestChanged": "此请求编号已用于另一条消息，请发起新请求。",
+			"chatStreamProvider": "模型服务返回流式错误 [%s]：%s。上游请求编号：%s。已完成的操作已保留；如果重试后仍然相同，请检查接口兼容性或向服务商提供该编号。",
 			"chatStreamInterrupted": "模型服务中断了响应流，请检查服务商日志或重试。",
 			"chatStreamInvalid": "模型返回的流式格式不符合协议，请检查所选协议与服务商兼容性。",
 			"chatStreamIncomplete": "模型响应流提前结束，已完成的工具操作仍然有效。",

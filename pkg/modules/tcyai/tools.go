@@ -39,6 +39,14 @@ func tool(name, description string, properties map[string]any, required ...strin
 
 func toolName(t map[string]any) string { return t["function"].(map[string]any)["name"].(string) }
 
+// Explicit alternatives preserve the empty-or-six-hex contract without an optional
+// regex group, which some upstream schema compilers reject inside batch arrays.
+func clearableColor(description string) map[string]any {
+	return map[string]any{"type": "string", "description": description, "anyOf": []any{
+		map[string]any{"enum": []string{""}}, map[string]any{"pattern": "^[0-9a-fA-F]{6}$"},
+	}}
+}
+
 func taskProperties() map[string]any {
 	props := baseTools("write", false)[5]["function"].(map[string]any)["parameters"].(map[string]any)["properties"].(map[string]any)
 	delete(props, "id")
@@ -48,7 +56,7 @@ func taskProperties() map[string]any {
 	props["title"].(map[string]any)["minLength"] = 1
 	props["title"].(map[string]any)["maxLength"] = 250
 	props["description"].(map[string]any)["maxLength"] = 12000
-	props["hex_color"] = map[string]any{"type": "string", "pattern": "^([0-9a-fA-F]{6})?$", "description": "任务颜色 color；不带 # 的六位十六进制，空字符串清除颜色。"}
+	props["hex_color"] = clearableColor("任务颜色 color；不带 # 的六位十六进制，空字符串清除颜色。")
 	props["percent_done"] = map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "完成进度 progress，0 到 1；0 清除进度。不会自动设置 done。"}
 	props["is_favorite"] = map[string]any{"type": "boolean", "description": "当前用户的收藏 favorite。"}
 	props["repeat_after"] = map[string]any{"type": "integer", "minimum": 0, "maximum": 2147483647, "description": "重复间隔，单位秒；设为 0 且 repeat_mode=0 取消重复。"}
@@ -100,7 +108,7 @@ func AllTools(mode string, allowDelete bool) []map[string]any {
 		return result
 	}
 	result = append(result,
-		tool("update_project", "修改项目 project 的标题 title、描述 description、color hex_color 颜色、favorite 收藏和 identifier 标识。仅修改提供字段，不改变共享权限或层级。", map[string]any{"id": id, "title": map[string]any{"type": "string", "minLength": 1, "maxLength": 250}, "description": text("完整项目描述"), "hex_color": map[string]any{"type": "string", "pattern": "^([0-9a-fA-F]{6})?$", "description": "不带 # 的六位十六进制；空字符串清除。"}, "is_favorite": map[string]any{"type": "boolean"}, "identifier": map[string]any{"type": "string", "maxLength": 10, "description": "项目任务编号前缀；空字符串清除。"}}, "id"),
+		tool("update_project", "修改项目 project 的标题 title、描述 description、color hex_color 颜色、favorite 收藏和 identifier 标识。仅修改提供字段，不改变共享权限或层级。", map[string]any{"id": id, "title": map[string]any{"type": "string", "minLength": 1, "maxLength": 250}, "description": text("完整项目描述"), "hex_color": clearableColor("不带 # 的六位十六进制；空字符串清除。"), "is_favorite": map[string]any{"type": "boolean"}, "identifier": map[string]any{"type": "string", "maxLength": 10, "description": "项目任务编号前缀；空字符串清除。"}}, "id"),
 		tool("bulk_update_tasks", "原子批量修改/排期，支持 color hex_color 颜色、progress percent_done 进度、favorite 收藏、repeat 重复、move 移动、cover 封面，最多25个不同任务。每项 changes 仅列要修改的字段，未提供字段不变。审核时一次展示整批真实变更。", map[string]any{"updates": map[string]any{"type": "array", "minItems": 1, "maxItems": 25, "items": map[string]any{"type": "object", "properties": map[string]any{"id": id, "changes": map[string]any{"type": "object", "minProperties": 1, "properties": taskProperties(), "additionalProperties": false}}, "required": []string{"id", "changes"}, "additionalProperties": false}}}, "updates"),
 		tool("create_label", "创建标签 labels。", map[string]any{"title": text("标签名称"), "hex_color": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{6}$"}}, "title"),
 		tool("add_task_label", "将已存在的标签关联到任务。", map[string]any{"id": id, "label_id": id}, "id", "label_id"),

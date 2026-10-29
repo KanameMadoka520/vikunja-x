@@ -106,6 +106,10 @@ func failureCode(err error) string {
 
 // ExplainError adds a localized explanation while retaining the exact technical detail for debugging and model recovery.
 func ExplainError(ctx context.Context, err error) string {
+	var streamError *ProviderStreamError
+	if errors.As(err, &streamError) {
+		return tcylocale.Render(ctx, tcylocale.Error("chatStreamProvider", streamError.Type, streamError.Message, streamError.RequestID))
+	}
 	keys := map[string]string{"SCOPE_DENIED": "agentScopeDenied", "FORBIDDEN": "agentForbidden", "STATE_CONFLICT": "agentConflict", "WRITE_UNCERTAIN": "agentUncertain", "INVALID_DATE_RANGE": "agentDateRange", "MODEL_CHANGED": "agentModelChanged", "TOOL_NOT_ALLOWED": "agentNotAllowed", "TOOL_NOT_LOADED": "agentNotLoaded", "INVALID_ARGUMENTS": "agentArguments", "TIMEOUT": "agentTimeout"}
 	if errors.Is(err, ErrImageModel) || errors.Is(err, ErrAttachmentMissing) || errors.Is(err, ErrAttachmentInvalid) {
 		return tcylocale.Render(ctx, tcylocale.Error(err.Error()))
