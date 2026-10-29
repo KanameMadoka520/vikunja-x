@@ -34,6 +34,7 @@ import (
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/modules/auth/ldap"
 	"code.vikunja.io/api/pkg/modules/auth/openid"
+	"code.vikunja.io/api/pkg/modules/bark"
 	"code.vikunja.io/api/pkg/modules/keyvalue"
 	"code.vikunja.io/api/pkg/modules/mailsettings"
 	migrationmodule "code.vikunja.io/api/pkg/modules/migration"
@@ -114,6 +115,7 @@ func FullInitWithoutAsync() {
 
 	// Start the mail daemon
 	mail.StartMailDaemon()
+	bark.Start()
 
 	// Connect to ldap if enabled
 	ldap.InitializeLDAPConnection()

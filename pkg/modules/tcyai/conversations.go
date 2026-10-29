@@ -36,6 +36,7 @@ import (
 )
 
 type ChatTurn struct {
+	Retryable   bool             `json:"retryable" readOnly:"true" doc:"Latest failed model request can resume from confirmed tool results without replaying pending operations."`
 	Attachments []ChatAttachment `json:"attachments,omitempty" readOnly:"true" doc:"Files attached to this user message, in their original order."`
 	ID          string           `json:"id" readOnly:"true" doc:"Server-generated identifier."`
 	Prompt      string           `json:"prompt" readOnly:"true" doc:"Original user message."`
@@ -180,7 +181,11 @@ func readConversation(uid int64, id string) (*conversationFile, error) {
 				}
 			}
 			if i < len(record.States) && record.States[i] != nil {
-				record.States[i] = nil
+				state := record.States[i]
+				state.Result = record.Turns[i].Result
+				if !safeModelState(state) {
+					record.States[i] = nil
+				}
 			}
 		}
 	}
@@ -235,6 +240,7 @@ func cloneConversation(record *conversationFile) Conversation {
 	out.Turns = append([]ChatTurn{}, out.Turns...)
 	out.Compactions = append([]Compaction{}, out.Compactions...)
 	for i := range out.Turns {
+		out.Turns[i].Retryable = retryableTurn(record, i)
 		out.Turns[i].Attachments = append([]ChatAttachment{}, out.Turns[i].Attachments...)
 		result := &out.Turns[i].Result
 		if i < len(record.States) && record.States[i] != nil {
@@ -609,7 +615,7 @@ func launchConversation(ctx context.Context, uid int64, record *conversationFile
 		for _, m := range result.Context {
 			record.Contexts[index] = append(record.Contexts[index], storedMessage{Message: m, Native: m.Native})
 		}
-		if !pausedTurn(*turn) {
+		if !pausedTurn(*turn) && (turn.Status != "failed" || !safeModelState(state)) {
 			record.States[index] = nil
 		}
 		if err := writeConversation(uid, record); err != nil {
@@ -634,7 +640,17 @@ func ReviewConversation(ctx context.Context, uid int64, id string, in ReviewInpu
 		return Conversation{}, err
 	}
 	index := len(record.Turns) - 1
-	if index < 0 || record.Turns[index].ID != in.TurnID || !pausedTurn(record.Turns[index]) || index >= len(record.States) || record.States[index] == nil {
+	if index < 0 || record.Turns[index].ID != in.TurnID {
+		return Conversation{}, ErrAgentReview
+	}
+	if in.Decision == "retry" {
+		if !retryableTurn(record, index) {
+			return Conversation{}, ErrAgentReview
+		}
+		if err = restoreRetryState(ctx, record, c); err != nil {
+			return Conversation{}, err
+		}
+	} else if !pausedTurn(record.Turns[index]) || index >= len(record.States) || record.States[index] == nil {
 		return Conversation{}, ErrAgentReview
 	}
 	state := record.States[index]
@@ -648,6 +664,7 @@ func ReviewConversation(ctx context.Context, uid int64, id string, in ReviewInpu
 	record.Updated = time.Now().UTC()
 	if in.Decision != "edit" {
 		record.Turns[index].Status = "running"
+		record.Turns[index].Finished = nil
 	}
 	if err = writeConversation(uid, record); err != nil {
 		return Conversation{}, err
@@ -667,7 +684,13 @@ func PendingConnection(uid int64, id string) (RunInput, error) {
 		return RunInput{}, err
 	}
 	n := len(record.Turns) - 1
-	if n < 0 || n >= len(record.States) || record.States[n] == nil {
+	if n < 0 {
+		return RunInput{}, ErrAgentReview
+	}
+	if n >= len(record.States) || record.States[n] == nil {
+		if retryableTurn(record, n) {
+			return retryInput(record.Turns[n]), nil
+		}
 		return RunInput{}, ErrAgentReview
 	}
 	in := record.States[n].Input
@@ -887,7 +910,7 @@ func GetConversationActivity(uid int64, id string) (ConversationActivity, error)
 	decorateAttachments(uid, &snapshot)
 	out := ConversationActivity{Storage: snapshot.Storage, CompactProgress: cloneCompactProgress(record.CompactProgress), Compacting: record.Compacting, CompactText: record.CompactText, CompactError: record.CompactError, Compactions: append([]Compaction{}, record.Compactions...)}
 	if n := len(record.Turns); n > 0 {
-		turn := record.Turns[n-1]
+		turn := snapshot.Turns[n-1]
 		turn.Result = publicResult(turn.Result)
 		out.Turn = &turn
 	}

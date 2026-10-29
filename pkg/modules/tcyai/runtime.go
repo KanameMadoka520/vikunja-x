@@ -255,6 +255,10 @@ func (state *AgentState) modelRound(ctx context.Context, c Connection, started t
 	}
 	state.Result.Stage = "model"
 	b.Rounds++
+	// Checkpoint the model boundary before streaming so a restart can resume safely.
+	if err := persist(); err != nil {
+		return false, err
+	}
 	observed, o := withObservation(ctx, b.Rounds, c.Model, func(step ModelStep) {
 		live := state.Result
 		state.Result.DurationMS = baseDuration + time.Since(started).Milliseconds()
@@ -463,7 +467,7 @@ func (state *AgentState) prepareOperation(ctx context.Context, prepare Preparer,
 type ReviewInput struct {
 	TurnID      string `json:"turn_id" format:"uuid" doc:"Turn currently paused."`
 	OperationID string `json:"operation_id" doc:"Exact pending receipt ID for review/edit/reject."`
-	Decision    string `json:"decision" enum:"approve,reject,edit,answer,continue" doc:"Edit regenerates a preview without execution. Continue grants another bounded execution segment."`
+	Decision    string `json:"decision" enum:"approve,reject,edit,answer,continue,retry" doc:"Edit regenerates a preview without execution. Continue grants another bounded execution segment."`
 	Arguments   string `json:"arguments" maxLength:"64000" doc:"JSON arguments for edit only."`
 	Answer      string `json:"answer" maxLength:"12000" doc:"Human clarification or rejection explanation."`
 }
@@ -471,6 +475,14 @@ type ReviewInput struct {
 func ReviewAgent(ctx context.Context, state *AgentState, in ReviewInput, prepare Preparer) error {
 	r := &state.Result
 	switch in.Decision {
+	case "retry":
+		if !safeModelState(state) {
+			return ErrAgentReview
+		}
+		// A failed attempt consumed its round; allow one replacement, not a fresh operation budget.
+		if r.Budget.Rounds >= r.Budget.RoundLimit {
+			r.Budget.RoundLimit = r.Budget.Rounds + 1
+		}
 	case "continue":
 		if r.Pause != "budget" || r.Budget.RoundLimit >= 200 || r.Budget.OperationLimit >= 1000 {
 			return ErrAgentReview

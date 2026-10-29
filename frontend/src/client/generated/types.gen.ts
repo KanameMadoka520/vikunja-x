@@ -395,6 +395,91 @@ export type AuthorizeResponse = {
     state?: string;
 };
 
+export type BarkDelivery = {
+    /**
+     * Delivery attempts including uncertain network outcomes.
+     */
+    attempts?: number;
+    /**
+     * Sanitized failure category; never includes device keys or provider response text.
+     */
+    error?: string;
+    /**
+     * Next automatic retry time, when pending.
+     */
+    next?: string;
+    /**
+     * Original in-app notification ID; zero is a test.
+     */
+    notification_id?: number;
+    /**
+     * Accepted means the Bark server accepted it, not proof the phone displayed it.
+     */
+    status?: 'pending' | 'accepted' | 'failed' | 'skipped';
+    /**
+     * Last attempt or queue update.
+     */
+    updated?: string;
+};
+
+export type BarkSettings = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Deliver new personal notifications in the background.
+     */
+    enabled?: boolean;
+    /**
+     * A device key is saved; it is never returned.
+     */
+    readonly has_key?: boolean;
+    /**
+     * Language of push content.
+     */
+    language?: 'zh-CN' | 'en';
+    /**
+     * Bark interruption level; critical alerts are deliberately not used.
+     */
+    level?: 'active' | 'timeSensitive' | 'passive';
+    /**
+     * Include task titles on the phone lock screen; false sends generic text.
+     */
+    preview?: boolean;
+    /**
+     * Optimistic revision; stale saves return 409.
+     */
+    revision?: number;
+    /**
+     * Task reminders only, or all persisted in-app notifications.
+     */
+    scope?: 'reminders' | 'all';
+    /**
+     * HTTPS Bark base URL, without the device key or /push.
+     */
+    server_url?: string;
+};
+
+export type BarkStatus = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Up to 30 recent deliveries, newest first.
+     */
+    deliveries?: Array<BarkDelivery> | null;
+    /**
+     * Actual POST endpoint without credentials.
+     */
+    endpoint?: string;
+    /**
+     * Current account's redacted configuration.
+     */
+    settings?: BarkSettings;
+};
+
 export type BotUser = {
     /**
      * A URL to the JSON Schema for this object.
@@ -654,6 +739,10 @@ export type ChatTurn = {
      * Saved answer, actual tool results and request metadata.
      */
     readonly result?: RunResult;
+    /**
+     * Latest failed model request can resume from confirmed tool results without replaying pending operations.
+     */
+    readonly retryable?: boolean;
     /**
      * UTC run start timestamp.
      */
@@ -2809,7 +2898,7 @@ export type ReviewInput = {
     /**
      * Edit regenerates a preview without execution. Continue grants another bounded execution segment.
      */
-    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue';
+    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue' | 'retry';
     /**
      * Exact pending receipt ID for review/edit/reject.
      */
@@ -5195,6 +5284,56 @@ export type AuthorizeResponseWritable = {
     state?: string;
 };
 
+export type BarkSettingsWritable = {
+    /**
+     * Write-only device key. Empty preserves it only for the same server.
+     */
+    device_key?: string;
+    /**
+     * Deliver new personal notifications in the background.
+     */
+    enabled?: boolean;
+    /**
+     * Language of push content.
+     */
+    language?: 'zh-CN' | 'en';
+    /**
+     * Bark interruption level; critical alerts are deliberately not used.
+     */
+    level?: 'active' | 'timeSensitive' | 'passive';
+    /**
+     * Include task titles on the phone lock screen; false sends generic text.
+     */
+    preview?: boolean;
+    /**
+     * Optimistic revision; stale saves return 409.
+     */
+    revision?: number;
+    /**
+     * Task reminders only, or all persisted in-app notifications.
+     */
+    scope?: 'reminders' | 'all';
+    /**
+     * HTTPS Bark base URL, without the device key or /push.
+     */
+    server_url?: string;
+};
+
+export type BarkStatusWritable = {
+    /**
+     * Up to 30 recent deliveries, newest first.
+     */
+    deliveries?: Array<BarkDelivery> | null;
+    /**
+     * Actual POST endpoint without credentials.
+     */
+    endpoint?: string;
+    /**
+     * Current account's redacted configuration.
+     */
+    settings?: BarkSettingsWritable;
+};
+
 export type BotUserWritable = {
     /**
      * The user's email address. Always empty for bot users.
@@ -6263,7 +6402,7 @@ export type ReviewInputWritable = {
     /**
      * Edit regenerates a preview without execution. Continue grants another bounded execution segment.
      */
-    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue';
+    decision?: 'approve' | 'reject' | 'edit' | 'answer' | 'continue' | 'retry';
     /**
      * Exact pending receipt ID for review/edit/reject.
      */
@@ -14414,6 +14553,81 @@ export type AuthPasswordTokenResponses = {
 };
 
 export type AuthPasswordTokenResponse = AuthPasswordTokenResponses[keyof AuthPasswordTokenResponses];
+
+export type BarkSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/user/push/bark';
+};
+
+export type BarkSettingsErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type BarkSettingsError = BarkSettingsErrors[keyof BarkSettingsErrors];
+
+export type BarkSettingsResponses = {
+    /**
+     * OK
+     */
+    200: BarkStatus;
+};
+
+export type BarkSettingsResponse = BarkSettingsResponses[keyof BarkSettingsResponses];
+
+export type BarkSaveData = {
+    body: BarkSettingsWritable;
+    path?: never;
+    query?: never;
+    url: '/user/push/bark';
+};
+
+export type BarkSaveErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type BarkSaveError = BarkSaveErrors[keyof BarkSaveErrors];
+
+export type BarkSaveResponses = {
+    /**
+     * Created
+     */
+    201: BarkStatus;
+};
+
+export type BarkSaveResponse = BarkSaveResponses[keyof BarkSaveResponses];
+
+export type BarkTestData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/user/push/bark/test';
+};
+
+export type BarkTestErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type BarkTestError = BarkTestErrors[keyof BarkTestErrors];
+
+export type BarkTestResponses = {
+    /**
+     * Created
+     */
+    201: BarkStatus;
+};
+
+export type BarkTestResponse = BarkTestResponses[keyof BarkTestResponses];
 
 export type SessionsListData = {
     body?: never;

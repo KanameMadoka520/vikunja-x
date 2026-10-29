@@ -49,3 +49,8 @@
 PDF 使用按需加载的 pdfmake；Noto Sans SC 字体从本站加载，OFL 许可证位于 `frontend/public/fonts/`。不会把会话发给第三方转换服务。运行中导出保存快照，不停止后台任务。
 
 协议依据：[OpenAI 图片输入](https://developers.openai.com/api/docs/guides/images-vision)、[Anthropic Vision](https://platform.claude.com/docs/en/build-with-claude/vision)、[Gemini 图片理解](https://ai.google.dev/gemini-api/docs/image-understanding)。PDF 依据：[pdfmake 客户端](https://pdfmake.github.io/docs/0.3/getting-started/client-side/)、[自定义字体](https://pdfmake.github.io/docs/0.3/fonts/custom-fonts-client-side/url/)。
+
+
+### 模型请求中断恢复
+
+`pkg/modules/tcyai/recovery.go` 在完整工具回复边界判断能否恢复，`ChatTurn.retryable` 仅对最新可恢复失败轮次为真。`POST /ai/conversations/{id}/review` 的 `retry` 决策继续同一 turn：后台重新校验身份与业务权限，使用原连接及原执行策略。`AgentState` 保留完整消息、已加载工具与操作凭据，模型请求前写入检查点；不能把未确认的写操作当成待重试 HTTP 请求。旧版本的状态可从服务端保存的上下文与配置恢复，客户端不能提交工具执行结果。流式活动与完整会话 API 返回同样的可恢复标志。浏览器只观察后台任务，刷新/断线不会重新执行。

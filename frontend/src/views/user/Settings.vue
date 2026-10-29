@@ -28,6 +28,7 @@ const isLocalUser = computed(() => authStore.info?.is_local_user)
 
 const navigationItems = computed(() => {
 	const items: (SideNavItem & {condition?: boolean})[] = [
+		{title: t('bark.title'), icon: 'bell', routeName: 'user.settings.push'},
 		{title: t('mailServer.title'), icon: 'cog', routeName: 'user.settings.mail-server', condition: mailAccess.data.value?.can_manage_mail === true},
 		{
 			title: t('tcymc.text.public_page'),

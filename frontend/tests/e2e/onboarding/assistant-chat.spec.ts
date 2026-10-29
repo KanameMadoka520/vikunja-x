@@ -499,3 +499,34 @@ test('floating Arona refreshes the visible task and follows task dialog context'
  await expect(panel.locator('.user-message')).toContainText('Rename the current task')
  expect(server.sends()).toBe(1)
 })
+
+for (const width of [1440, 390, 320]) {
+ test(`retry interrupted model round from saved results at ${width}px`, async ({authenticatedPage: page}) => {
+  const server = await chatServer(page)
+  const id = crypto.randomUUID(), turnID = crypto.randomUUID()
+  const c = {id, title: 'Interrupted request', turns: [{id: turnID, request_id: 'original-request', prompt: 'Create a meeting', status: 'failed', retryable: true, result: {stage: 'model', error: 'The model response stream was interrupted.', steps: [], actions: [{tool: 'create_task', success: true, result: '{"id":123}'}]}}], compactions: []}
+  server.conversations.set(id, c)
+  let retries = 0
+  await page.route(`**/ai/conversations/${id}/review`, async route => {
+   expect(route.request().postDataJSON().decision).toBe('retry')
+   expect(route.request().postDataJSON().turn_id).toBe(turnID)
+   retries++
+   await new Promise(resolve => setTimeout(resolve, 300))
+   Object.assign(c.turns[0], {status: 'completed', retryable: false})
+   Object.assign(c.turns[0].result, {error: '', reply: 'Continued without another create'})
+   await route.fulfill({status: 201, json: c})
+  })
+  await page.setViewportSize({width, height: 900})
+  await page.goto(`/ai?chat=${id}`)
+  const button = page.getByRole('button', {name: 'Retry and continue', exact: true})
+  await expect(button).toBeVisible()
+  await page.reload()
+  await button.click()
+  await expect(button).toBeDisabled()
+  await expect(page.getByText('Continued without another create', {exact: true})).toBeVisible()
+  await expect(button).toHaveCount(0)
+  expect(retries).toBe(1)
+  expect(server.sends()).toBe(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+ })
+}

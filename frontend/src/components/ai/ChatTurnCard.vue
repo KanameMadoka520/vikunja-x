@@ -4,6 +4,7 @@ import {useNow} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {marked} from 'marked'
 import {sanitizeProjectDescription} from '@/helpers/sanitizeProjectDescription'
+import XButton from '@/components/input/Button.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {openAgentDiagnostic} from '@/helpers/diagnostics'
 import OutputSpeed from './OutputSpeed.vue'
@@ -224,6 +225,23 @@ async function copy() {
 			>
 				{{ t('chat.stopped') }}
 			</p>
+
+			<div
+				v-if="turn.retryable"
+				class="retry-panel"
+			>
+				<XButton
+					:disabled="busy || reviewBusy"
+					:loading="reviewBusy"
+					icon="redo"
+					@click="emit('review', {turn_id: turn.id!, decision: 'retry', operation_id: '', arguments: '', answer: ''})"
+				>
+					{{ t('chat.retryResume') }}
+				</XButton>
+				<p class="step-note">
+					{{ t('chat.retryResumeHint') }}
+				</p>
+			</div>
 
 			<OutputSpeed
 				v-if="turn.status === 'completed'"
