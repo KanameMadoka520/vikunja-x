@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
 	"code.vikunja.io/api/pkg/modules/humabridge"
@@ -46,6 +45,9 @@ func conversationOut(ctx context.Context, value tcyai.Conversation, err error) (
 	return &conversationResponse{CacheControl: "no-store", Body: value}, nil
 }
 func conversationError(ctx context.Context, err error) error {
+	if errors.Is(err, tcyai.ErrConversationMetadata) {
+		return huma.Error400BadRequest(tcylocale.Render(ctx, tcylocale.Error("chatMetadata")))
+	}
 	if errors.Is(err, tcyai.ErrAttachmentMissing) || errors.Is(err, tcyai.ErrAttachmentInvalid) || errors.Is(err, tcyai.ErrImageModel) {
 		return chatFileError(ctx, err)
 	}
@@ -81,7 +83,10 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 			Tags:        []string{"tcymc-ai"}, MaxBodyBytes: 128 * 1024, BodyReadTimeout: 30 * time.Second,
 		}
 	}
-	Register(api, op("tcy-ai-conversations-list", "GET", "/ai/conversations", "List private saved conversations"), func(ctx context.Context, in *ListParams) (*struct {
+	Register(api, op("tcy-ai-conversations-list", "GET", "/ai/conversations", "List private saved conversations"), func(ctx context.Context, in *struct {
+		ListParams
+		Scope string `query:"scope" default:"all" enum:"all,active,archived" doc:"Filter regular or archived history. Search matches titles, user messages and final assistant replies."`
+	}) (*struct {
 		CacheControl string `header:"Cache-Control"`
 		Body         Paginated[tcyai.ConversationSummary]
 	}, error) {
@@ -89,16 +94,11 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 		if err != nil {
 			return nil, err
 		}
-		entries, err := tcyai.ListConversations(uid)
+		entries, err := tcyai.SearchConversations(uid, in.Q, in.Scope)
 		if err != nil {
 			return nil, conversationError(ctx, err)
 		}
-		filtered := []tcyai.ConversationSummary{}
-		for _, entry := range entries {
-			if in.Q == "" || strings.Contains(strings.ToLower(entry.Title), strings.ToLower(in.Q)) {
-				filtered = append(filtered, entry)
-			}
-		}
+		filtered := entries
 		total := len(filtered)
 		start := (in.Page - 1) * in.PerPage
 		if start > total {
@@ -144,6 +144,17 @@ func RegisterTCYAIConversationRoutes(api huma.API) {
 			return nil, err
 		}
 		value, err := tcyai.RenameConversation(uid, in.ID, in.Body.Title)
+		return conversationOut(ctx, value, err)
+	})
+	Register(api, op("tcy-ai-conversations-organize", "POST", "/ai/conversations/{id}/organization", "Rename, pin or archive a private conversation without stopping background work"), func(ctx context.Context, in *struct {
+		ID   string `path:"id" format:"uuid" doc:"Conversation owned by the signed-in human user."`
+		Body tcyai.ConversationMetadata
+	}) (*conversationResponse, error) {
+		uid, err := aiUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		value, err := tcyai.UpdateConversationMetadata(uid, in.ID, in.Body)
 		return conversationOut(ctx, value, err)
 	})
 	Register(api, op("tcy-ai-conversations-delete", "DELETE", "/ai/conversations/{id}", "Delete a private conversation; does not undo task operations"), func(ctx context.Context, in *conversationPathInput) (*emptyBody, error) {

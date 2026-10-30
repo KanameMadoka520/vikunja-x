@@ -5,13 +5,16 @@ const emit = defineEmits<{'update:conversationId': [id: string], activity: [runn
 const {t} = useI18n({useScope: 'global'})
 import {audioChatFile} from '@/helpers/tcyAudio'
 import {useConversationEvents} from '@/client/queries/conversationEvents'
-import {computed, onBeforeUnmount, ref, watch, nextTick, useId} from 'vue'
+import {computed, onMounted, onBeforeUnmount, ref, watch, nextTick, useId} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {useQuery} from '@tanstack/vue-query'
+import {useQuery, useQueryClient} from '@tanstack/vue-query'
 import {aiSettingsQuery, useCleanupAI, useTranscribeAI} from '@/client/queries/tcyAi'
 import AssistantPreferences from '@/components/ai/AssistantPreferences.vue'
 import {assistantPreferencesQuery} from '@/client/queries/assistantPreferences'
 import {builtinProfileIDs, normalizeOptions, profileOptions, validOptions, type AssistantOptions} from '@/helpers/assistantProfiles'
+import Modal from '@/components/misc/Modal.vue'
+import ConversationHistory from '@/components/ai/ConversationHistory.vue'
+import ConversationMenu from '@/components/ai/ConversationMenu.vue'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
@@ -22,8 +25,8 @@ import {useUploadChatAttachment, useRemoveChatAttachment} from '@/client/queries
 import {uploads} from '@/helpers/uploadTransport'
 import BaseButton from '@/components/base/BaseButton.vue'
 import {
-	conversationsQuery,
 	conversationQuery,
+	conversationKeys,
 	promptQuery,
 	useCreateConversation,
 	useConversationAction,
@@ -33,7 +36,7 @@ import {
 } from '@/client/queries/tcyConversations'
 import {useProjects} from '@/composables/useProjects'
 import {useTitle} from '@/composables/useTitle'
-import type {ChatTurn, ReviewInput} from '@/client/generated'
+import type {ChatTurn, ReviewInput, ConversationSummary} from '@/client/generated'
 import {openDiagnostics, openCompactDiagnostic} from '@/helpers/diagnostics'
 import {captureClientRequestContext, isClientRequestContextCurrent, isRequestContextAbort} from '@/client/requestContext'
 
@@ -47,14 +50,13 @@ const contextTaskID = computed(() => props.embedded ? props.contextTaskId : Numb
 const {projectsArray} = useProjects()
 const settings = useQuery(aiSettingsQuery())
 const router = useRouter()
+const queryClient = useQueryClient()
 const create = useCreateConversation()
 const action = useConversationAction()
 const send = useSendConversation()
 const review = useReviewConversation()
 const paused = computed(() => active.value?.turns?.at(-1)?.result?.pause)
 const refreshChanges = useRefreshAgentChanges()
-const listPage = ref(1)
-const sessions = useQuery(computed(() => conversationsQuery(listPage.value)))
 const chatID = computed(() => props.embedded ? props.conversationId : typeof route.query.chat === 'string' ? route.query.chat : '')
 async function navigateConversation(id: string) {
 	if (props.embedded) { emit('update:conversationId', id); await nextTick() }
@@ -76,6 +78,16 @@ const visibleTurns = computed(() => {
 const canCompact = computed(() => (active.value?.turns?.length ?? 0) > (active.value?.compactions?.at(-1)?.through ?? 0))
 const activeRun = computed(() => Boolean(active.value?.compacting || active.value?.turns?.some(turn => turn.status === 'running')))
 const sidebarOpen = ref(false)
+onMounted(() => {
+	if (!props.embedded && window.matchMedia('(min-width: 1100px)').matches) {
+		try { sidebarOpen.value = localStorage.getItem('arona-history-open') !== 'false' } catch { sidebarOpen.value = true }
+	}
+})
+watch(sidebarOpen, open => {
+	if (!props.embedded && window.matchMedia('(min-width: 1100px)').matches) {
+		try { localStorage.setItem('arona-history-open', String(open)) } catch { /* Storage may be unavailable in private browsing. */ }
+	}
+})
 const connectionID = ref('')
 const searchMode = ref<'auto' | 'off' | 'required'>('auto')
 const canSearch = computed(() => Boolean(settings.data.value?.connections.find(c => c.id === selectedConnection.value)?.web_search_protocol))
@@ -120,7 +132,7 @@ function pasteFiles(event: ClipboardEvent) {
 }
 async function removeDraft(file: string) { try { await removeFile.mutateAsync({id: chatID.value, file}) } catch { return } }
 onBeforeUnmount(() => fileController?.abort())
-const rename = ref(false)
+const historyDialog = ref<{kind: 'rename' | 'delete', conversation: ConversationSummary}>()
 const newTitle = ref('')
 const showSystemPrompt = ref(false)
 const thread = ref<HTMLElement>()
@@ -215,18 +227,15 @@ async function selectConversation(id: string) {
 	await navigateConversation(id)
 	prompt.value = drafts.get(id) ?? ''
 	original.value = ''
-	sidebarOpen.value = false
+	if (props.embedded || window.matchMedia('(max-width: 800px)').matches) sidebarOpen.value = false
 	stickToBottom.value = true
 }
 
 async function newConversation() {
 	if (editingBusy.value) return
-	try {
-		const location = route.fullPath
-		const conversation = await create.mutateAsync()
-		if (!stillHere(location)) return
-		await selectConversation(conversation.id!)
-	} catch { return }
+	await selectConversation('')
+	await nextTick()
+	composerInput.value?.focus()
 }
 
 async function submit() {
@@ -278,10 +287,8 @@ async function submit() {
 
 }
 
-async function manage(kind: 'rename' | 'delete' | 'stop' | 'compact' | 'fork', turnId?: string) {
+async function manage(kind: 'stop' | 'compact' | 'fork', turnId?: string) {
 	if (!chatID.value || action.isPending.value) return
-	if (kind === 'rename' && (!newTitle.value.trim() || busy.value)) return
-	if (kind === 'delete' && !window.confirm(t('chat.deleteConfirm'))) return
 	if (kind === 'fork' && !window.confirm(t('chat.forkConfirm'))) return
 	if (kind === 'compact' && !window.confirm(t('chat.compactConfirm'))) return
 	const id = chatID.value
@@ -294,11 +301,35 @@ async function manage(kind: 'rename' | 'delete' | 'stop' | 'compact' | 'fork', t
 			connectionId: selectedConnection.value,
 		})
 		if (!stillHere() || chatID.value !== id) return
-		rename.value = false
 		if (kind === 'fork' && result?.id) await selectConversation(result.id)
-		if (kind === 'delete') {
-			prompt.value = ''
-			await navigateConversation('')
+	} catch { return }
+}
+
+const currentSummary = computed<ConversationSummary>(() => ({...active.value, running: activeRun.value}))
+async function historyAction(kind: string, conversation: ConversationSummary) {
+	if (!conversation.id || action.isPending.value) return
+	if (kind === 'rename' || kind === 'delete') {
+		newTitle.value = conversation.title ?? ''
+		historyDialog.value = {kind, conversation}
+		return
+	}
+	if (kind === 'export') { exportOpen.value = true; return }
+	if (kind === 'compact') { await manage('compact'); return }
+	try { await action.mutateAsync({id: conversation.id, action: 'organize', ...(kind === 'pin' ? {pinned: !conversation.pinned} : {archived: !conversation.archived})}) } catch { return }
+}
+async function confirmHistoryAction() {
+	const target = historyDialog.value
+	if (!target?.conversation.id || action.isPending.value || (target.kind === 'rename' && !newTitle.value.trim())) return
+	const id = target.conversation.id
+	try {
+		await action.mutateAsync({id, action: target.kind, title: newTitle.value.trim()})
+		historyDialog.value = undefined
+		if (target.kind === 'delete') {
+			drafts.delete(id)
+			if (chatID.value === id && stillHere()) { prompt.value = ''; await navigateConversation('') }
+			await nextTick()
+			queryClient.removeQueries({queryKey: conversationKeys.detail(id)})
+			try { sessionStorage.removeItem(optionsStorageKey(id)) } catch { /* Browser storage is optional. */ }
 		}
 	} catch { return }
 }
@@ -500,60 +531,27 @@ onBeforeUnmount(() => {
 			class="chat-shell"
 			:class="{'with-history': sidebarOpen}"
 		>
+			<button
+				v-if="sidebarOpen"
+				type="button"
+				class="history-backdrop"
+				:aria-label="t('chatHistory.close')"
+				@click="sidebarOpen = false"
+			/>
 			<aside
 				v-if="sidebarOpen"
 				class="chat-sidebar"
 				:class="{'is-open': sidebarOpen}"
 				:aria-label="t('chat.conversations')"
 			>
-				<XButton
-					variant="primary"
-					icon="plus"
-					:aria-disabled="editingBusy"
-					@click="newConversation"
-				>
-					{{ t('chat.new') }}
-				</XButton>
-				<p v-if="sessions.isPending.value">
-					{{ t('misc.loading') }}
-				</p><p
-					v-else-if="!sessions.data.value?.items?.length"
-					class="muted"
-				>
-					{{ t('chat.noConversations') }}
-				</p>
-				<ul>
-					<li
-						v-for="session in sessions.data.value?.items"
-						:key="session.id"
-					>
-						<BaseButton
-							class="session-link"
-							:class="{'is-selected': session.id === chatID}"
-							:aria-current="session.id === chatID ? 'page' : undefined"
-							:aria-disabled="editingBusy"
-							@click="selectConversation(session.id!)"
-						>
-							<Icon :icon="session.parent_id ? 'code-branch' : ['far', 'comments']" /><span><strong>{{ session.title || t('chat.untitled') }}</strong><small>{{ t('chat.turnCount', {count: session.turn_count ?? 0}) }}<span v-if="session.running"> · {{ t('chat.running') }}</span></small></span>
-						</BaseButton>
-					</li>
-				</ul>
-				<div
-					v-if="(sessions.data.value?.total_pages ?? 0) > 1"
-					class="session-pagination"
-				>
-					<BaseButton
-						:aria-disabled="listPage === 1"
-						@click="listPage > 1 && listPage--"
-					>
-						{{ t('tour.back') }}
-					</BaseButton><span>{{ listPage }} / {{ sessions.data.value?.total_pages }}</span><BaseButton
-						:aria-disabled="listPage >= (sessions.data.value?.total_pages ?? 1)"
-						@click="listPage < (sessions.data.value?.total_pages ?? 1) && listPage++"
-					>
-						{{ t('tour.next') }}
-					</BaseButton>
-				</div>
+				<ConversationHistory
+					:selected="chatID"
+					:disabled="editingBusy"
+					@select="selectConversation"
+					@create="newConversation"
+					@close="sidebarOpen = false"
+					@action="historyAction"
+				/>
 				<p class="muted session-note">
 					<Icon icon="lock" /> {{ t('chat.savedOnServer') }}
 				</p>
@@ -589,62 +587,26 @@ onBeforeUnmount(() => {
 					v-if="active"
 					class="conversation-toolbar"
 				>
-					<form
-						v-if="rename"
-						class="rename-form"
-						@submit.prevent="manage('rename')"
+					<strong class="conversation-title">{{ active.title || t('chat.untitled') }}</strong>
+					<ConversationMenu
+						:conversation="currentSummary"
+						current
+						:can-compact="canCompact && !busy"
+						:disabled="editingBusy"
+						@action="historyAction($event, currentSummary)"
+					/>
+				</div>
+				<div
+					v-if="active?.archived"
+					class="archived-notice"
+				>
+					<Icon icon="archive" /><span>{{ t('chatHistory.archivedNotice') }}</span><button
+						type="button"
+						:disabled="action.isPending.value"
+						@click="historyAction('archive', currentSummary)"
 					>
-						<input
-							v-model="newTitle"
-							class="input"
-							maxlength="150"
-							:aria-label="t('chat.rename')"
-						><XButton
-							type="submit"
-							:aria-disabled="!newTitle.trim() || editingBusy"
-						>
-							{{ t('misc.save') }}
-						</XButton><BaseButton @click="rename = false">
-							{{ t('misc.cancel') }}
-						</BaseButton>
-					</form>
-					<strong
-						v-else
-						class="conversation-title"
-					>{{ active.title || t('chat.untitled') }}</strong>
-					<div class="toolbar-actions">
-						<BaseButton
-							class="toolbar-button"
-							:aria-label="t('chatFiles.export')"
-							:title="t('chatFiles.export')"
-							@click="exportOpen = true"
-						>
-							<Icon icon="download" />
-						</BaseButton>
-						<BaseButton
-							class="toolbar-button"
-							:aria-label="t('chat.rename')"
-							:aria-disabled="busy"
-							@click="!busy && (newTitle = active.title ?? '', rename = true)"
-						>
-							<Icon icon="pen" />
-						</BaseButton><BaseButton
-							class="toolbar-button"
-							:aria-label="t('chat.compact')"
-							:title="t('chat.compact')"
-							:aria-disabled="busy || !canCompact"
-							@click="!busy && canCompact && manage('compact')"
-						>
-							<Icon icon="compress" /><span class="compact-label">{{ t('chat.compact') }}</span>
-						</BaseButton><BaseButton
-							class="toolbar-button"
-							:aria-label="t('chat.delete')"
-							:aria-disabled="busy"
-							@click="!busy && manage('delete')"
-						>
-							<Icon icon="trash-alt" />
-						</BaseButton>
-					</div>
+						{{ t('chatHistory.restore') }}
+					</button>
 				</div>
 				<details
 					v-if="active?.storage"
@@ -983,6 +945,50 @@ onBeforeUnmount(() => {
 				</form>
 			</section>
 		</div>
+		<Modal
+			v-if="historyDialog"
+			class="history-action-modal"
+			:loading="action.isPending.value"
+			:aria-label="t(historyDialog?.kind === 'delete' ? 'chat.delete' : 'chat.rename')"
+			@close="historyDialog = undefined"
+		>
+			<form
+				class="history-dialog"
+				@submit.prevent="confirmHistoryAction"
+			>
+				<h2>{{ t(historyDialog?.kind === 'delete' ? 'chat.delete' : 'chat.rename') }}</h2>
+				<template v-if="historyDialog?.kind === 'delete'">
+					<p class="history-delete-title">
+						{{ historyDialog.conversation.title || t('chat.untitled') }}
+					</p><p>{{ t('chatHistory.deleteHint') }}</p>
+				</template>
+				<label v-else>{{ t('chatHistory.title') }}<input
+					v-model="newTitle"
+					class="input"
+					maxlength="150"
+					required
+					autofocus
+					:aria-label="t('chatHistory.title')"
+				></label>
+				<div class="history-dialog-actions">
+					<XButton
+						variant="tertiary"
+						:disabled="action.isPending.value"
+						@click="historyDialog = undefined"
+					>
+						{{ t('misc.cancel') }}
+					</XButton><XButton
+						type="submit"
+						:class="{'is-danger': historyDialog?.kind === 'delete'}"
+						:loading="action.isPending.value"
+						:disabled="action.isPending.value || (historyDialog?.kind === 'rename' && !newTitle.trim())"
+					>
+						{{ t(historyDialog?.kind === 'delete' ? 'chat.delete' : 'misc.save') }}
+					</XButton>
+				</div>
+			</form>
+		</Modal>
+
 		<ConversationExport
 			v-if="exportOpen && active"
 			:conversation="active"
@@ -1129,7 +1135,7 @@ min-block-size: 0;
 position: relative;
 }
 .chat-shell.with-history {
-grid-template-columns: 230px minmax(0, 1fr);
+grid-template-columns: 270px minmax(0, 1fr);
 }
 .chat-sidebar {
 background: var(--grey-50, var(--grey-100));
@@ -1137,55 +1143,6 @@ overflow-y: auto;
 padding: 1rem;
 min-block-size: 0;
 border-inline-end: 1px solid var(--grey-100);
-}
-.chat-sidebar > .button {
-inline-size: 100%;
-margin-block-end: 1rem;
-}
-.chat-sidebar ul {
-list-style: none;
-margin: 0;
-padding: 0;
-}
-.session-link {
-display: flex;
-gap: .6rem;
-align-items: center;
-inline-size: 100%;
-padding: .7rem .5rem;
-border-radius: .6rem;
-color: var(--text);
-text-align: start;
-}
-.session-link > span {
-min-inline-size: 0;
-}
-.session-link strong {
-display: block;
-font-weight: 500;
-font-size: .85rem;
-white-space: nowrap;
-text-overflow: ellipsis;
-overflow: hidden;
-}
-.session-link small {
-display: block;
-color: var(--text-light);
-font-size: .7rem;
-margin-block-start: .25rem;
-}
-.session-link:hover, .session-link.is-selected {
-background: var(--grey-200);
-}
-.session-pagination {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-block: .5rem;
-font-size: .8rem;
-}
-.session-pagination button {
-min-block-size: 44px;
 }
 .session-note {
 margin-block-start: 1rem;
@@ -1218,13 +1175,6 @@ font-weight: 400;
 }
 .toolbar-actions {
 flex-shrink: 0;
-}
-.rename-form {
-display: flex;
-gap: .5rem;
-align-items: center;
-min-inline-size: 0;
-flex: 1;
 }
 .conversation {
 flex: 1;
@@ -1553,4 +1503,77 @@ margin-block-end: .5rem;
  .live-connection { font-size: .6rem;
 }
 }
+
+.history-backdrop { display: none;
+}
+.archived-notice { display: flex;
+align-items: center;
+gap: .6rem;
+padding: .6rem 1rem;
+margin: .3rem 1rem;
+border-radius: .7rem;
+background: var(--grey-100);
+font-size: .85rem;
+}
+.archived-notice span { flex: 1;
+}
+.archived-notice button { border: 0;
+background: transparent;
+color: var(--link);
+cursor: pointer;
+min-block-size: 40px;
+}
+.history-dialog { inline-size: min(440px, 100%);
+text-align: start;
+}
+.history-dialog h2 { font-size: 1.2rem;
+margin-block-end: 1rem;
+}
+.history-dialog p { line-height: 1.7;
+overflow-wrap: anywhere;
+}
+.history-delete-title { font-weight: 600;
+}
+.history-dialog label { display: grid;
+gap: .5rem;
+}
+.history-dialog-actions { display: flex;
+justify-content: flex-end;
+gap: .6rem;
+margin-block-start: 1.5rem;
+}
+@media (width <= 800px) { .history-backdrop { display: block;
+position: absolute;
+inset: 0;
+z-index: 4;
+background: #00000044;
+border: 0;
+} }
+.is-embedded .history-backdrop { display: block;
+position: absolute;
+inset: 0;
+z-index: 4;
+background: #00000044;
+border: 0;
+}
+
+:global(.history-action-modal.modal-dialog) {
+ background: rgb(0 0 0 / 40%);
+}
+:global(.history-action-modal .modal-content) {
+ position: absolute !important;
+ inset-block-start: 50%;
+ inset-inline-start: 50%;
+ transform: translate(-50%, -50%) !important;
+ inline-size: min(460px, calc(100vw - 2rem));
+ max-block-size: calc(100dvh - 2rem) !important;
+ overflow: auto !important;
+ padding: 1.5rem;
+ border: 1px solid var(--grey-200);
+ border-radius: 1rem;
+ background: var(--scheme-main);
+ color: var(--text);
+ box-shadow: var(--shadow-md);
+}
+:global(.history-action-modal .close) { display: none; }
 </style>

@@ -3,9 +3,15 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.24`
+- 版本：`v2.7.1-tcymc.25`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## 会话历史管理（tcymc.25）
+
+阿罗娜历史列表支持置顶、重命名、归档与恢复、确认后删除，并可搜索标题和对话正文。列表和当前会话共用「⋯」菜单，桌面显示按时间分组的侧栏，手机支持抽屉与顶层菜单。整理会话不会中断后台任务；删除前需先停止正在运行的任务。新建空白对话不会立即产生空记录。
+
+设计、API 和附件删除语义见 [会话历史管理](docs/conversation-history.md)。
 
 ## 长对话缓存与工具输入效率（tcymc.24）
 

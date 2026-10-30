@@ -5,6 +5,7 @@ import {
 	tcyAiConversationsCreate,
 	tcyAiConversationsRead,
 	tcyAiConversationsRename,
+	tcyAiConversationsOrganize,
 	tcyAiConversationsDelete,
 	tcyAiConversationsSend,
 	tcyAiConversationsReview,
@@ -23,14 +24,14 @@ import {projectKeys} from './projects'
 export const conversationKeys = {
 	all: ['tcymc-conversations'] as const,
 	lists: () => [...conversationKeys.all, 'list'] as const,
-	list: (page: number) => [...conversationKeys.lists(), page] as const,
+	list: (page: number, q = '', scope = 'all') => [...conversationKeys.lists(), page, q, scope] as const,
 	detail: (id: string) => [...conversationKeys.all, 'detail', id] as const,
 }
 
-export function conversationsQuery(page: number) {
+export function conversationsQuery(page: number, q = '', scope: 'all' | 'active' | 'archived' = 'all') {
 	return queryOptions({
-		queryKey: conversationKeys.list(page),
-		queryFn: async ({signal}) => (await tcyAiConversationsList({query: {page}, signal})).data,
+		queryKey: conversationKeys.list(page, q, scope),
+		queryFn: async ({signal}) => (await tcyAiConversationsList({query: {page, q, scope}, signal})).data,
 		placeholderData: keepPreviousData,
 		refetchInterval: 3000,
 	})
@@ -68,7 +69,9 @@ export function useCreateConversation() {
 export function useConversationAction() {
 	type Input = {
 		id: string
-		action: 'rename' | 'delete' | 'stop' | 'fork' | 'compact'
+		action: 'rename' | 'delete' | 'stop' | 'fork' | 'compact' | 'organize'
+		pinned?: boolean
+		archived?: boolean
 		title?: string
 		turnId?: string
 		connectionId?: string
@@ -77,6 +80,7 @@ export function useConversationAction() {
 		mutationFn: async (input: Input): Promise<Conversation | undefined> => {
 			const path = {id: input.id}
 			switch (input.action) {
+				case 'organize': return (await tcyAiConversationsOrganize({path, body: {pinned: input.pinned, archived: input.archived}})).data
 				case 'rename': return (await tcyAiConversationsRename({path, body: {title: input.title ?? ''}})).data
 				case 'delete': await tcyAiConversationsDelete({path}); return
 				case 'stop': await tcyAiConversationsStop({path}); return
@@ -86,7 +90,7 @@ export function useConversationAction() {
 		},
 		onSettled: (input, client) => Promise.all([
 			client.invalidateQueries({queryKey: conversationKeys.lists()}),
-			client.invalidateQueries({queryKey: conversationKeys.detail(input.id)}),
+			input.action === 'delete' ? Promise.resolve() : client.invalidateQueries({queryKey: conversationKeys.detail(input.id)}),
 		]),
 	}))
 }

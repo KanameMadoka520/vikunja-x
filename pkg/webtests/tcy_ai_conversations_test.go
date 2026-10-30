@@ -223,3 +223,41 @@ type cancelOnFlushRecorder struct {
 }
 
 func (r *cancelOnFlushRecorder) Flush() { r.ResponseRecorder.Flush(); r.cancel() }
+
+func TestTCYAIConversationOrganizationAPI(t *testing.T) {
+	i18n.Init()
+	e, err := setupTestEnv()
+	require.NoError(t, err)
+	token, other := humaTokenFor(t, &testuser1), humaTokenFor(t, &testuser2)
+	old := config.FilesBasePath.GetString()
+	config.FilesBasePath.Set(t.TempDir())
+	t.Cleanup(func() { config.FilesBasePath.Set(old) })
+	base := "/api/v2/ai/conversations"
+	created := humaRequest(t, e, "POST", base, `{"title":"Find this chat"}`, token, "")
+	require.Equal(t, 201, created.Code, created.Body.String())
+	var chat tcyai.Conversation
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &chat))
+	path := base + "/" + chat.ID + "/organization"
+	require.Equal(t, 401, humaRequest(t, e, "POST", path, `{"pinned":true}`, "", "").Code)
+	require.Equal(t, 404, humaRequest(t, e, "POST", path, `{"pinned":true}`, other, "").Code)
+	pinned := humaRequest(t, e, "POST", path, `{"pinned":true}`, token, "")
+	require.Equal(t, 201, pinned.Code, pinned.Body.String())
+	assert.Contains(t, pinned.Body.String(), `"pinned":true`)
+	require.Equal(t, 400, humaRequest(t, e, "POST", path, `{"title":"  "}`, token, "").Code)
+	require.Equal(t, 400, humaRequest(t, e, "POST", path, `{"pinned":true,"archived":true}`, token, "").Code)
+	archived := humaRequest(t, e, "POST", path, `{"archived":true}`, token, "")
+	require.Equal(t, 201, archived.Code, archived.Body.String())
+	active := humaRequest(t, e, "GET", base+"?scope=active", "", token, "")
+	require.Equal(t, 200, active.Code)
+	assert.NotContains(t, active.Body.String(), chat.ID)
+	search := humaRequest(t, e, "GET", base+"?scope=all&q=find", "", token, "")
+	require.Equal(t, 200, search.Code)
+	assert.Contains(t, search.Body.String(), chat.ID)
+	archive := humaRequest(t, e, "GET", base+"?scope=archived", "", token, "")
+	require.Equal(t, 200, archive.Code)
+	assert.Contains(t, archive.Body.String(), chat.ID)
+	restored := humaRequest(t, e, "POST", path, `{"archived":false}`, token, "")
+	require.Equal(t, 201, restored.Code)
+	archive = humaRequest(t, e, "GET", base+"?scope=archived", "", token, "")
+	assert.NotContains(t, archive.Body.String(), chat.ID)
+}

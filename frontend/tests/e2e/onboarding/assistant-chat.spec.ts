@@ -22,7 +22,12 @@ async function chatServer(page: Page, withReview = false, live = false) {
 		const [, id, action] = pathname.split('/ai/conversations')[1].split('/')
 		const body = request.postDataJSON()
 		if (!id) {
-			if (request.method() === 'GET') return route.fulfill({json: {items: [...conversations.values()].map(c => ({...c, turn_count: c.turns.length})), total_pages: 1, total: conversations.size}})
+			if (request.method() === 'GET') {
+    const query = new URL(request.url()).searchParams
+    const scope = query.get('scope'), q = (query.get('q') ?? '').toLowerCase()
+    const items = [...conversations.values()].filter(c => (scope !== 'active' || !c.archived) && (scope !== 'archived' || c.archived) && (!q || `${c.title} ${c.turns.map((t: any) => `${t.prompt} ${t.result?.reply}`).join(' ')}`.toLowerCase().includes(q))).sort((a,b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))).map(c => ({...c, running: c.turns.some((t: any) => t.status === 'running'), turn_count: c.turns.length}))
+    return route.fulfill({json: {items, total_pages: 1, total: items.length}})
+   }
 			const c = {id: crypto.randomUUID(), title: '', turns: [], compactions: []}
 			conversations.set(c.id, c)
 			return route.fulfill({status: 201, json: c})
@@ -62,7 +67,11 @@ async function chatServer(page: Page, withReview = false, live = false) {
 			turn.result.steps=[{round:1,started:new Date().toISOString(),model:'actual-fixture',streaming:true,reasoning:'Checking accessible projects as data arrives',text:'',output_characters:48,usage:{input:30,output:5,reported:true},tool_calls:[{id:'draft-1',function:{name:'list_projects',arguments:'{'}}]}];turn.result.actions=[]
 			setTimeout(()=>{turn.status='completed';turn.result.reply='Saved after background execution';turn.result.stage='completed'},2500)
 		}
-		if (action === 'title') c.title = body.title
+		if (action === 'organization') {
+   if (body.pinned !== undefined) { c.pinned = body.pinned; if (body.pinned) c.archived = false }
+   if (body.archived !== undefined) { c.archived = body.archived; if (body.archived) c.pinned = false }
+  }
+  if (action === 'title') c.title = body.title
 		if (action === 'compact') { c.compact_error='';c.compacting=true;setTimeout(()=>{c.compactions.push({through:c.turns.length,summary:'Kept compact summary',model:'actual-fixture',usage:{input:100,output:20,reported:true}});c.compacting=false},200) }
 		if (action === 'fork') {
 			const branch = structuredClone(c)
@@ -103,10 +112,12 @@ test('chat persists, exposes real run details, compacts and branches without rep
 	await expect(page.locator('.request-details')).toContainText('https://fixture.example/v1/messages')
 	await page.reload()
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
-	await page.getByLabel('Rename conversation', {exact: true}).click()
-	await page.getByRole('textbox', {name: 'Rename conversation'}).fill('Reusable session')
+	await page.locator('.conversation-toolbar .chat-menu-trigger').click()
+	await page.getByRole('menuitem', {name: 'Rename conversation', exact: true}).click()
+	await page.getByRole('textbox', {name: 'Chat title'}).fill('Reusable session')
 	await page.getByRole('button', {name: 'Save', exact: true}).click()
 	await expect(page.locator('.conversation-title')).toHaveText('Reusable session')
+	await expect(page.getByRole('dialog', {name: 'Rename conversation'})).not.toBeVisible()
 	for (let n = 0; n < 4; n++) {
 		await page.getByLabel('Your request').fill(`Message ${n + 2}`)
 		await expect(page.getByRole('button', {name: 'Send request', exact: true})).toBeEnabled()
@@ -114,14 +125,15 @@ test('chat persists, exposes real run details, compacts and branches without rep
 		await expect(page.locator('.chat-turn')).toHaveCount(n + 2)
 	}
 	page.on('dialog', dialog => dialog.accept())
-	await page.getByRole('button', {name: 'Compact context', exact: true}).click()
+	await page.locator('.conversation-toolbar .chat-menu-trigger').click()
+	await page.getByRole('menuitem', {name: 'Compact context', exact: true}).click()
 	await expect(page.locator('.summary-banner')).toContainText('turn 5')
 	await expect(page.locator('.chat-turn')).toHaveCount(5)
 	await page.getByRole('button', {name: 'Branch from here'}).first().click()
 	await expect(page.locator('.chat-turn')).toHaveCount(1)
 	expect(server.sends()).toBe(5)
 	expect(server.conversations.size).toBe(2)
-	await page.getByRole('button', {name: 'Conversations', exact: true}).click()
+	if (!await page.locator('.chat-sidebar').isVisible()) await page.getByRole('button', {name: 'Conversations', exact: true}).click()
 	await page.locator('.system-prompt > summary').click()
 	await expect(page.locator('.system-prompt')).toContainText('Actual built-in fixture prompt')
 })
@@ -165,9 +177,9 @@ for (const width of [320, 390]) {
 		await expect(page.getByLabel('Your request')).toHaveValue('First line\na')
 		await page.getByRole('button', {name: 'Send request', exact: true}).click()
 		await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
-		await page.getByRole('button', {name: 'Conversations', exact: true}).click()
+		if (!await page.locator('.chat-sidebar').isVisible()) await page.getByRole('button', {name: 'Conversations', exact: true}).click()
 		await expect(page.locator('.chat-sidebar')).toBeVisible()
-		await page.getByRole('button', {name: /First line/}).click()
+		await page.locator('.history-link').filter({hasText: 'First line'}).click()
 		await expect(page.locator('.chat-sidebar')).not.toBeVisible()
 		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 	})
@@ -415,7 +427,7 @@ for (const width of [1440, 390, 320]) {
   await expect(page.locator('.output-speed')).toHaveCount(0)
   await expect(page.getByRole('button', {name: 'Stop execution', exact: true})).toBeVisible()
   await expectCentered('.composer .send')
-  await expectCentered('.toolbar-button:not(:has(.compact-label))')
+  await expectCentered('.conversation-toolbar .chat-menu-trigger')
   await page.screenshot({path: testInfo.outputPath(`chat-stop-centered-${width}.png`), animations: 'disabled'})
   c.turns[0].status = 'completed'; c.turns[0].result.steps[1].streaming = false
   await page.reload()
@@ -559,3 +571,89 @@ for (const width of [1440, 390, 320]) {
 		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
 	})
 }
+
+for (const width of [1440, 390, 320]) {
+ test(`chat history management ${width}px pins searches archives restores and deletes without losing the current draft`, async ({authenticatedPage: page}) => {
+  await page.setViewportSize({width, height: 900})
+  const server = await chatServer(page)
+  const first = {id: crypto.randomUUID(), title: 'Planning one', updated: new Date().toISOString(), turns: [{id: crypto.randomUUID(), prompt: 'Unique needle in message', status: 'completed', result: {reply: 'Saved answer'}}], compactions: []}
+  const second = {id: crypto.randomUUID(), title: 'Planning two', updated: new Date().toISOString(), turns: [], compactions: []}
+  server.conversations.set(first.id, first); server.conversations.set(second.id, second)
+  await page.goto(`/ai?chat=${first.id}`)
+  await page.getByLabel('Your request').fill('Keep this draft')
+  if (!await page.locator('.chat-sidebar').isVisible()) await page.getByRole('button', {name: 'Conversations', exact: true}).click()
+  const row = () => page.locator(`[data-chat-id="${second.id}"]`)
+  await row().getByRole('button', {name: 'Options for Planning two'}).click()
+  await page.getByRole('menuitem', {name: 'Pin chat', exact: true}).click()
+  await expect(page.getByRole('region', {name: 'Pinned'}).locator('[data-chat-id]')).toHaveAttribute('data-chat-id', second.id)
+  await row().getByRole('button', {name: 'Options for Planning two'}).click()
+  await page.getByRole('menuitem', {name: 'Rename conversation'}).click()
+  const dialog = page.getByRole('dialog', {name: 'Rename conversation'})
+  await dialog.getByRole('textbox', {name: 'Chat title'}).fill('Renamed second')
+  await dialog.getByRole('button', {name: 'Save', exact: true}).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(row()).toContainText('Renamed second')
+  await page.screenshot({path: `/opt/vikunja-tcymc/worklogs/v25-history-${width}.png`})
+  await row().getByRole('button', {name: 'Options for Renamed second'}).click()
+  await page.getByRole('menuitem', {name: 'Archive', exact: true}).click()
+  await expect(row()).toHaveCount(0)
+  await page.getByRole('button', {name: 'Archived', exact: true}).click()
+  await expect(row()).toBeVisible()
+  await row().getByRole('button', {name: 'Options for Renamed second'}).click()
+  await page.getByRole('menuitem', {name: 'Unarchive', exact: true}).click()
+  await expect(row()).toHaveCount(0)
+  await page.getByRole('button', {name: 'Chats', exact: true}).click()
+  await page.getByRole('searchbox', {name: 'Search chats'}).fill('needle')
+  await expect(page.locator('.history-link')).toHaveCount(1)
+  await expect(page.locator('.history-link')).toContainText('Planning one')
+  await page.getByRole('searchbox', {name: 'Search chats'}).fill('')
+  await expect(row()).toBeVisible()
+  await row().getByRole('button', {name: 'Options for Renamed second'}).click()
+  await page.getByRole('menuitem', {name: 'Delete conversation'}).click()
+  const deletion = page.getByRole('dialog', {name: 'Delete conversation'})
+  await expect(deletion).toContainText('cannot be undone')
+  await deletion.getByRole('button', {name: 'Cancel', exact: true}).click()
+  expect(server.conversations.has(second.id)).toBe(true)
+  await row().getByRole('button', {name: 'Options for Renamed second'}).click()
+  await page.getByRole('menuitem', {name: 'Delete conversation'}).click()
+  await deletion.getByRole('button', {name: 'Delete conversation', exact: true}).click()
+  await expect(row()).toHaveCount(0)
+  await page.locator('.history-panel').getByRole('button', {name: 'Close chat history', exact: true}).click()
+  await expect(page.getByLabel('Your request')).toHaveValue('Keep this draft')
+  expect(server.conversations.has(first.id)).toBe(true)
+  expect(server.sends()).toBe(0)
+  await page.reload()
+  await expect(page.locator('.conversation-title')).toHaveText('Planning one')
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
+  expect(overflow).toBe(false)
+ })
+}
+
+test('chat history keyboard menu protects running work and current deletion returns to a clean composer', async ({authenticatedPage: page}) => {
+ const server = await chatServer(page)
+ const chat: any = {id: crypto.randomUUID(), title: 'Live chat', turns: [{id: crypto.randomUUID(), status: 'running', prompt: 'Continue', result: {}}], compactions: []}
+ server.conversations.set(chat.id, chat)
+ await page.goto(`/ai?chat=${chat.id}`)
+ const trigger = page.locator('.conversation-toolbar .chat-menu-trigger')
+ await trigger.focus(); await page.keyboard.press('Enter')
+ await expect(page.getByRole('menuitem', {name: 'Delete conversation'})).toBeDisabled()
+ await expect(page.getByRole('menuitem', {name: 'Pin chat', exact: true})).toBeFocused()
+ await page.keyboard.press('ArrowDown')
+ await expect(page.getByRole('menuitem', {name: 'Rename conversation'})).toBeFocused()
+ await page.keyboard.press('Escape'); await expect(trigger).toBeFocused()
+ await trigger.click(); await page.getByRole('menuitem', {name: 'Archive', exact: true}).click()
+ await expect(page.locator('.archived-notice')).toBeVisible()
+ expect(chat.turns[0].status).toBe('running')
+ chat.turns[0].status = 'completed'
+ await page.reload()
+ await trigger.click(); await page.getByRole('menuitem', {name: 'Delete conversation'}).click()
+ await page.getByRole('dialog', {name: 'Delete conversation'}).getByRole('button', {name: 'Delete conversation', exact: true}).click()
+ await expect(page.locator('.conversation-title')).toHaveCount(0)
+ await expect(page.getByLabel('Your request')).toHaveValue('')
+ expect(server.conversations.size).toBe(0)
+ await page.locator('.assistant-heading').getByRole('button', {name: 'New conversation', exact: true}).click()
+ await page.locator('.assistant-heading').getByRole('button', {name: 'New conversation', exact: true}).click()
+ await expect(page.getByLabel('Your request')).toBeFocused()
+ expect(server.conversations.size).toBe(0)
+ expect(server.sends()).toBe(0)
+})

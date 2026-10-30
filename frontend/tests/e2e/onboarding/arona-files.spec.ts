@@ -32,7 +32,7 @@ for (const width of [1440, 390]) {
   await page.route(`**/api/v2/ai/conversations/${c.id}/messages`, async route => {
    sent = route.request().postDataJSON()
    const saved = await (await apiContext.get(`/api/v2/ai/conversations/${c.id}`, {headers})).json()
-   snapshot = {...saved, draft_attachments: [], turns: [{id: crypto.randomUUID(), started: new Date().toISOString(), prompt: sent.message, status: 'completed', attachments: [...saved.draft_attachments, {id: 'a'.repeat(64), name: 'lost.png', mime: 'image/png', size: 10, missing: true}], result: {reply: '# 图片说明\n\n图片已收到。\n\n| 项目 | 状态 |\n|---|---|\n| 检查 | 完成 |', model: 'vision', usage: {input: 20, output: 10, reported: true}, actions: [], steps: []}}]}
+   snapshot = {...saved, draft_attachments: [], turns: [{id: crypto.randomUUID(), request_id: sent.request_id, started: new Date().toISOString(), prompt: sent.message, status: 'completed', attachments: [...saved.draft_attachments, {id: 'a'.repeat(64), name: 'lost.png', mime: 'image/png', size: 10, missing: true}], result: {reply: '# 图片说明\n\n图片已收到。\n\n| 项目 | 状态 |\n|---|---|\n| 检查 | 完成 |', model: 'vision', usage: {input: 20, output: 10, reported: true}, actions: [], steps: []}}]}
    await route.fulfill({json: snapshot})
   })
   await page.route(`**/api/v2/ai/conversations/${c.id}/events`, route => route.abort())
@@ -42,7 +42,8 @@ for (const width of [1440, 390]) {
   await expect.poll(() => sent?.attachment_ids?.length).toBe(1)
   expect(sent.search_mode).toBe(width === 1440 ? 'required' : 'off')
   await expect(page.locator('.message-attachments .image-button img')).toBeVisible()
-  await page.getByRole('button', {name: 'Export conversation', exact: true}).click()
+  await page.locator('.conversation-toolbar .chat-menu-trigger').click()
+  await page.getByRole('menuitem', {name: 'Export conversation', exact: true}).click()
   const dialog = page.getByRole('dialog', {name: 'Export conversation', exact: true})
   const download = page.waitForEvent('download', {timeout: 90_000})
   await dialog.getByRole('button', {name: 'Download', exact: true}).click()

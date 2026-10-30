@@ -77,6 +77,8 @@ func cloneCompactProgress(progress *CompactProgress) *CompactProgress {
 }
 
 type Conversation struct {
+	Pinned           bool                 `json:"pinned" readOnly:"true" doc:"Keep this conversation above unpinned history."`
+	Archived         bool                 `json:"archived" readOnly:"true" doc:"Hidden from regular history; messages and running work remain available."`
 	DraftAttachments []ChatAttachment     `json:"draft_attachments,omitempty" readOnly:"true" doc:"Uploaded files waiting to be sent."`
 	Storage          *ConversationStorage `json:"storage,omitempty" readOnly:"true" doc:"Actual encrypted file sizes; shared attachments are counted once per conversation, not exclusive disk usage."`
 	CompactProgress  *CompactProgress     `json:"compact_progress,omitempty" readOnly:"true" doc:"Live and last completed compaction diagnostics."`
@@ -93,6 +95,8 @@ type Conversation struct {
 	Compactions      []Compaction         `json:"compactions" readOnly:"true" doc:"Saved context summaries; only the most recent is sent on subsequent requests."`
 }
 type ConversationSummary struct {
+	Pinned    bool      `json:"pinned" readOnly:"true" doc:"Keep this conversation above unpinned history."`
+	Archived  bool      `json:"archived" readOnly:"true" doc:"Hidden from regular history; messages and running work remain available."`
 	ID        string    `json:"id" doc:"Server-generated identifier."`
 	Title     string    `json:"title" doc:"User title or first-message title."`
 	Updated   time.Time `json:"updated" doc:"UTC last change timestamp."`
@@ -284,7 +288,17 @@ func ListConversations(uid int64) ([]ConversationSummary, error) {
 	defer conversations.Unlock()
 	return listConversationsLocked(uid)
 }
+
+// SearchConversations searches only the owner's visible conversation text, never private model state.
+func SearchConversations(uid int64, query, scope string) ([]ConversationSummary, error) {
+	conversations.Lock()
+	defer conversations.Unlock()
+	return searchConversationsLocked(uid, strings.ToLower(strings.TrimSpace(query)), scope)
+}
 func listConversationsLocked(uid int64) ([]ConversationSummary, error) {
+	return searchConversationsLocked(uid, "", "all")
+}
+func searchConversationsLocked(uid int64, query, scope string) ([]ConversationSummary, error) {
 	entries, err := os.ReadDir(conversationDir(uid))
 	if errors.Is(err, os.ErrNotExist) {
 		return []ConversationSummary{}, nil
@@ -301,15 +315,38 @@ func listConversationsLocked(uid int64) ([]ConversationSummary, error) {
 		if err != nil {
 			return nil, err
 		}
+		if (scope == "active" && record.Archived) || (scope == "archived" && !record.Archived) {
+			continue
+		}
+		matches := query == "" || strings.Contains(strings.ToLower(record.Title), query)
+		if !matches {
+			for _, turn := range record.Turns {
+				if strings.Contains(strings.ToLower(turn.Prompt), query) || strings.Contains(strings.ToLower(turn.Result.Reply), query) {
+					matches = true
+					break
+				}
+			}
+		}
+		if !matches {
+			continue
+		}
 		running := record.Compacting
 		for _, turn := range record.Turns {
 			if turn.Status == "running" {
 				running = true
 			}
 		}
-		result = append(result, ConversationSummary{ID: record.ID, Title: record.Title, Updated: record.Updated, TurnCount: len(record.Turns), Running: running, ParentID: record.ParentID})
+		result = append(result, ConversationSummary{Pinned: record.Pinned, Archived: record.Archived, ID: record.ID, Title: record.Title, Updated: record.Updated, TurnCount: len(record.Turns), Running: running, ParentID: record.ParentID})
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Updated.After(result[j].Updated) })
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Pinned != result[j].Pinned {
+			return result[i].Pinned
+		}
+		if result[i].Updated.Equal(result[j].Updated) {
+			return result[i].ID < result[j].ID
+		}
+		return result[i].Updated.After(result[j].Updated)
+	})
 	return result, nil
 }
 func CreateConversation(uid int64, title string) (Conversation, error) {
@@ -329,23 +366,54 @@ func CreateConversation(uid int64, title string) (Conversation, error) {
 	}
 	return cloneConversation(record), nil
 }
+
+type ConversationMetadata struct {
+	Title    *string `json:"title,omitempty" minLength:"1" maxLength:"150" doc:"Rename without altering messages or activity order."`
+	Pinned   *bool   `json:"pinned,omitempty" doc:"Pin or unpin. Pinning also restores an archived conversation."`
+	Archived *bool   `json:"archived,omitempty" doc:"Archive or restore. Archiving unpins, but never stops running work."`
+}
+
 func RenameConversation(uid int64, id, title string) (Conversation, error) {
+	return UpdateConversationMetadata(uid, id, ConversationMetadata{Title: &title})
+}
+func UpdateConversationMetadata(uid int64, id string, change ConversationMetadata) (Conversation, error) {
 	conversations.Lock()
 	defer conversations.Unlock()
-	if live := conversations.live[uid]; live != nil && live.id == id {
-		return Conversation{}, ErrConversationBusy
-	}
-	record, err := readConversation(uid, id)
+	record, err := getConversationLocked(uid, id)
 	if err != nil {
 		return Conversation{}, err
 	}
-	record.Title = strings.TrimSpace(title)
-	record.Updated = time.Now().UTC()
+	if change.Title != nil && (strings.TrimSpace(*change.Title) == "" || len([]rune(*change.Title)) > 150) {
+		return Conversation{}, ErrConversationMetadata
+	}
+	if change.Pinned != nil && *change.Pinned && change.Archived != nil && *change.Archived {
+		return Conversation{}, ErrConversationMetadata
+	}
+	oldTitle, oldPin, oldArchive := record.Title, record.Pinned, record.Archived
+	if change.Title != nil {
+		record.Title = strings.TrimSpace(*change.Title)
+	}
+	if change.Pinned != nil {
+		record.Pinned = *change.Pinned
+		if record.Pinned {
+			record.Archived = false
+		}
+	}
+	if change.Archived != nil {
+		record.Archived = *change.Archived
+		if record.Archived {
+			record.Pinned = false
+		}
+	}
 	if err = writeConversation(uid, record); err != nil {
+		record.Title, record.Pinned, record.Archived = oldTitle, oldPin, oldArchive
 		return Conversation{}, err
 	}
 	return cloneConversation(record), nil
 }
+
+var ErrConversationMetadata = errors.New("invalid conversation title or conflicting pin/archive state")
+
 func DeleteConversation(uid int64, id string) error {
 	conversations.Lock()
 	defer conversations.Unlock()
@@ -399,6 +467,8 @@ func ForkConversation(uid int64, id, turnID string) (Conversation, error) {
 	now := time.Now().UTC()
 	record.DraftAttachments = nil
 	record.Storage = nil
+	record.Pinned = false
+	record.Archived = false
 	record.ParentID = id
 	record.ParentTurnID = turnID
 	record.ID = uuid.NewString()

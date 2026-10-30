@@ -2824,5 +2824,29 @@
   "explanation": "Weighted by provider-reported input tokens. Non-read input may include cache writes; it is not the new message size or a cost estimate.",
   "partial": "Includes {reported}/{total} requests with cache data; unreported requests are not counted as zero hits.",
   "unreported": "The provider has not reported cache usage; a hit rate is unavailable."
-}
+},
+  "chatHistory": {
+    "options": "Options for {title}",
+    "menu": "Conversation actions",
+    "pin": "Pin chat",
+    "unpin": "Unpin chat",
+    "archive": "Archive",
+    "restore": "Unarchive",
+    "runningHint": "To delete this chat, stop the running task first. Archiving does not stop it.",
+    "close": "Close chat history",
+    "search": "Search chats",
+    "recent": "Chats",
+    "archived": "Archived",
+    "pinned": "Pinned",
+    "today": "Today",
+    "week": "Previous 7 days",
+    "older": "Older",
+    "results": "Search results",
+    "noResults": "No matching chats. Try a title or a phrase from a message.",
+    "noArchived": "No archived chats.",
+    "archiveHint": "Archive finished chats to keep this list tidy. You can restore them here anytime.",
+    "archivedNotice": "This chat is archived. Its messages remain available.",
+    "title": "Chat title",
+    "deleteHint": "This permanently deletes the chat and its unshared chat attachments. It cannot be undone. Tasks and projects already changed by Arona, and files still used by other chats, are kept."
+  }
 }

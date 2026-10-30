@@ -916,6 +916,10 @@ export type Conversation = {
      */
     readonly $schema?: string;
     /**
+     * Hidden from regular history; messages and running work remain available.
+     */
+    readonly archived?: boolean;
+    /**
      * Last compaction failure; previous summary remains usable.
      */
     readonly compact_error?: string;
@@ -956,6 +960,10 @@ export type Conversation = {
      */
     readonly parent_turn_id?: string;
     /**
+     * Keep this conversation above unpinned history.
+     */
+    readonly pinned?: boolean;
+    /**
      * Actual encrypted file sizes; shared attachments are counted once per conversation, not exclusive disk usage.
      */
     readonly storage?: ConversationStorage;
@@ -971,6 +979,25 @@ export type Conversation = {
      * UTC last change timestamp.
      */
     readonly updated?: string;
+};
+
+export type ConversationMetadata = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Archive or restore. Archiving unpins, but never stops running work.
+     */
+    archived?: boolean;
+    /**
+     * Pin or unpin. Pinning also restores an archived conversation.
+     */
+    pinned?: boolean;
+    /**
+     * Rename without altering messages or activity order.
+     */
+    title?: string;
 };
 
 export type ConversationStorage = {
@@ -998,6 +1025,10 @@ export type ConversationStorage = {
 
 export type ConversationSummary = {
     /**
+     * Hidden from regular history; messages and running work remain available.
+     */
+    readonly archived?: boolean;
+    /**
      * Server-generated identifier.
      */
     id?: string;
@@ -1005,6 +1036,10 @@ export type ConversationSummary = {
      * Source conversation when created as a branch.
      */
     parent_id?: string;
+    /**
+     * Keep this conversation above unpinned history.
+     */
+    readonly pinned?: boolean;
     /**
      * Whether a model run is active.
      */
@@ -5554,6 +5589,48 @@ export type ConversationWritable = {
     [key: string]: never;
 };
 
+export type ConversationMetadataWritable = {
+    /**
+     * Archive or restore. Archiving unpins, but never stops running work.
+     */
+    archived?: boolean;
+    /**
+     * Pin or unpin. Pinning also restores an archived conversation.
+     */
+    pinned?: boolean;
+    /**
+     * Rename without altering messages or activity order.
+     */
+    title?: string;
+};
+
+export type ConversationSummaryWritable = {
+    /**
+     * Server-generated identifier.
+     */
+    id?: string;
+    /**
+     * Source conversation when created as a branch.
+     */
+    parent_id?: string;
+    /**
+     * Whether a model run is active.
+     */
+    running?: boolean;
+    /**
+     * User title or first-message title.
+     */
+    title?: string;
+    /**
+     * Number of saved conversation turns.
+     */
+    turn_count?: number;
+    /**
+     * UTC last change timestamp.
+     */
+    updated?: string;
+};
+
 export type CreateInviteLinkBodyWritable = {
     /**
      * Null means no expiry.
@@ -6005,7 +6082,7 @@ export type PaginatedBucketWritable = {
 };
 
 export type PaginatedConversationSummaryWritable = {
-    items?: Array<ConversationSummary> | null;
+    items?: Array<ConversationSummaryWritable> | null;
     page?: number;
     per_page?: number;
     total?: number;
@@ -7949,6 +8026,10 @@ export type TcyAiConversationsListData = {
          * Search query; filters the list to items matching this string.
          */
         q?: string;
+        /**
+         * Filter regular or archived history. Search matches titles, user messages and final assistant replies.
+         */
+        scope?: 'all' | 'active' | 'archived';
     };
     url: '/ai/conversations';
 };
@@ -8302,6 +8383,36 @@ export type TcyAiConversationsSendResponses = {
 };
 
 export type TcyAiConversationsSendResponse = TcyAiConversationsSendResponses[keyof TcyAiConversationsSendResponses];
+
+export type TcyAiConversationsOrganizeData = {
+    body: ConversationMetadataWritable;
+    path: {
+        /**
+         * Conversation owned by the signed-in human user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/ai/conversations/{id}/organization';
+};
+
+export type TcyAiConversationsOrganizeErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TcyAiConversationsOrganizeError = TcyAiConversationsOrganizeErrors[keyof TcyAiConversationsOrganizeErrors];
+
+export type TcyAiConversationsOrganizeResponses = {
+    /**
+     * Created
+     */
+    201: Conversation;
+};
+
+export type TcyAiConversationsOrganizeResponse = TcyAiConversationsOrganizeResponses[keyof TcyAiConversationsOrganizeResponses];
 
 export type TcyAiConversationsReviewData = {
     body: ReviewInputWritable;
