@@ -112,15 +112,16 @@ onBeforeUnmount(() => cleanup?.())
 </template>
 
 <style scoped lang="scss">
-.chat-menu-trigger { display: grid;
-place-items: center;
+.chat-menu-trigger { display: inline-flex;
+align-items: center;
+justify-content: center;
 flex: 0 0 36px;
 inline-size: 36px;
 block-size: 40px;
 padding: 0;
 border: 0;
 border-radius: .6rem;
-color: var(--text-light);
+color: var(--text-muted);
 background: transparent;
 cursor: pointer;
 }
@@ -175,9 +176,17 @@ background: var(--grey-200);
 block-size: 1px;
 }
 .chat-options p { font-size: .75rem;
-color: var(--text-light);
+color: var(--text-muted);
 padding: .4rem .7rem;
 margin: 0;
 line-height: 1.5;
+}
+@media (pointer: coarse) {
+	.chat-menu-trigger { flex-basis: 44px;
+	inline-size: 44px;
+	block-size: 44px;
+	}
+	.chat-options button { min-block-size: 44px;
+	}
 }
 </style>

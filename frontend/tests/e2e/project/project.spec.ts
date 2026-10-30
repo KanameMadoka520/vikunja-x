@@ -74,8 +74,8 @@ test.describe('Projects', () => {
 		await expect(page.locator('.project-title')).not.toContainText(projects[0].title)
 		await expect(page.locator('.menu-container .menu-list').getByRole('listitem').filter({hasText: newProjectName})).toBeVisible()
 		await page.goto('/')
-		await expect(page.locator('.project-grid')).toContainText(newProjectName)
-		await expect(page.locator('.project-grid')).not.toContainText(projects[0].title)
+		await expect(page.locator('.recent-projects')).toContainText(newProjectName)
+		await expect(page.locator('.recent-projects')).not.toContainText(projects[0].title)
 	})
 
 	test('Should remove a project when deleting it', async ({authenticatedPage: page}) => {
@@ -216,33 +216,151 @@ test.describe('Projects', () => {
 		}
 	})
 
-	test('Should not show archived projects if the filter is not checked', async ({authenticatedPage: page}) => {
+	test('Should hide archived projects unless the status filter includes them', async ({authenticatedPage: page}) => {
 		await ProjectFactory.create(1, {
 			id: 2,
+			title: 'Visible active project',
 		}, false)
 		await ProjectFactory.create(1, {
 			id: 3,
+			title: 'Hidden archived project',
 			is_archived: true,
 		}, false)
+		const grid = page.locator('.project-grid')
+		const statusFilter = page.getByRole('group', {name: 'Project status', exact: true})
 
-		// Initial
 		await page.goto('/projects')
-		await page.waitForLoadState('networkidle')
-		await expect(page.locator('.project-grid')).not.toContainText('Archived')
+		await expect(grid).toContainText('Visible active project')
+		await expect(grid).not.toContainText('Hidden archived project')
+		await expect(grid).not.toContainText('Archived')
+		await expect(statusFilter.getByRole('button', {name: /^Active/})).toHaveAttribute('aria-pressed', 'true')
 
-		// Show archived - click the checkbox label text
-		await page.getByText('Show Archived').click()
-		await expect(page.locator('input[type="checkbox"]').first()).toBeChecked()
-		await expect(page.locator('.project-grid')).toContainText('Archived')
+		await statusFilter.getByRole('button', {name: /^Archived/}).click()
+		await expect(statusFilter.getByRole('button', {name: /^Archived/})).toHaveAttribute('aria-pressed', 'true')
+		await expect(grid).toContainText('Hidden archived project')
+		await expect(grid).toContainText('Archived')
+		await expect(grid).not.toContainText('Visible active project')
 
-		// Don't show archived
-		await page.getByText('Show Archived').click()
-		await expect(page.locator('input[type="checkbox"]').first()).not.toBeChecked()
+		await statusFilter.getByRole('button', {name: /^All/}).click()
+		await expect(grid).toContainText('Visible active project')
+		await expect(grid).toContainText('Hidden archived project')
 
-		// Second time visiting after unchecking
+		// The choice is stored, so it survives a reload.
+		await page.reload()
+		await expect(statusFilter.getByRole('button', {name: /^All/})).toHaveAttribute('aria-pressed', 'true')
+		await expect(grid).toContainText('Hidden archived project')
+
+		await statusFilter.getByRole('button', {name: /^Active/}).click()
+		await page.reload()
+		await expect(statusFilter.getByRole('button', {name: /^Active/})).toHaveAttribute('aria-pressed', 'true')
+		await expect(grid).toContainText('Visible active project')
+		await expect(grid).not.toContainText('Hidden archived project')
+	})
+
+	test('Should filter by status and search and fit a phone screen', async ({authenticatedPage: page}, testInfo) => {
+		const now = new Date().toISOString()
+		await ProjectFactory.create(1, {
+			id: 2,
+			title: 'Weekly groceries',
+			parent_project_id: projects[0].id,
+		}, false)
+		await ProjectFactory.create(1, {
+			id: 3,
+			title: 'Finished garden plan',
+			identifier: 'GRDN',
+			is_completed: true,
+			completed_at: now,
+		}, false)
+		await ProjectFactory.create(1, {
+			id: 4,
+			title: 'Old tax papers',
+			is_archived: true,
+		}, false)
+		const grid = page.locator('.project-grid')
+		const cards = page.locator('.project-grid .project-card')
+		const statusFilter = page.getByRole('group', {name: 'Project status', exact: true})
+		const statusButton = (name: string) => statusFilter.getByRole('button', {name: new RegExp(`^${name}`)})
+		const search = page.getByRole('searchbox', {name: 'Search projects', exact: true})
+		const cardFor = (title: string) => page.locator('.project-card')
+			.filter({has: page.getByRole('link', {name: title, exact: true})})
+
 		await page.goto('/projects')
-		await page.waitForLoadState('networkidle')
-		await expect(page.locator('input[type="checkbox"]').first()).not.toBeChecked()
-		await expect(page.locator('.project-grid')).not.toContainText('Archived')
+		await expect(statusButton('Active')).toHaveAttribute('aria-pressed', 'true')
+		await expect(cards).toHaveCount(2)
+		await expect(grid).toContainText('First Project')
+		await expect(grid).toContainText('Weekly groceries')
+		await expect(cardFor('Weekly groceries')).toContainText('First Project')
+		await expect(statusButton('Active').locator('.segment-count')).toHaveText('2')
+		await expect(statusButton('Completed').locator('.segment-count')).toHaveText('1')
+		await expect(statusButton('Archived').locator('.segment-count')).toHaveText('1')
+		await expect(statusButton('All').locator('.segment-count')).toHaveText('4')
+
+		await statusButton('Completed').click()
+		await expect(cards).toHaveCount(1)
+		await expect(cardFor('Finished garden plan').getByText('Completed', {exact: true})).toBeVisible()
+
+		await statusButton('All').click()
+		await expect(cards).toHaveCount(4)
+		await search.fill('grdn')
+		await expect(cards).toHaveCount(1)
+		await expect(grid).toContainText('Finished garden plan')
+
+		await statusButton('Active').click()
+		await search.fill('tax')
+		await expect(page.getByText('No projects match the current search and status.')).toBeVisible()
+		await page.getByRole('button', {name: 'Clear Filters', exact: true}).click()
+		await expect(search).toHaveValue('')
+		await expect(statusButton('All')).toHaveAttribute('aria-pressed', 'true')
+		await expect(cards).toHaveCount(4)
+
+		await page.setViewportSize({width: 320, height: 800})
+		// Reload so the page starts in its phone layout with the mobile menu closed.
+		await page.reload()
+		await expect(statusButton('All')).toHaveAttribute('aria-pressed', 'true')
+		await expect(cards).toHaveCount(4)
+		const cardLefts = await cards.evaluateAll(elements => elements
+			.map(element => Math.round(element.getBoundingClientRect().left)))
+		expect(new Set(cardLefts).size).toBe(1)
+		const sizes = await page.evaluate(() => ({
+			scrollWidth: document.documentElement.scrollWidth,
+			viewport: window.innerWidth,
+		}))
+		expect(sizes.scrollWidth).toBeLessThanOrEqual(sizes.viewport)
+		await page.screenshot({
+			path: testInfo.outputPath('projects-320.png'),
+			fullPage: true,
+			animations: 'disabled',
+		})
+	})
+})
+
+test.describe('Projects page states', () => {
+	test('Should welcome an account without projects once loading finishes', async ({authenticatedPage: page}) => {
+		await page.goto('/projects')
+		const hint = page.locator('[data-empty="no-projects"]')
+		await expect(hint).toContainText('No projects yet')
+		await expect(page.getByText('No projects match the current search and status.')).toHaveCount(0)
+		await expect(page.getByRole('group', {name: 'Project status', exact: true})).toHaveCount(0)
+		await hint.getByRole('link', {name: 'New project'}).click()
+		await expect(page).toHaveURL(/\/projects\/new/)
+	})
+
+	test('Should explain why completed and archived counts overlap', async ({authenticatedPage: page}) => {
+		await ProjectFactory.create(1, {
+			id: 1,
+			title: 'Closed and stored',
+			is_completed: true,
+			completed_at: new Date().toISOString(),
+			is_archived: true,
+		})
+		await page.goto('/projects')
+		const statusFilter = page.getByRole('group', {name: 'Project status', exact: true})
+		const count = (name: string) => statusFilter
+			.getByRole('button', {name: new RegExp(`^${name}`)})
+			.locator('.segment-count')
+		await expect(count('Completed')).toHaveText('1')
+		await expect(count('Archived')).toHaveText('1')
+		await expect(count('All')).toHaveText('1')
+		await expect(page.locator('.project-list-help')).toContainText('both completed and archived')
 	})
 })

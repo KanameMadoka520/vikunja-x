@@ -38,7 +38,7 @@
 		>
 			{{ $t('task.show.savedFilterIgnored') }}
 		</Message>
-		<p
+		<div
 			v-if="!showAll"
 			class="show-tasks-options"
 		>
@@ -48,9 +48,9 @@
 			>
 				<template #trigger="{toggle}">
 					<XButton
-						variant="primary"
+						variant="secondary"
+						:icon="['far', 'calendar-alt']"
 						:shadow="false"
-						class="mbe-2"
 						@click.prevent.stop="toggle()"
 					>
 						{{ $t('task.show.select') }}
@@ -59,7 +59,6 @@
 			</DatepickerWithRange>
 			<FancyCheckbox
 				:model-value="showNulls"
-				class="mie-2"
 				@update:modelValue="setShowNulls"
 			>
 				{{ $t('task.show.noDates') }}
@@ -70,7 +69,7 @@
 			>
 				{{ $t('task.show.overdue') }}
 			</FancyCheckbox>
-		</p>
+		</div>
 		<template v-if="!loading && (!tasks || tasks.length === 0) && showNothingToDo">
 			<h3 class="has-text-centered mbs-6">
 				{{ $t('task.show.noTasks') }}
@@ -326,7 +325,10 @@ watchEffect(() => setTitle(pageTitle.value))
 
 .show-tasks-options {
 	display: flex;
-	flex-direction: column;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: .5rem 1.25rem;
+	margin-block-end: 1rem;
 }
 
 .llama-cool {

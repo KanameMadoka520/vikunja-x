@@ -25,7 +25,7 @@ withDefaults(defineProps<{size?: 'small' | 'normal' | 'large'}>(), {size: 'norma
 	object-fit: cover;
 	object-position: center 20%;
 	border-radius: 50%;
-	background: #e5f5ff;
+	background: hsla(var(--primary-hsl), .15);
 	vertical-align: middle;
 
 	&--small {

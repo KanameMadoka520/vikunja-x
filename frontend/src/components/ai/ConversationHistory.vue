@@ -11,6 +11,7 @@ defineProps<{selected: string, disabled?: boolean}>()
 const emit = defineEmits<{select: [id: string], create: [], close: [], action: [action: string, conversation: ConversationSummary]}>()
 const {t} = useI18n({useScope: 'global'})
 const search = ref('')
+const searchInput = ref<HTMLInputElement>()
 const query = refDebounced(search, 250)
 const archived = ref(false)
 const page = ref(1)
@@ -31,6 +32,7 @@ const groups = computed(() => {
 	}
 	return groups
 })
+defineExpose({focusSearch: () => searchInput.value?.focus()})
 </script>
 
 <template>
@@ -50,9 +52,10 @@ const groups = computed(() => {
 			:disabled="disabled"
 			@click="emit('create')"
 		>
-			<Icon icon="pen" />{{ t('chat.new') }}
+			<Icon icon="plus" />{{ t('chat.new') }}
 		</button>
 		<label class="history-search"><Icon icon="search" /><input
+			ref="searchInput"
 			v-model="search"
 			type="search"
 			:aria-label="t('chatHistory.search')"
@@ -112,7 +115,7 @@ const groups = computed(() => {
 						type="button"
 						class="history-link"
 						:disabled="disabled"
-						:aria-current="session.id === selected ? 'page' : undefined"
+						:aria-current="session.id === selected ? 'true' : undefined"
 						:title="session.title || t('chat.untitled')"
 						@click="emit('select', session.id!)"
 					>
@@ -163,10 +166,12 @@ justify-content: space-between;
 margin-block-end: .6rem;
 font-size: .9rem;
 }
-.history-header button { display: grid;
-place-items: center;
+.history-header button { display: inline-flex;
+align-items: center;
+justify-content: center;
 inline-size: 36px;
 block-size: 40px;
+border-radius: .6rem;
 }
 button { color: var(--text);
 background: transparent;
@@ -181,6 +186,7 @@ cursor: not-allowed;
 align-items: center;
 gap: .65rem;
 inline-size: 100%;
+min-block-size: 40px;
 padding: .7rem;
 text-align: start;
 border-radius: .6rem;
@@ -195,6 +201,7 @@ padding: .5rem .65rem;
 border: 1px solid var(--grey-200);
 border-radius: .7rem;
 background: var(--scheme-main);
+color: var(--text-muted);
 margin-block: .5rem;
 }
 .history-search input { inline-size: 100%;
@@ -212,30 +219,50 @@ outline-offset: 1px;
 gap: .3rem;
 margin-block: .6rem;
 }
-.history-filters button { flex: 1;
+.history-filters button { display: inline-flex;
+flex: 1;
+align-items: center;
+justify-content: center;
+gap: .4rem;
 min-block-size: 38px;
 border-radius: .6rem;
 font-size: .8rem;
+}
+.history-filters button:hover { background: var(--grey-100);
 }
 .history-filters button[aria-pressed='true'] { background: var(--grey-200);
 font-weight: 600;
 }
 h3 { font-size: .75rem;
 font-weight: 600;
-color: var(--text-light);
+color: var(--text-muted);
 margin: 1.1rem .65rem .3rem;
 }
 ul { list-style: none;
 margin: 0;
 padding: 0;
 }
-li { display: flex;
+li { position: relative;
+display: flex;
 align-items: center;
 border-radius: .65rem;
 min-inline-size: 0;
 transition: background-color .12s ease;
 }
-li:hover, li:focus-within, li.is-selected { background: var(--grey-200);
+li:hover, li:focus-within { background: var(--grey-200);
+}
+// Selection is a tinted row plus a bar, so it stays distinct from hover and does not rely on colour alone.
+li.is-selected { background: hsla(var(--primary-hsl), .12);
+}
+li.is-selected:hover, li.is-selected:focus-within { background: hsla(var(--primary-hsl), .18);
+}
+li.is-selected::before { content: '';
+position: absolute;
+inset-block: .45rem;
+inset-inline-start: 0;
+inline-size: 3px;
+border-radius: 3px;
+background: var(--primary);
 }
 .history-link { flex: 1;
 min-inline-size: 0;
@@ -249,17 +276,19 @@ overflow: hidden;
 text-overflow: ellipsis;
 font-size: .85rem;
 }
+li.is-selected .history-link span { font-weight: 600;
+}
 .history-link small { display: block;
-font-size: .7rem;
-color: var(--text-light);
+font-size: .75rem;
+color: var(--text-muted);
 margin-block-start: .25rem;
 }
 .pin-mark { inline-size: .65rem;
-color: var(--text-light);
+color: var(--text-muted);
 flex-shrink: 0;
 }
 .history-empty, .history-note { font-size: .8rem;
-color: var(--text-light);
+color: var(--text-muted);
 line-height: 1.6;
 padding: .5rem;
 }
@@ -270,6 +299,13 @@ font-size: .8rem;
 margin-block-start: .7rem;
 }
 .history-pages button { min-block-size: 44px;
+}
+@media (pointer: coarse) {
+	.history-header button { inline-size: 44px;
+	block-size: 44px;
+	}
+	.history-new, .history-filters button { min-block-size: 44px;
+	}
 }
 @media (prefers-reduced-motion: reduce) { li { transition: none;
 } }

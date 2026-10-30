@@ -2,9 +2,11 @@ import {library} from '@fortawesome/fontawesome-svg-core'
 import {
 	faAlignLeft,
 	faCompass,
+	faHouse,
 	faCodeBranch,
 	faCompress,
 	faArrowUp,
+	faArrowDown,
 	faRobot,
 	faGlobe,
 	faMicrophone,
@@ -128,6 +130,8 @@ library.add(faChevronRight)
 library.add(faBold)
 library.add(faCodeBranch)
 library.add(faCompass)
+library.add(faArrowDown)
+library.add(faHouse)
 library.add(faRobot)
 library.add(faGlobe)
 library.add(faMicrophone)

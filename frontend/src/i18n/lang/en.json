@@ -291,7 +291,7 @@
     "welcomeEveningStill": "Still at it, {username}?",
     "lastViewed": "Last viewed",
     "addToHomeScreen": "Add this app to your home screen for faster access and improved experience.",
-    "goToOverview": "Go to overview",
+    "goToOverview": "Go to the workspace",
     "project": {
       "importText": "Import your projects and tasks from other services into Vikunja:",
       "import": "Import your data into Vikunja"
@@ -430,8 +430,8 @@
         "quickAddDefaultReminders": "Default reminders for quick add",
         "quickAddDefaultRemindersDescription": "These reminders will be added automatically to every task created via quick add magic that has a due date.",
         "quickAddDefaultRemindersHint": "Add one or more reminders relative to the task's due date. Leave empty to disable.",
-        "filterUsedOnOverview": "Saved filter used on the overview page",
-        "showLastViewed": "Show last viewed projects on the overview page",
+        "filterUsedOnOverview": "Saved filter used on the workspace",
+        "showLastViewed": "Show last viewed projects on the workspace",
         "minimumPriority": "Minimum visible task priority",
         "dateDisplay": "Date display format",
         "dateDisplayOptions": {
@@ -1123,7 +1123,12 @@
     "home": "Vikunja home",
     "toggleChildProjects": "Toggle sub-projects",
     "main": "Main navigation",
-    "savedFilters": "Saved filters"
+    "savedFilters": "Saved filters",
+    "groups": {
+      "daily": "Daily work",
+      "records": "Records & review",
+      "organize": "Organize"
+    }
   },
   "misc": {
     "loading": "Loading…",
@@ -1721,7 +1726,7 @@
     },
     "navigation": {
       "title": "Navigation",
-      "overview": "Navigate to overview",
+      "overview": "Navigate to the workspace",
       "upcoming": "Navigate to upcoming tasks",
       "labels": "Navigate to labels",
       "teams": "Navigate to teams",
@@ -2330,7 +2335,7 @@
     "steps": {
       "overview": {
         "title": "Your starting point",
-        "text": "The overview brings your tasks and recently visited projects together. Use the sidebar to explore your workspace. On phones, the guide opens the sidebar when needed."
+        "text": "The workspace brings today's tasks, quick capture and recently opened projects together. Use the sidebar for everything else. On phones, the guide opens the sidebar when needed."
       },
       "projects": {
         "title": "Organize work into projects",
@@ -2759,6 +2764,15 @@
     "write_review": "Execute · Review every change",
     "write_auto": "Execute · Ordinary and bulk edits run directly",
     "toolFootprint": "Loaded {count}/{total} tools: {size} KiB of definitions (full catalog: {full} KiB). These are definition bytes, not billable tokens.",
+    "welcomeIntro": "Ask about your tasks, projects and plans. Changes follow the scenario below, and important ones wait for your approval.",
+    "suggestions": "Suggestions",
+    "scenarioTag": "Scenario: {name}",
+    "weekReview": "Review this week",
+    "weekReviewPrompt": "Summarize what I finished this week and list anything overdue or due in the next three days.",
+    "breakDown": "Break a goal into tasks",
+    "breakDownPrompt": "Break this goal into concrete tasks with suggested due dates:",
+    "statusLive": "Live",
+    "statusPolling": "Auto-refresh",
     "presets": {
       "ask": {
         "name": "Ask & explore",
@@ -2859,21 +2873,25 @@
     "previousYear": "Previous year",
     "nextYear": "Next year",
     "project": "Project",
-    "allProjects": "All accessible projects (including archived)",
+    "allProjects": "All projects",
+    "projectOptionArchived": "{title} · archived",
     "type": "Record type",
     "search": "Search projects",
     "searchPlaceholder": "Project name",
     "loading": "Loading project history…",
     "loadError": "Could not load project history. Please try again.",
     "retry": "Retry",
-    "projectsCount": "projects",
-    "milestonesCount": "status changes",
-    "activeDays": "days with records",
+    "projectsCount": "{n} project | {n} projects",
+    "milestonesCount": "{n} status change | {n} status changes",
+    "activeDays": "{n} day with records | {n} days with records",
     "calendar": "Yearly project calendar",
-    "dayLabel": "{date}: {count} project status changes",
+    "dayLabel": "{date}: no status changes | {date}: {count} status change | {date}: {count} status changes",
+    "monthLabel": "{month}: no status changes | {month}: {count} status change | {month}: {count} status changes",
     "less": "Less",
     "more": "More",
-    "calendarHelp": "Squares show when project milestones happened. Select a day to see its records. A project can have several records; these are not task counts or days worked.",
+    "legendShading": "A stronger color means more project status changes on that day.",
+    "timezoneNote": "Dates use your time zone: {timezone}",
+    "calendarHelp": "Select a day to see its records. One project can have several records. These are project status changes, not task counts or days worked.",
     "yearRecords": "Project records in {year}",
     "clearDay": "Show whole year",
     "unknownHeading": "Records with unknown dates",
@@ -2882,15 +2900,15 @@
     "unknownHelp": "These projects were archived before history was enabled. Their original archive dates were not stored, so they are not assigned to a calendar year.",
     "empty": "No project records in this range",
     "emptyHelp": "Try another year or filter. “Mark project complete” and “Archive” in the project menu create new milestones.",
-    "recordSpan": "Created {start} · This record {end}",
+    "recordsCount": "{n} record | {n} records",
+    "createdOn": "Project created {date}",
+    "now": "Now:",
     "completedBadge": "Currently complete",
-    "archivedBadge": "Currently archived",
-    "activeBadge": "Currently active",
     "previous": "Previous",
     "next": "Next",
     "pagination": "Project history pages",
     "explanation": "How are these records counted?",
-    "explanationText": "This is project status history, not task history. Completion, reopening, archiving and unarchiving are recorded. Restoring a project preserves its earlier records; deleting it removes its records. Titles, current status and access permissions follow the current project. Creation and event dates show the recorded span, not a planned work schedule.",
+    "explanationText": "This is project status history, not task history. Completion, reopening, archiving and unarchiving are recorded. Restoring a project preserves its earlier records; deleting it removes its records. Titles, current status and access permissions follow the current project. Creation and event dates only show when something was recorded; they are not a planned schedule or time worked.",
     "complete": "Mark project complete",
     "reopen": "Reopen project",
     "completeHelp": "Has this project reached its conclusion? The current time will be recorded as its completion date. Tasks and child projects stay as they are, and the project remains editable.",
@@ -2898,12 +2916,62 @@
     "archiveHelp": "Completion and archiving are separate. Completion marks a conclusion; archiving removes the project and its children from everyday navigation and makes them read-only. To put a completed project away, use “Archive” in its menu.",
     "viewHistory": "View project history",
     "kinds": {
-      "milestones": "Completed and archived",
+      "milestones": "Completed & archived",
       "completed": "Completed",
       "archived": "Archived",
       "reopened": "Reopened",
       "unarchived": "Unarchived",
       "all": "All status changes"
+    }
+  },
+  "projectStatus": {
+    "active": "Active",
+    "completed": "Completed",
+    "filterLabel": "Project status"
+  },
+  "projectList": {
+    "statusAll": "All",
+    "searchPlaceholder": "Name, identifier or description",
+    "noMatches": "No projects match the current search and status.",
+    "resultCount": "No projects shown | {count} project shown | {count} projects shown",
+    "otherSection": "Favorites and saved filters",
+    "parentPath": "In {path}",
+    "loadError": "Your projects could not be loaded right now.",
+    "emptyTitle": "No projects yet",
+    "emptyText": "A project collects related tasks, like \"Home\" or \"Thesis\". Create one to get started.",
+    "overlapHint": "{count} project is both completed and archived, so it counts under both. | {count} projects are both completed and archived, so they count under both."
+  },
+  "workspace": {
+    "title": "Workspace",
+    "sideLabel": "Recent projects and shortcuts",
+    "taskViews": "Which tasks to show",
+    "views": {
+      "current": "All open"
+    },
+    "taskCount": "{count} task | {count} tasks",
+    "groups": {
+      "overdue": "Overdue",
+      "week": "Next 7 days",
+      "later": "Later",
+      "none": "No due date"
+    },
+    "noProjects": "Create a project first. Tasks you jot down here are saved into it.",
+    "loadError": "Your tasks could not be loaded right now.",
+    "emptyToday": "Nothing is due today.",
+    "emptyOverdue": "Nothing is overdue. Nice.",
+    "seeUpcoming": "See what's coming up",
+    "pagination": "Task pages",
+    "pageStatus": "{from}–{to} of {total}",
+    "capture": {
+      "added": "Added {count} task: {task} | Added {count} tasks, starting with {task}",
+      "hidden": "It isn't shown in this view. | They aren't shown in this view.",
+      "showAll": "Show all open tasks"
+    },
+    "links": {
+      "heading": "Plan and look back",
+      "aronaHint": "Plan, split up or tidy tasks by just asking",
+      "upcomingHint": "Tasks due in the coming days",
+      "historyHint": "Projects you finished or archived, by date"
     }
   }
 }

@@ -537,19 +537,34 @@ onBeforeUnmount(() => {
 		margin: .25rem 0 0;
 		font-size: .875rem;
 	}
+	// Beside the text the CTA left two or three CJK characters per line; on phones it
+	// gets its own row and the close button keeps a reserved corner.
 	@media (width <= 480px) {
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: start;
+		gap: .5rem .75rem;
+		padding-inline-end: 3rem;
+		> svg {
+			grid-column: 1;
+			grid-row: 1;
+			margin-block-start: .125rem;
+		}
 		> div {
-			flex: 1;
+			grid-column: 2;
+			grid-row: 1;
+			min-inline-size: 0;
+		}
+		.guide-button.primary {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			justify-self: stretch;
+			margin-inline-end: -2rem;
 		}
 		.guide-icon {
 			position: absolute;
 			inset-block-start: .25rem;
 			inset-inline-end: .25rem;
-		}
-		strong {
-			display: block;
-			padding-inline-end: 1.5rem;
 		}
 	}
 }

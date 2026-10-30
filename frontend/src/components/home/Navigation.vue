@@ -18,25 +18,10 @@
 					height="48"
 				/>
 			</RouterLink>
-			<menu class="menu-list other-menu-items">
-				<li>
-					<RouterLink :to="{name: 'projects.history'}">
-						<span class="menu-item-icon icon"><Icon icon="calendar" /></span>{{ t('projectHistory.title') }}
-					</RouterLink>
-				</li>
-				<li>
-					<RouterLink :to="{name: 'drive'}">
-						<span class="menu-item-icon icon"><Icon icon="folder" /></span>{{ t('drive.title') }}
-					</RouterLink>
-				</li>
-				<li>
-					<RouterLink
-						data-tour="nav-ai"
-						:to="{name: 'tcy-ai'}"
-					>
-						<span class="menu-item-icon icon"><AronaAvatar size="small" /></span>{{ t('tcymc.text.ai_task_assistant') }}
-					</RouterLink>
-				</li>
+			<menu
+				class="menu-list other-menu-items"
+				:aria-label="t('navigation.groups.daily')"
+			>
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.overview"
@@ -44,9 +29,9 @@
 						:to="{ name: 'home'}"
 					>
 						<span class="menu-item-icon icon">
-							<Icon icon="calendar" />
+							<Icon icon="house" />
 						</span>
-						{{ $t('navigation.overview') }}
+						{{ t('workspace.title') }}
 					</RouterLink>
 				</li>
 				<li>
@@ -58,7 +43,7 @@
 						<span class="menu-item-icon icon">
 							<Icon :icon="['far', 'calendar-alt']" />
 						</span>
-						{{ $t('navigation.upcoming') }}
+						{{ t('navigation.upcoming') }}
 					</RouterLink>
 				</li>
 				<li>
@@ -70,9 +55,59 @@
 						<span class="menu-item-icon icon">
 							<Icon icon="layer-group" />
 						</span>
-						{{ $t('project.projects') }}
+						{{ t('project.projects') }}
 					</RouterLink>
 				</li>
+				<li>
+					<RouterLink
+						data-tour="nav-ai"
+						:to="{name: 'tcy-ai'}"
+					>
+						<span class="menu-item-icon icon"><AronaAvatar size="small" /></span>{{ t('tcymc.text.ai_task_assistant') }}
+					</RouterLink>
+				</li>
+			</menu>
+
+			<p
+				id="nav-group-records"
+				class="menu-label nav-group-label"
+			>
+				{{ t('navigation.groups.records') }}
+			</p>
+			<menu
+				class="menu-list other-menu-items"
+				aria-labelledby="nav-group-records"
+			>
+				<li>
+					<RouterLink :to="{name: 'projects.history'}">
+						<span class="menu-item-icon icon"><Icon :icon="['far', 'calendar-check']" /></span>{{ t('projectHistory.title') }}
+					</RouterLink>
+				</li>
+				<li>
+					<RouterLink :to="{name: 'drive'}">
+						<span class="menu-item-icon icon"><Icon icon="folder" /></span>{{ t('drive.title') }}
+					</RouterLink>
+				</li>
+				<li v-if="timeTrackingEnabled">
+					<RouterLink :to="{ name: 'time-tracking'}">
+						<span class="menu-item-icon icon">
+							<Icon :icon="['far', 'clock']" />
+						</span>
+						{{ t('timeTracking.title') }}
+					</RouterLink>
+				</li>
+			</menu>
+
+			<p
+				id="nav-group-organize"
+				class="menu-label nav-group-label"
+			>
+				{{ t('navigation.groups.organize') }}
+			</p>
+			<menu
+				class="menu-list other-menu-items"
+				aria-labelledby="nav-group-organize"
+			>
 				<li>
 					<RouterLink
 						v-shortcut="SHORTCUTS.navigation.labels"
@@ -81,7 +116,7 @@
 						<span class="menu-item-icon icon">
 							<Icon icon="tags" />
 						</span>
-						{{ $t('label.title') }}
+						{{ t('label.title') }}
 					</RouterLink>
 				</li>
 				<li>
@@ -93,15 +128,7 @@
 						<span class="menu-item-icon icon">
 							<Icon icon="users" />
 						</span>
-						{{ $t('team.title') }}
-					</RouterLink>
-				</li>
-				<li v-if="timeTrackingEnabled">
-					<RouterLink :to="{ name: 'time-tracking'}">
-						<span class="menu-item-icon icon">
-							<Icon :icon="['far', 'clock']" />
-						</span>
-						{{ $t('timeTracking.title') }}
+						{{ t('team.title') }}
 					</RouterLink>
 				</li>
 			</menu>
@@ -165,6 +192,7 @@
 import {useI18n} from 'vue-i18n'
 const {t} = useI18n({useScope: 'global'})
 import {computed} from 'vue'
+import {useEventListener} from '@vueuse/core'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import SystemStatus from '@/components/home/SystemStatus.vue'
 import TcyBrand from '@/components/home/TcyBrand.vue'
@@ -188,6 +216,14 @@ const configStore = useConfigStore()
 const timeTrackingEnabled = computed(() => configStore.isProFeatureEnabled(PRO_FEATURE.TIME_TRACKING))
 
 const {sidebarWidthStyle, isResizing, startResize, isMobile} = useSidebarResize()
+
+// The mobile drawer is modal-like; Escape closes it unless a dialog on top owns the key.
+useEventListener(document, 'keydown', (event: KeyboardEvent) => {
+	if (event.key !== 'Escape' || event.defaultPrevented || !isMobile.value || !baseStore.menuActive) return
+	if (document.querySelector('dialog[open]')) return
+	baseStore.setMenuActive(false)
+	document.querySelector<HTMLElement>('.menu-show-button')?.focus()
+})
 
 const projects = computed(() => projectList.notArchivedRootProjects)
 const favoriteProjects = computed(() => projectList.favoriteProjects)
@@ -215,7 +251,10 @@ const savedFilterProjects = computed(() => projectList.savedFilterProjects)
 	background: var(--site-background);
 	color: $vikunja-nav-color;
 	padding: 1rem 0;
-	transition: transform $transition-duration ease-in;
+	// Hidden once the slide-out finishes so off-screen links leave the tab order;
+	// shortcuts still reach them through programmatic click().
+	visibility: hidden;
+	transition: transform $transition-duration ease-in, visibility 0s linear $transition-duration;
 	position: fixed;
 	inset-block-start: $navbar-height;
 	inset-block-end: 0;
@@ -235,12 +274,20 @@ const savedFilterProjects = computed(() => projectList.savedFilterProjects)
 	}
 
 	&.is-active {
+		visibility: visible;
 		transform: translateX(0);
-		transition: transform $transition-duration ease-out;
+		transition: transform $transition-duration ease-out, visibility 0s;
 	}
 
 	&.is-resizing {
 		transition: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		&,
+		&.is-active {
+			transition: none;
+		}
 	}
 }
 
@@ -280,5 +327,22 @@ const savedFilterProjects = computed(() => projectList.savedFilterProjects)
 
 .menu + .menu {
 	padding-block-start: math.div($navbar-padding, 2);
+}
+
+.nav-group-label {
+	margin: 1rem 0 .25rem;
+	padding-inline: 2rem 1rem;
+	color: var(--text-muted);
+	font-size: .75rem;
+	font-weight: 600;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+// Fine pointers get a denser list; touch keeps the 44px rows from navigation.scss.
+@media (hover: hover) and (pointer: fine) {
+	.top-menu .menu-list.other-menu-items li {
+		block-size: 40px;
+	}
 }
 </style>

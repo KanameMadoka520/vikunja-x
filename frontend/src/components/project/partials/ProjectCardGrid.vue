@@ -41,27 +41,19 @@ const filteredProjects = computed(() => {
 .project-grid {
 	--project-grid-item-height: 150px;
 	--project-grid-gap: 1rem;
+	--project-grid-min-column: 14.5rem;
 	margin: 0; // reset li
+	padding: 0;
 	list-style-type: none;
 	display: grid;
-	grid-template-columns: repeat(var(--project-grid-columns), 1fr);
+	// min() keeps a single column from overflowing containers narrower than the minimum.
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--project-grid-min-column)), 1fr));
 	grid-auto-rows: var(--project-grid-item-height);
 	gap: var(--project-grid-gap);
 
-	@media screen and (min-width: $mobile) {
-		--project-grid-columns: 1;
-	}
-
-	@media screen and (min-width: $mobile) and (max-width: $tablet) {
-		--project-grid-columns: 2;
-	}
-
-	@media screen and (min-width: $tablet) and (max-width: $widescreen) {
-		--project-grid-columns: 3;
-	}
-
-	@media screen and (min-width: $widescreen) {
-		--project-grid-columns: 5;
+	@media screen and (width <= 30rem) {
+		--project-grid-item-height: 8rem;
+		--project-grid-gap: .75rem;
 	}
 
 	&.show-even-number-of-projects {
@@ -75,6 +67,7 @@ const filteredProjects = computed(() => {
 
 .project-grid-item {
 	display: grid;
+	min-inline-size: 0;
 	margin-block-start: 0; // remove padding coming form .content li + li
 }
 </style>

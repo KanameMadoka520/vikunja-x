@@ -268,7 +268,7 @@
 		"welcomeEvening": "中午好，{username}！",
 		"lastViewed": "最近查看",
 		"addToHomeScreen": "将此应用程序添加到您的主屏幕以便更快地访问和改善体验。",
-		"goToOverview": "转到概览",
+		"goToOverview": "前往工作台",
 		"project": {
 			"importText": "将您的项目和任务从其他服务导入 Vikunja：",
 			"import": "将您的数据导入到 Vikunja"
@@ -396,7 +396,7 @@
 				"defaultView": "默认视图",
 				"timezone": "时区",
 				"overdueTasksRemindersTime": "逾期任务提醒邮件时间",
-				"filterUsedOnOverview": "概述页面上使用已保存过滤器",
+				"filterUsedOnOverview": "工作台使用的已保存过滤器",
 				"allowIconChanges": "在特定日期显示节日标志",
 				"alwaysShowBucketTaskCount": "始终显示看板分组中的任务数量",
 				"defaultTaskRelationType": "默认任务关联类型",
@@ -408,7 +408,7 @@
 				"quickAddDefaultReminders": "快速添加任务的默认提醒",
 				"quickAddDefaultRemindersDescription": "使用快捷语法创建带截止日期的任务时，会自动添加这些提醒。",
 				"quickAddDefaultRemindersHint": "添加一个或多个相对截止时间的提醒。留空则不自动添加。",
-				"showLastViewed": "在概览页面显示最近查看的项目",
+				"showLastViewed": "在工作台显示最近查看的项目",
 				"minimumPriority": "显示任务的最低优先级",
 				"dateDisplay": "日期显示格式",
 				"dateDisplayOptions": {
@@ -1092,7 +1092,7 @@
 	},
 	"navigation": {
 		"overview": "概览",
-		"upcoming": "即将开始",
+		"upcoming": "近期",
 		"settings": "设置",
 		"imprint": "版权信息",
 		"privacy": "隐私政策",
@@ -1100,7 +1100,12 @@
 		"home": "Vikunja 首页",
 		"toggleChildProjects": "展开或折叠子项目",
 		"main": "主导航",
-		"savedFilters": "已保存的筛选条件"
+		"savedFilters": "已保存的筛选条件",
+		"groups": {
+			"daily": "日常工作",
+			"records": "记录与回顾",
+			"organize": "整理"
+		}
 	},
 	"misc": {
 		"loading": "载入中...",
@@ -1698,8 +1703,8 @@
 		},
 		"navigation": {
 			"title": "导航栏",
-			"overview": "导航到概览",
-			"upcoming": "导航到即将到来的任务",
+			"overview": "前往工作台",
+			"upcoming": "前往近期任务",
 			"labels": "导航到标签",
 			"teams": "导航到小组",
 			"projects": "导航到项目"
@@ -2329,8 +2334,8 @@
 		},
 		"steps": {
 			"overview": {
-				"title": "从总览开始",
-				"text": "总览集中展示任务和最近访问的项目。侧边栏可以前往各个功能；在手机上，教程会按需要自动展开侧边栏。"
+				"title": "从工作台开始",
+				"text": "工作台集中展示今天的任务、快速记录和最近打开的项目。其他功能都在侧边栏里；在手机上，教程会按需要自动展开侧边栏。"
 			},
 			"projects": {
 				"title": "用项目整理事情",
@@ -2342,7 +2347,7 @@
 			},
 			"upcoming": {
 				"title": "查看日程与时间段",
-				"text": "“即将到来”按日期汇总任务。截止日期表示最晚何时完成；开始和结束时间表示占用的时间段。项目中的甘特图可以查看各项安排的先后和重叠。"
+				"text": "“近期”按日期汇总任务。截止日期表示最晚何时完成；开始和结束时间表示占用的时间段。项目中的甘特图可以查看各项安排的先后和重叠。"
 			},
 			"teams": {
 				"title": "与其他账号协作",
@@ -2759,6 +2764,15 @@
 		"write_review": "可执行 · 所有修改先审核",
 		"write_auto": "可执行 · 普通及批量修改直接执行",
 		"toolFootprint": "本轮加载 {count}/{total} 个工具，定义 {size} KiB（完整目录 {full} KiB）；这是定义字节大小，不是计费 token。",
+		"welcomeIntro": "任务、项目和计划都可以问我。能不能直接修改由下方的使用场景决定，重要改动会先等你确认。",
+		"suggestions": "试试这些",
+		"scenarioTag": "场景：{name}",
+		"weekReview": "回顾本周进展",
+		"weekReviewPrompt": "总结一下我这周完成了哪些任务，再列出已经逾期或三天内到期的任务。",
+		"breakDown": "把目标拆成任务",
+		"breakDownPrompt": "帮我把这个目标拆成具体的任务，并建议各自的截止时间：",
+		"statusLive": "实时同步",
+		"statusPolling": "定时刷新",
 		"presets": {
 			"ask": {
 				"name": "查询与建议",
@@ -2859,21 +2873,25 @@
     "previousYear": "上一年",
     "nextYear": "下一年",
     "project": "所属项目",
-    "allProjects": "全部可访问项目（含归档）",
+    "allProjects": "全部项目",
+    "projectOptionArchived": "{title}（已归档）",
     "type": "记录类型",
     "search": "搜索项目",
     "searchPlaceholder": "输入项目名称",
     "loading": "正在整理项目记录…",
     "loadError": "项目记录暂时加载失败，请重试。",
     "retry": "重试",
-    "projectsCount": "个项目",
-    "milestonesCount": "次状态记录",
-    "activeDays": "个有记录的日子",
+    "projectsCount": "{n} 个项目",
+    "milestonesCount": "{n} 次状态变化",
+    "activeDays": "{n} 天有记录",
     "calendar": "全年项目记录日历",
-    "dayLabel": "{date}：{count} 次项目状态记录",
+    "dayLabel": "{date}：{count} 次状态变化",
+    "monthLabel": "{month}：{count} 次状态变化",
     "less": "少",
     "more": "多",
-    "calendarHelp": "方格按项目完成或归档等事件发生的日期着色，点击查看当天记录。同一项目可以留下多次记录；这不是任务数量，也不代表每天都在工作。",
+    "legendShading": "颜色越浓，当天的项目状态变化越多。",
+    "timezoneNote": "按你的时区 {timezone} 计算日期",
+    "calendarHelp": "点一下某一天，就能看到当天的记录。同一个项目可能有好几条记录。这里记的是项目状态的变化，不是任务数量，也不代表那天在工作。",
     "yearRecords": "{year} 年的项目记录",
     "clearDay": "查看全年",
     "unknownHeading": "日期未知的历史记录",
@@ -2882,15 +2900,15 @@
     "unknownHelp": "这些项目在启用历史记录前已经归档，原始归档时间没有保存，因此不计入任何年份的方格。",
     "empty": "这个范围还没有项目记录",
     "emptyHelp": "可以切换年份或筛选条件。项目菜单中的“标记项目已完成”与“归档”会记录新的里程碑。",
-    "recordSpan": "创建于 {start} · 本次记录 {end}",
+    "recordsCount": "{n} 条记录",
+    "createdOn": "项目创建于 {date}",
+    "now": "现在：",
     "completedBadge": "当前已完成",
-    "archivedBadge": "当前已归档",
-    "activeBadge": "当前进行中",
     "previous": "上一页",
     "next": "下一页",
     "pagination": "项目记录分页",
     "explanation": "这些记录如何统计？",
-    "explanationText": "这里统计整个项目的状态变化，不统计任务卡片。完成、重新打开、归档、取消归档都会记录。恢复项目不会抹掉此前记录；项目删除后记录随项目删除。项目名称、当前状态和访问权限以当前数据为准。创建日期与记录日期只表示记录跨度，不是计划工期。",
+    "explanationText": "这里统计整个项目的状态变化，不统计任务卡片。完成、重新打开、归档、取消归档都会记录。恢复项目不会抹掉此前记录；项目删除后记录随项目删除。项目名称、当前状态和访问权限以当前数据为准。创建日期和记录日期只说明事情是哪天记下的，不是计划工期，也不代表花了多少时间。",
     "complete": "标记项目已完成",
     "reopen": "重新打开项目",
     "completeHelp": "确认这个项目已经告一段落？将记录当前时间作为完成时间。项目内的任务和子项目状态保持原样，项目仍可编辑。",
@@ -2904,6 +2922,56 @@
       "reopened": "重新打开",
       "unarchived": "取消归档",
       "all": "全部状态变化"
+    }
+  },
+  "projectStatus": {
+    "active": "进行中",
+    "completed": "已完成",
+    "filterLabel": "项目状态"
+  },
+  "projectList": {
+    "statusAll": "全部",
+    "searchPlaceholder": "名称、标识或描述",
+    "noMatches": "没有符合当前搜索和状态的项目。",
+    "resultCount": "当前显示 {count} 个项目",
+    "otherSection": "收藏与已保存的筛选条件",
+    "parentPath": "位于 {path}",
+    "loadError": "项目暂时没加载出来。",
+    "emptyTitle": "还没有项目",
+    "emptyText": "项目用来收拢相关的任务，比如“家务”或“毕业论文”。先建一个就可以开始了。",
+    "overlapHint": "有 {count} 个项目既已完成又已归档，所以两边都会计入。"
+  },
+  "workspace": {
+    "title": "工作台",
+    "sideLabel": "最近项目与常用入口",
+    "taskViews": "要显示哪些任务",
+    "views": {
+      "current": "全部待办"
+    },
+    "taskCount": "{count} 项任务",
+    "groups": {
+      "overdue": "已逾期",
+      "week": "未来 7 天",
+      "later": "更晚",
+      "none": "没有截止日期"
+    },
+    "noProjects": "先建一个项目，在这里记下的任务都会存进去。",
+    "loadError": "任务暂时没加载出来。",
+    "emptyToday": "今天没有到期的任务。",
+    "emptyOverdue": "没有逾期任务，保持得不错。",
+    "seeUpcoming": "看看接下来的安排",
+    "pagination": "任务分页",
+    "pageStatus": "第 {from}–{to} 项，共 {total} 项",
+    "capture": {
+      "added": "已添加 {count} 项任务：{task} | 已添加 {count} 项任务，第一项是 {task}",
+      "hidden": "它不在当前视图里。 | 这些任务不在当前视图里。",
+      "showAll": "查看全部待办"
+    },
+    "links": {
+      "heading": "规划与回顾",
+      "aronaHint": "说一句话，就能安排、拆分或整理任务",
+      "upcomingHint": "接下来几天要到期的任务",
+      "historyHint": "按日期查看完成或归档的项目"
     }
   }
 }

@@ -309,11 +309,17 @@ margin: .5rem;
 		flex-shrink: 0;
 		margin-block-end: 0;
 	}
+
+	// Must out-rank the `.control` rule above, or the input keeps its intrinsic width
+	// and pushes the add button past a 320px screen.
+	.task-input-wrapper {
+		flex-shrink: 1;
+		min-inline-size: 0;
+	}
 }
 
 .task-input-wrapper {
 	position: relative;
-	flex-shrink: 1;
 	flex-grow: 1;
 
 	textarea {

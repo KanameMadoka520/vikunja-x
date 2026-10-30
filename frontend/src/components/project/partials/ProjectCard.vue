@@ -3,7 +3,8 @@
 		class="project-card"
 		:class="{
 			'has-light-text': Boolean(background),
-			'has-background': Boolean(blurHashUrl || background)
+			'has-background': Boolean(blurHashUrl || background),
+			'has-status': hasStatus,
 		}"
 		:style="{
 			'border-inline-start': project.hex_color ? `0.25rem solid ${project.hex_color}` : undefined,
@@ -16,21 +17,34 @@
 			:style="{'background-image': background ? `url(${background})` : undefined}"
 		/>
 		<span
-			v-if="project.is_archived"
-			class="is-archived"
-		>{{ $t('project.archived') }}</span>
-
-		<div
-			class="project-title"
-			aria-hidden="true"
+			v-if="hasStatus"
+			class="project-card-status"
 		>
-			<span
-				v-if="project.id < -1"
-				class="saved-filter-icon icon"
+			<ProjectStatusBadges
+				:is-completed="isCompleted"
+				:is-archived="project.is_archived"
+			/>
+		</span>
+
+		<div class="project-card-text">
+			<p
+				v-if="parentPath"
+				class="project-parent"
 			>
-				<Icon icon="filter" />
-			</span>
-			{{ getProjectTitle(project) }}
+				{{ $t('projectList.parentPath', {path: parentPath}) }}
+			</p>
+			<div
+				class="project-title"
+				aria-hidden="true"
+			>
+				<span
+					v-if="project.id < -1"
+					class="saved-filter-icon icon"
+				>
+					<Icon icon="filter" />
+				</span>
+				{{ getProjectTitle(project) }}
+			</div>
 		</div>
 		<BaseButton
 			class="project-button"
@@ -66,9 +80,11 @@ import {usePatchProjectFavoriteMutation, type ProjectResponse} from '@/client/qu
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import ProjectSettingsDropdown from '@/components/project/ProjectSettingsDropdown.vue'
+import ProjectStatusBadges from '@/components/project/partials/ProjectStatusBadges.vue'
 import {PERMISSIONS} from '@/constants/permissions'
 
 import {useProjectBackground} from '@/composables/useProjectBackground'
+import {useProjects} from '@/composables/useProjects'
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 
 const props = defineProps<{
@@ -76,6 +92,7 @@ const props = defineProps<{
 }>()
 
 const {background, blurHashUrl} = useProjectBackground(() => props.project)
+const projectList = useProjects()
 
 const favoriteMutation = usePatchProjectFavoriteMutation()
 
@@ -89,21 +106,37 @@ async function toggleProjectFavorite() {
 const textOnlyDescription = computed(() => {
 	return props.project.description ? props.project.description.replace(/<[^>]*>/g, '') : ''
 })
+
+const isCompleted = computed(() => Boolean(props.project.is_completed))
+const hasStatus = computed(() => isCompleted.value || props.project.is_archived)
+
+const parentPath = computed(() => {
+	if (props.project.parent_project_id <= 0) {
+		return ''
+	}
+	return projectList.getAncestors(props.project)
+		.slice(0, -1)
+		.map(ancestor => getProjectTitle(ancestor))
+		.join(' / ')
+})
 </script>
 
 <style lang="scss" scoped>
 .project-card {
 	--project-card-padding: 1rem;
+	--project-card-action-size: 2rem;
+	--project-title-lines: 3;
 	background: var(--white);
 	padding: var(--project-card-padding);
 	border-radius: $radius;
 	box-shadow: var(--shadow-sm);
 	transition: box-shadow $transition;
 	position: relative;
+	min-inline-size: 0;
 
 	display: flex;
-	justify-content: space-between;
-	flex-wrap: wrap;
+	flex-direction: column;
+	gap: .5rem;
 
 	&:hover {
 		box-shadow: var(--shadow-md);
@@ -117,6 +150,21 @@ const textOnlyDescription = computed(() => {
 	> * {
 		// so the elements are on top of the background
 		position: relative;
+	}
+
+	&.has-status {
+		--project-title-lines: 2;
+	}
+
+	// Always-visible touch actions would collide with a third title line.
+	@media (pointer: coarse) {
+		--project-card-action-size: 2.75rem;
+		--project-title-lines: 2;
+	}
+
+	@media screen and (width <= 30rem) {
+		--project-card-padding: .75rem;
+		--project-title-lines: 2;
 	}
 }
 
@@ -141,35 +189,62 @@ const textOnlyDescription = computed(() => {
 	inset-inline-start: 0;
 }
 
-.is-archived {
+.project-card-status {
+	align-self: flex-start;
+	max-inline-size: calc(100% - 2 * var(--project-card-action-size));
+	border-radius: 999px;
+}
+
+// The tinted badges are translucent and would be unreadable on a photo.
+.has-background .project-card-status {
+	background: var(--white);
+}
+
+.project-card-text {
+	display: flex;
+	flex-direction: column;
+	gap: .125rem;
+	min-block-size: 0;
+	margin-block-start: auto;
+}
+
+.project-parent {
+	margin: 0;
+	overflow: hidden;
+	color: var(--text-muted);
 	font-size: .75rem;
-	float: inline-start;
+	line-height: 1.4;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .project-title {
-	align-self: flex-end;
 	font-family: $vikunja-font;
 	font-weight: 400;
 	font-size: 1.5rem;
-	line-height: var(--title-line-height);
+	line-height: 1.25;
 	color: var(--text);
-	inline-size: 100%;
+	min-block-size: 0;
 	margin-block-end: 0;
-	max-block-size: calc(100% - (var(--project-card-padding) + 1rem)); // padding & height of the "is archived" badge
 	overflow: hidden;
 	text-overflow: ellipsis;
 	word-break: break-word;
 
 	display: -webkit-box;
-	-webkit-line-clamp: 3;
+	-webkit-line-clamp: var(--project-title-lines);
 	-webkit-box-orient: vertical;
+
+	@media screen and (width <= 30rem) {
+		font-size: 1.25rem;
+	}
 }
 
 .has-light-text .project-title {
 	color: var(--grey-100);
 }
 
-.has-background .project-title {
+.has-background .project-title,
+.has-background .project-parent {
 	text-shadow:
 		0 0 10px var(--black),
 		1px 1px 5px var(--grey-700),
@@ -179,11 +254,21 @@ const textOnlyDescription = computed(() => {
 
 .project-actions {
 	position: absolute;
-	inset-block-start: var(--project-card-padding);
-	inset-inline-end: var(--project-card-padding);
+	// Centre the action icons on the first badge row instead of the hit area's corner.
+	inset-block-start: max(.25rem, calc(var(--project-card-padding) + .75rem - var(--project-card-action-size) / 2));
+	inset-inline-end: max(.25rem, calc(var(--project-card-padding) + .5rem - var(--project-card-action-size) / 2));
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+}
+
+.favorite,
+.settings-dropdown :deep(.dropdown-trigger) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: var(--project-card-action-size);
+	min-block-size: var(--project-card-action-size);
+	border-radius: $radius;
 }
 
 .favorite,
@@ -196,7 +281,6 @@ const textOnlyDescription = computed(() => {
 	}
 
 	&.is-favorite {
-		display: inline-block;
 		opacity: 1;
 		color: var(--warning);
 	}
@@ -208,26 +292,38 @@ const textOnlyDescription = computed(() => {
 		opacity: 0;
 	}
 
+	// Keyboard users reach the actions by tabbing into the card.
 	.project-card:hover .favorite,
 	.project-card:hover .settings-dropdown,
+	.project-card:focus-within .favorite,
 	.project-card:focus-within .settings-dropdown,
+	.project-card .favorite.is-favorite,
 	.settings-dropdown:has([aria-expanded="true"]) {
 		opacity: 1;
 	}
 }
 
 .background-fade-in {
-  opacity: 0;
-  transition: opacity $transition;
-  transition-delay: $transition-duration * 2; // To fake an appearing background
+	opacity: 0;
+	transition: opacity $transition;
+	transition-delay: $transition-duration * 2; // To fake an appearing background
 
-  &.is-visible {
-    opacity: 1;
-  }
+	&.is-visible {
+		opacity: 1;
+	}
 }
 
 .saved-filter-icon {
-	color: var(--grey-300);
+	color: var(--text-muted);
 	font-size: .75em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.project-card,
+	.favorite,
+	.settings-dropdown,
+	.background-fade-in {
+		transition: none;
+	}
 }
 </style>

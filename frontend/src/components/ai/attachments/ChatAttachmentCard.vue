@@ -66,7 +66,7 @@ async function download() {
 				:aria-label="t('chatFiles.remove', {name: file.name})"
 				@click="$emit('remove', file.id!)"
 			>
-				{{ t('misc.remove') }}
+				{{ t('tcymc.text.remove') }}
 			</button>
 			<span
 				v-if="failed || (blob.isError.value && !missing)"

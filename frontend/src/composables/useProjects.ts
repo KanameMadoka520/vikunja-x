@@ -65,6 +65,8 @@ const useSharedProjects = createSharedComposable(() => {
 		...sortByPosition(realProjects.value.filter(project => !project.is_archived && project.is_favorite)),
 	])
 	const hasProjects = computed(() => projectsArray.value.length > 0)
+	// Favourites and saved filters are pseudo projects; tasks can only live in real ones.
+	const hasRealProjects = computed(() => realProjects.value.length > 0)
 
 	return {
 		query,
@@ -76,6 +78,7 @@ const useSharedProjects = createSharedComposable(() => {
 		rootProjects,
 		favoriteProjects,
 		hasProjects,
+		hasRealProjects,
 	}
 })
 
@@ -90,6 +93,7 @@ export function useProjects() {
 		rootProjects,
 		favoriteProjects,
 		hasProjects,
+		hasRealProjects,
 	} = useSharedProjects()
 
 	const state = reactive({
@@ -100,7 +104,10 @@ export function useProjects() {
 		savedFilterProjects,
 		favoriteProjects,
 		hasProjects,
+		hasRealProjects,
 		isLoading: query.isPending,
+		isError: query.isError,
+		refetch: () => query.refetch(),
 		getChildProjects: (id: number) =>
 			sortByPosition(realProjects.value.filter(project => project.parent_project_id === id)),
 		getAncestors: (project: ProjectResponse) => getAncestors(realProjects.value, project),

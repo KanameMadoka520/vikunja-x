@@ -35,6 +35,11 @@ test('project completion, reopening and archiving retain yearly history without 
  expect((await page.request.put(`${api}/projects/${project.id}`, {headers, data: {...original, is_archived: true}})).ok()).toBe(true)
  await page.reload()
  await expect(page.locator('.history-records li')).toHaveCount(2)
+ // Event badges say what happened; the "Now" row is the current state (reopened, then archived).
+ await expect(page.locator('.history-records .event-badge[data-kind="completed"]')).toContainText('Completed')
+ await expect(page.locator('.history-records .event-badge[data-kind="archived"]')).toContainText('Archived')
+ await expect(page.locator('.history-records .record-now').filter({hasText: 'Archived'})).toHaveCount(2)
+ await expect(page.locator('.history-records .record-now').filter({hasText: 'Completed'})).toHaveCount(0)
  await page.getByLabel('Record type', {exact: true}).selectOption('all')
  await expect(page.locator('.history-records li')).toHaveCount(3)
  await expect(page.locator('.history-records')).toContainText('Reopened')
@@ -60,8 +65,45 @@ for (const width of [390, 320]) {
   await day.click()
   await expect(page.locator('.history-records li')).toHaveCount(1)
   await page.screenshot({path: testInfo.outputPath(`history-${width}.png`), fullPage: true, animations: 'disabled'})
+  // At the end of the page no control may be left under the fixed Arona launcher.
+  await expect(page.locator('.arona-launcher')).toBeVisible()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  expect(await page.evaluate(() => {
+   const launcher = document.querySelector('.arona-launcher')!.getBoundingClientRect()
+   return [...document.querySelectorAll('.project-history :is(a, button, select, input, summary)')]
+    .map(el => ({el, box: el.getBoundingClientRect()}))
+    .filter(({box}) => box.width > 0 && box.height > 0
+     && box.left < launcher.right && box.right > launcher.left
+     && box.top < launcher.bottom && box.bottom > launcher.top)
+    .map(({el}) => el.getAttribute('aria-label') || el.textContent?.trim())
+  })).toEqual([])
  })
 }
+
+test('project review follows the dark theme at 390px', async ({authenticatedPage: page, userToken}, testInfo) => {
+ const [project] = await createProjects()
+ const completed = await page.request.post(`${api}/projects/${project.id}/completion`, {
+  headers: {Authorization: `Bearer ${userToken}`},
+  data: {completed: true},
+ })
+ expect(completed.ok()).toBe(true)
+ await page.setViewportSize({width: 390, height: 844})
+ await page.goto('/projects/history')
+ const activeDay = page.locator('.mini-month:visible .month-days button:not([data-level="0"])').first()
+ await expect(activeDay).toBeVisible()
+ const lightDay = await activeDay.evaluate(el => getComputedStyle(el).backgroundColor)
+ await page.emulateMedia({colorScheme: 'dark'})
+ // Test users default to the light scheme, so apply the class a dark preference sets.
+ await page.evaluate(() => document.documentElement.classList.replace('light', 'dark'))
+ await expect(page.locator('html')).toHaveClass(/(^|\s)dark(\s|$)/)
+ await expect.poll(() => activeDay.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(lightDay)
+ const card = page.locator('.history-records li').first()
+ await expect(card.locator('.event-badge[data-kind="completed"]')).toContainText('Completed')
+ expect(await card.evaluate(el => getComputedStyle(el).backgroundColor.match(/\d+/g)!.slice(0, 3).map(Number)
+  .reduce((sum, channel) => sum + channel, 0))).toBeLessThan(300)
+ expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+ await page.screenshot({path: testInfo.outputPath('history-390-dark.png'), fullPage: true, animations: 'disabled'})
+})
 
 test('project history API enforces parameters and project ownership', async ({authenticatedPage: page, userToken}) => {
  await createProjects()

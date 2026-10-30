@@ -16,6 +16,8 @@ import Modal from '@/components/misc/Modal.vue'
 import ConversationHistory from '@/components/ai/ConversationHistory.vue'
 import ConversationMenu from '@/components/ai/ConversationMenu.vue'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
+import AronaWelcome from '@/components/ai/AronaWelcome.vue'
+import {suggestionOptions, suggestionProfileSwitch, type WelcomeSuggestion} from '@/components/ai/welcomeSuggestions'
 import ChatTurnCard from '@/components/ai/ChatTurnCard.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import ConversationExport from '@/components/ai/export/ConversationExport.vue'
@@ -88,9 +90,41 @@ watch(sidebarOpen, open => {
 		try { localStorage.setItem('arona-history-open', String(open)) } catch { /* Storage may be unavailable in private browsing. */ }
 	}
 })
+const historyToggle = ref<InstanceType<typeof BaseButton>>()
+const historyPanel = ref<InstanceType<typeof ConversationHistory>>()
+const sidebar = ref<HTMLElement>()
+function sidebarIsOverlay() { return props.embedded || window.matchMedia('(max-width: 800px)').matches }
+async function toggleSidebar() {
+	sidebarOpen.value = !sidebarOpen.value
+	if (!sidebarOpen.value || !sidebarIsOverlay()) return
+	await nextTick()
+	// Focusing the search field on touch screens would cover the list with the on-screen keyboard.
+	if (window.matchMedia('(pointer: fine)').matches) historyPanel.value?.focusSearch()
+	else sidebar.value?.focus()
+}
+async function closeSidebar() {
+	sidebarOpen.value = false
+	await nextTick()
+	historyToggle.value?.focus()
+}
+function sidebarKeydown(event: KeyboardEvent) {
+	if (!sidebarIsOverlay()) return
+	// The conversation menu handles its own Escape and a filled search field clears itself
+	// first. Neither may reach the floating panel, whose Escape minimizes it.
+	if (event.defaultPrevented || (event.target instanceof HTMLInputElement && event.target.type === 'search' && event.target.value)) {
+		event.stopPropagation()
+		return
+	}
+	event.preventDefault()
+	// Keep the floating panel open: only the overlay closes on this Escape.
+	event.stopPropagation()
+	void closeSidebar()
+}
 const connectionID = ref('')
 const searchMode = ref<'auto' | 'off' | 'required'>('auto')
 const canSearch = computed(() => Boolean(settings.data.value?.connections.find(c => c.id === selectedConnection.value)?.web_search_protocol))
+// Without a search-capable model only a leftover "required" choice needs the control, so it can be undone.
+const showSearchSwitch = computed(() => canSearch.value || searchMode.value === 'required')
 const chatModels = computed(() => settings.data.value?.connections.filter(c => c.kind === 'chat') ?? [])
 const selectedConnection = computed(() => connectionID.value || settings.data.value?.assistant || '')
 const exportOpen = ref(false)
@@ -215,6 +249,8 @@ const editingBusy = computed(() => Boolean(pendingMessage.value) || uploadingFil
 const busy = computed(() => !optionsReady.value || editingBusy.value || activeRun.value || Boolean(paused.value))
 watch([activeRun, editingBusy], ([running, editing]) => { emit('activity', running || editing); emit('navigationBusy', editing) }, {immediate: true})
 const hasAssistant = computed(() => chatModels.value.some(c => c.id === selectedConnection.value))
+const needsSetup = computed(() => !hasAssistant.value && !settings.isPending.value)
+const liveStatus = computed(() => t(events.connected.value ? 'flow.liveConnected' : 'flow.reconnecting'))
 const hasSpeech = computed(() => Boolean(settings.data.value?.transcription))
 let recorder: MediaRecorder | undefined
 let stream: MediaStream | undefined
@@ -236,6 +272,17 @@ async function newConversation() {
 	await selectConversation('')
 	await nextTick()
 	composerInput.value?.focus()
+}
+
+async function applySuggestion(suggestion: WelcomeSuggestion) {
+	const profile = suggestionProfileSwitch(suggestion, selectedProfile.value)
+	if (profile) applyOptions(suggestionOptions(profile, currentOptions.value), profile)
+	prompt.value = t(suggestion.prompt)
+	await nextTick()
+	const input = composerInput.value
+	if (!input) return
+	input.focus()
+	input.setSelectionRange(input.value.length, input.value.length)
 }
 
 async function submit() {
@@ -474,21 +521,55 @@ onBeforeUnmount(() => {
 		<header class="assistant-heading">
 			<div class="heading-actions">
 				<BaseButton
+					ref="historyToggle"
 					class="toolbar-button"
+					:title="t('chat.conversations')"
 					:aria-label="t('chat.conversations')"
 					:aria-expanded="sidebarOpen"
-					@click="sidebarOpen = !sidebarOpen"
+					@click="toggleSidebar"
 				>
 					<Icon icon="history" />
 				</BaseButton>
-				<AronaAvatar /><h1>{{ t('tcymc.text.ai_task_assistant') }}</h1>
+				<div class="assistant-identity">
+					<AronaAvatar />
+					<div class="assistant-title">
+						<h1>{{ t('tcymc.text.ai_task_assistant') }}</h1>
+						<p
+							class="live-connection"
+							:class="{
+								'is-idle': !chatID,
+								'is-running': activeRun,
+							}"
+							:title="chatID ? `${liveStatus} · ${t('flow.backgroundNote')}` : undefined"
+						>
+							<template v-if="chatID">
+								<span
+									class="live-dot"
+									:class="{connected: events.connected.value}"
+									aria-hidden="true"
+								/>
+								<span
+									class="live-label"
+									aria-hidden="true"
+								>{{ t(events.connected.value ? 'assistantUI.statusLive' : 'assistantUI.statusPolling') }}</span>
+								<span class="is-sr-only">{{ liveStatus }}</span>
+								<span
+									class="live-separator"
+									aria-hidden="true"
+								>·</span>
+							</template>
+							<span class="background-note">{{ t('flow.backgroundNote') }}</span>
+						</p>
+					</div>
+				</div>
 				<BaseButton
 					class="toolbar-button"
 					:aria-label="t('chat.new')"
+					:title="t('chat.new')"
 					:aria-disabled="editingBusy"
 					@click="newConversation"
 				>
-					<Icon icon="pen" />
+					<Icon icon="plus" />
 				</BaseButton>
 			</div>
 			<div class="heading-actions">
@@ -503,7 +584,10 @@ onBeforeUnmount(() => {
 				>{{ c.name }}</option><option
 					v-if="connectionID && !chatModels.some(c => c.id === connectionID)"
 					:value="connectionID"
-				>{{ t('assistantUI.missingModel') }}</option></select></label>
+				>{{ t('assistantUI.missingModel') }}</option></select><Icon
+					icon="chevron-down"
+					class="select-chevron"
+				/></label>
 				<BaseButton
 					class="toolbar-button"
 					:title="t('debug.title')"
@@ -514,19 +598,6 @@ onBeforeUnmount(() => {
 				</BaseButton>
 			</div>
 		</header>
-		<p
-			v-if="contextTaskID > 0"
-			class="summary-banner"
-		>
-			{{ t('agent.currentTask') }} <RouterLink :to="{name: 'task.detail', params: {id: contextTaskID}}">
-				#{{ contextTaskID }}
-			</RouterLink>
-		</p>
-		<p class="live-connection">
-			<template v-if="chatID">
-				<span :class="{connected: events.connected.value}" />{{ events.connected.value ? t('flow.liveConnected') : t('flow.reconnecting') }} ·
-			</template>{{ t('flow.backgroundNote') }}
-		</p>
 		<div
 			class="chat-shell"
 			:class="{'with-history': sidebarOpen}"
@@ -535,21 +606,25 @@ onBeforeUnmount(() => {
 				v-if="sidebarOpen"
 				type="button"
 				class="history-backdrop"
+				tabindex="-1"
 				:aria-label="t('chatHistory.close')"
-				@click="sidebarOpen = false"
+				@click="closeSidebar"
 			/>
 			<aside
 				v-if="sidebarOpen"
+				ref="sidebar"
 				class="chat-sidebar"
-				:class="{'is-open': sidebarOpen}"
+				tabindex="-1"
 				:aria-label="t('chat.conversations')"
+				@keydown.esc="sidebarKeydown"
 			>
 				<ConversationHistory
+					ref="historyPanel"
 					:selected="chatID"
 					:disabled="editingBusy"
 					@select="selectConversation"
 					@create="newConversation"
-					@close="sidebarOpen = false"
+					@close="closeSidebar"
 					@action="historyAction"
 				/>
 				<p class="muted session-note">
@@ -572,6 +647,14 @@ onBeforeUnmount(() => {
 				class="chat-main"
 				:aria-label="t('tcymc.text.assistant_conversation')"
 			>
+				<p
+					v-if="contextTaskID > 0"
+					class="summary-banner"
+				>
+					{{ t('agent.currentTask') }} <RouterLink :to="{name: 'task.detail', params: {id: contextTaskID}}">
+						#{{ contextTaskID }}
+					</RouterLink>
+				</p>
 				<div
 					v-if="chatID && current.isError.value"
 					class="chat-error"
@@ -677,24 +760,12 @@ onBeforeUnmount(() => {
 					@touchstart.passive="stopFollowing"
 					@pointerdown="stopFollowing"
 				>
-					<div
+					<AronaWelcome
 						v-if="!visibleTurns.length"
-						class="welcome"
-					>
-						<AronaAvatar size="large" /><h2>{{ t('tcymc.text.start_with_a_sentence') }}</h2><p>{{ t('tcymc.text.check_progress_break_down_a_plan_or_turn') }}</p><div class="suggestions">
-							<XButton
-								variant="secondary"
-								@click="prompt = t('tcymc.text.list_my_unfinished_tasks_and_suggest_a_plan')"
-							>
-								{{ t('tcymc.text.what_should_i_do_today') }}
-							</XButton><XButton
-								variant="secondary"
-								@click="selectProfile('plan'); prompt = t('tcymc.text.create_a_task_in_this_project_to_write')"
-							>
-								{{ t('tcymc.text.create_a_task_with_one_sentence') }}
-							</XButton>
-						</div>
-					</div>
+						:needs-setup="needsSetup"
+						:disabled="!optionsReady"
+						@choose="applySuggestion"
+					/>
 					<TransitionGroup name="message-reveal">
 						<ChatTurnCard
 							v-for="turn in visibleTurns"
@@ -719,7 +790,7 @@ onBeforeUnmount(() => {
 					{{ t('flow.jumpLatest') }}
 				</XButton>
 				<div
-					v-if="!hasAssistant && !settings.isPending.value"
+					v-if="needsSetup && visibleTurns.length"
 					class="setup-note"
 				>
 					<RouterLink to="/user/settings/ai">
@@ -833,23 +904,7 @@ onBeforeUnmount(() => {
 						role="status"
 					>
 						<progress :aria-label="t(`flow.${audioStage || 'audioProcessing'}`)" /> {{ t(`flow.${audioStage || 'audioProcessing'}`) }}
-					</p><div class="search-mode-row">
-						<label :title="t('webSearch.modeHelp')">{{ t('webSearch.title') }}<select
-							v-model="searchMode"
-							:aria-label="t('webSearch.turnMode')"
-							:disabled="!optionsReady"
-							@change="applyOptions(currentOptions, '')"
-						><option value="auto">{{ t('webSearch.auto') }}</option><option
-							value="required"
-							:disabled="!canSearch"
-						>{{ t('webSearch.required') }}</option><option value="off">{{ t('webSearch.off') }}</option></select></label>
-						<RouterLink
-							v-if="!canSearch && searchMode !== 'off'"
-							to="/user/settings/ai"
-						>
-							{{ t('webSearch.configure') }}
-						</RouterLink>
-					</div>
+					</p>
 					<div
 						class="composer-tools"
 						data-tour="ai-voice"
@@ -904,6 +959,34 @@ onBeforeUnmount(() => {
 							>
 								<Icon :icon="recording ? 'stop' : 'microphone'" />
 							</BaseButton>
+							<label
+								v-if="showSearchSwitch"
+								class="search-switch"
+								:title="t('webSearch.modeHelp')"
+							>
+								<Icon icon="globe" />
+								<span class="search-label">{{ t('webSearch.title') }}</span>
+								<select
+									v-model="searchMode"
+									:aria-label="t('webSearch.turnMode')"
+									:disabled="!optionsReady"
+									@change="applyOptions(currentOptions, '')"
+								>
+									<option value="auto">{{ t('webSearch.auto') }}</option>
+									<option
+										value="required"
+										:disabled="!canSearch"
+									>{{ t('webSearch.required') }}</option>
+									<option value="off">{{ t('webSearch.off') }}</option>
+								</select>
+							</label>
+							<RouterLink
+								v-if="!canSearch && searchMode === 'required'"
+								class="search-setup"
+								to="/user/settings/ai"
+							>
+								{{ t('webSearch.configure') }}
+							</RouterLink>
 						</div>
 						<XButton
 							v-if="activeRun"
@@ -1005,12 +1088,25 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-.attachment-input-hint { font-size: .7rem;
-color: var(--text-light);
+.tcy-assistant {
+	// Toolbar, banners and thread share the composer's 48rem column.
+	--column-gutter: 1.5rem;
+	--column-inset: max(var(--column-gutter), calc((100% - 48rem) / 2));
+
+	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	display: flex;
+	flex-direction: column;
+	block-size: 100%;
+	min-block-size: 0;
+	color: var(--text);
+	background: var(--white);
+}
+.attachment-input-hint { font-size: .75rem;
+color: var(--text-muted);
 margin-block: .4rem;
 }
-.conversation-storage { margin: .25rem 1.5rem;
-color: var(--text-light);
+.conversation-storage { margin: .25rem var(--column-inset);
+color: var(--text-muted);
 font-size: .75rem;
 flex-shrink: 0;
 max-block-size: 6rem;
@@ -1029,53 +1125,23 @@ margin-block-end: .5rem;
 .attachment-upload-progress { max-block-size: 8rem;
 overflow: auto;
 }
-@media (width <= 540px) {
- .assistant-heading > .heading-actions:last-child {
-flex: 1;
-justify-content: flex-end;
-}
- .model-switch {
-min-inline-size: 0;
-}
- .model-switch select {
-inline-size: 100%;
-}
-
- .composer-context { flex-wrap: wrap;
-}
- .profile-switch select { max-inline-size: 9rem;
-}
- .draft-files :deep(.chat-file) { inline-size: 140px;
-}
- .conversation-storage { margin-inline: 1rem;
-}
-}
-
-.tcy-assistant {
-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-display: flex;
-flex-direction: column;
-block-size: 100%;
-min-block-size: 0;
-color: var(--text);
-background: var(--white);
-}
 .assistant-heading {
 display: flex;
 align-items: center;
 justify-content: space-between;
-flex-wrap: wrap;
 gap: .5rem;
-padding: .6rem 1rem;
+padding: .5rem 1rem;
 flex-shrink: 0;
 }
 h1 {
 font-family: inherit;
-font-size: 1.1rem;
+font-size: 1.05rem;
 font-weight: 600;
+line-height: 1.25;
+color: var(--text-strong);
 margin: 0;
 }
-.heading-actions, .toolbar-actions, .composer-context {
+.heading-actions, .composer-context {
 display: flex;
 align-items: center;
 gap: .35rem;
@@ -1092,14 +1158,113 @@ padding: .6rem;
 min-block-size: 40px;
 min-inline-size: 40px;
 border-radius: .65rem;
-color: var(--text-light);
+color: var(--text-muted);
 font-size: .8rem;
 }
 .toolbar-button:hover {
 background: var(--grey-100);
 color: var(--text);
 }
-.model-switch select, .profile-switch select {
+.assistant-heading .toolbar-button[aria-expanded='true'] {
+background: hsla(var(--primary-hsl), .12);
+color: var(--primary);
+}
+.assistant-identity {
+position: relative;
+display: flex;
+align-items: center;
+gap: .5rem;
+min-inline-size: 0;
+padding-inline: .15rem;
+}
+.assistant-title {
+display: flex;
+flex-direction: column;
+min-inline-size: 0;
+}
+.assistant-title h1 {
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+.live-connection {
+display: flex;
+align-items: center;
+gap: .3rem;
+min-inline-size: 0;
+margin: 0;
+color: var(--text-muted);
+font-size: .75rem;
+line-height: 1.3;
+white-space: nowrap;
+}
+// The background-run reassurance matters while a run is active; otherwise it stays for screen readers only.
+.live-connection.is-idle,
+.live-connection:not(.is-running) .live-separator,
+.live-connection:not(.is-running) .background-note {
+position: absolute;
+inline-size: 1px;
+block-size: 1px;
+overflow: hidden;
+clip-path: inset(50%);
+white-space: nowrap;
+}
+.background-note {
+min-inline-size: 0;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.live-dot {
+flex-shrink: 0;
+inline-size: .5rem;
+block-size: .5rem;
+border: 2px solid var(--grey-500);
+border-radius: 50%;
+// Hollow while polling, filled when live: compact layouts hide the label, so the state must not rest on colour alone.
+background: var(--white);
+}
+.live-dot.connected {
+border-color: var(--success);
+background: var(--success);
+}
+.model-switch {
+position: relative;
+display: inline-flex;
+align-items: center;
+min-inline-size: 0;
+}
+.model-switch select {
+appearance: none;
+min-inline-size: 0;
+max-inline-size: 14rem;
+min-block-size: 36px;
+padding-block: .3rem;
+padding-inline: .7rem 1.85rem;
+border: 1px solid var(--grey-200);
+border-radius: .6rem;
+background: var(--white);
+color: var(--text);
+font: inherit;
+font-size: .85rem;
+text-overflow: ellipsis;
+cursor: pointer;
+}
+.model-switch select:hover:not(:disabled) {
+border-color: var(--grey-300);
+}
+.model-switch select:disabled {
+opacity: .6;
+cursor: not-allowed;
+}
+.select-chevron {
+position: absolute;
+inset-inline-end: .65rem;
+inline-size: .65rem;
+block-size: .65rem;
+color: var(--text-muted);
+pointer-events: none;
+}
+.profile-switch select, .search-switch select {
 color: var(--text);
 background: transparent;
 border: 0;
@@ -1109,23 +1274,26 @@ padding: .5rem .25rem;
 max-inline-size: 14rem;
 cursor: pointer;
 }
-.live-connection {
-font-size: .7rem;
-color: var(--text-light);
-margin: 0;
-text-align: center;
-padding: .25rem 1rem;
+.search-switch {
+display: inline-flex;
+align-items: center;
+gap: .3rem;
+min-inline-size: 0;
+padding-inline-start: .35rem;
+color: var(--text-muted);
+font-size: .8rem;
 }
-.live-connection span {
-display: inline-block;
-inline-size: .35rem;
-block-size: .35rem;
-margin-inline-end: .35rem;
-background: var(--grey-400);
-border-radius: 50%;
+.search-switch svg {
+flex-shrink: 0;
+inline-size: .9rem;
 }
-.live-connection span.connected {
-background: var(--success);
+.search-switch select {
+min-inline-size: 0;
+max-inline-size: 10rem;
+font-size: .8rem;
+}
+.search-setup {
+font-size: .8rem;
 }
 .chat-shell {
 display: grid;
@@ -1146,7 +1314,7 @@ border-inline-end: 1px solid var(--grey-100);
 }
 .session-note {
 margin-block-start: 1rem;
-font-size: .7rem;
+font-size: .75rem;
 }
 .chat-main {
 display: flex;
@@ -1160,7 +1328,7 @@ display: flex;
 align-items: center;
 gap: .5rem;
 justify-content: space-between;
-padding: .25rem 1.5rem;
+padding: .25rem var(--column-inset);
 min-inline-size: 0;
 }
 .conversation-title {
@@ -1169,12 +1337,9 @@ flex: 1;
 overflow: hidden;
 text-overflow: ellipsis;
 white-space: nowrap;
-font-size: .8rem;
-color: var(--text-light);
-font-weight: 400;
-}
-.toolbar-actions {
-flex-shrink: 0;
+font-size: .875rem;
+color: var(--text);
+font-weight: 600;
 }
 .conversation {
 flex: 1;
@@ -1182,46 +1347,8 @@ min-block-size: 0;
 overflow-y: auto;
 overscroll-behavior: contain;
 scrollbar-gutter: stable;
-padding: 1.5rem max(1.5rem, calc((100% - 48rem) / 2));
+padding: 1.5rem var(--column-inset);
 scroll-padding-block-end: 2rem;
-}
-.welcome {
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-min-block-size: 100%;
-text-align: center;
-padding: 2rem 0;
-}
-.welcome h2 {
-font-family: inherit;
-font-size: clamp(1.6rem, 3vw, 2rem);
-font-weight: 550;
-letter-spacing: -.03em;
-margin-block-end: 1rem;
-}
-.welcome p {
-color: var(--text-light);
-font-size: .95rem;
-max-inline-size: 32rem;
-line-height: 1.7;
-}
-.suggestions {
-display: flex;
-flex-wrap: wrap;
-justify-content: center;
-gap: .75rem;
-margin-block-start: 1rem;
-}
-.suggestions :deep(.button) {
-border: 1px solid var(--grey-200);
-border-radius: 2rem;
-background: transparent;
-color: var(--text);
-box-shadow: none;
-font-weight: 400;
-font-size: .85rem;
 }
 .composer {
 flex-shrink: 0;
@@ -1235,8 +1362,9 @@ border-radius: 1.6rem;
 background: var(--grey-100);
 box-shadow: 0 2px 8px #00000005;
 }
+// The textarea has no own focus ring, so the composer frame carries it.
 .composer:focus-within {
-border-color: var(--grey-400);
+border-color: hsla(var(--primary-hsl), .55);
 }
 .composer .textarea {
 resize: none;
@@ -1272,8 +1400,8 @@ box-shadow: none;
 background: var(--grey-700);
 }
 .composer-hint {
-font-size: .65rem;
-color: var(--text-light);
+font-size: .75rem;
+color: var(--text-muted);
 margin: 0;
 position: absolute;
 inset-block-start: calc(100% + .3rem);
@@ -1309,7 +1437,7 @@ inline-size: 4rem;
 block-size: .3rem;
 }
 .muted {
-color: var(--text-light);
+color: var(--text-muted);
 }
 .notice {
 color: var(--danger);
@@ -1334,7 +1462,7 @@ font-size: .75rem;
 }
 .summary-banner, .compact-progress, .setup-note, .chat-error {
 padding: .6rem 1rem;
-margin: .25rem 1rem;
+margin: .25rem var(--column-inset);
 font-size: .8rem;
 background: var(--grey-100);
 border-radius: .6rem;
@@ -1366,7 +1494,16 @@ opacity: 0;
 transform: translateY(5px);
 }
 @media (width <= 800px) {
- .compact-label { display: none;
+ .tcy-assistant {
+--column-gutter: 1rem;
+}
+ .live-separator, .background-note {
+position: absolute;
+inline-size: 1px;
+block-size: 1px;
+overflow: hidden;
+clip-path: inset(50%);
+white-space: nowrap;
 }
  .chat-shell.with-history {
 grid-template-columns: minmax(0, 1fr);
@@ -1385,21 +1522,12 @@ padding: .5rem .75rem;
 max-inline-size: 10rem;
 }
  .conversation {
-padding: 1rem;
-}
- .conversation-toolbar {
-padding-inline: 1rem;
+padding-block: 1rem;
 }
  .composer {
 inline-size: calc(100% - 1.5rem);
 padding: .65rem .8rem;
 margin-block-end: calc(1.75rem + env(safe-area-inset-bottom, 0px));
-}
- .welcome h2 {
-font-size: 1.5rem;
-}
- .live-connection {
-font-size: .6rem;
 }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1408,13 +1536,9 @@ transition: none;
 } }
 
 @media (height <= 600px) {
- .welcome { display: none;
-}
  .composer .textarea { max-block-size: min(180px, 30dvh);
 }
  .conversation { padding-block: .25rem;
-}
- .live-connection { display: none;
 }
  .setup-note { max-block-size: 3rem;
 }
@@ -1424,53 +1548,54 @@ transition: none;
 flex: 1;
 justify-content: flex-end;
 }
- .model-switch {
-min-inline-size: 0;
-}
  .model-switch select {
 inline-size: 100%;
 }
-
- .assistant-heading { flex-wrap: nowrap;
+ .composer-context { flex-wrap: wrap;
 }
- .assistant-heading h1 { position: absolute;
+ .profile-switch select { max-inline-size: 9rem;
+}
+ .draft-files :deep(.chat-file) { inline-size: 140px;
+}
+	// Narrow screens: the title is hidden and the live status becomes a dot on the avatar.
+ .assistant-heading h1, .live-label, .live-separator, .background-note, .search-label {
+position: absolute;
 inline-size: 1px;
 block-size: 1px;
 overflow: hidden;
 clip-path: inset(50%);
 white-space: nowrap;
 }
+ .assistant-identity {
+gap: 0;
 }
-.notice-info { color: var(--text-light);
+ .live-connection {
+position: absolute;
+inset-block-end: -.1rem;
+inset-inline-start: 1.5rem;
 }
-.search-mode-row {
- display: flex;
- align-items: center;
- flex-wrap: wrap;
- gap: .5rem;
- padding-inline: .25rem;
- margin-block: .35rem;
- font-size: .75rem;
- color: var(--text-light);
- label {
- display: inline-flex;
- align-items: center;
- gap: .35rem;
+ .live-dot {
+inline-size: .6rem;
+block-size: .6rem;
+box-shadow: 0 0 0 2px var(--white);
 }
- select {
- border: 0;
- background: transparent;
- color: var(--text);
- font: inherit;
- max-inline-size: 12rem;
- padding: .25rem;
 }
+@media (pointer: coarse) {
+ .assistant-heading .toolbar-button {
+min-block-size: 44px;
+min-inline-size: 44px;
+}
+ .model-switch select {
+min-block-size: 44px;
+}
+}
+.notice-info { color: var(--text-muted);
 }
 .toolbar-button.is-recording { color: var(--danger);
 }
 .is-embedded {
- .compact-label { display: none;
-}
+	--column-gutter: .75rem;
+
  .chat-shell.with-history { grid-template-columns: minmax(0, 1fr);
 }
  .chat-sidebar { position: absolute;
@@ -1484,23 +1609,36 @@ flex-wrap: nowrap;
 }
  .assistant-heading h1 { display: none;
 }
- .model-switch { min-inline-size: 0;
+ .live-label, .live-separator, .background-note, .search-label {
+position: absolute;
+inline-size: 1px;
+block-size: 1px;
+overflow: hidden;
+clip-path: inset(50%);
+white-space: nowrap;
+}
+ .assistant-identity {
+gap: 0;
+}
+ .live-connection {
+position: absolute;
+inset-block-end: -.1rem;
+inset-inline-start: 1.5rem;
+}
+ .live-dot {
+inline-size: .6rem;
+block-size: .6rem;
+box-shadow: 0 0 0 2px var(--white);
 }
  .model-switch select { max-inline-size: 9rem;
 }
- .conversation { padding: .75rem;
-}
- .conversation-toolbar { padding-inline: .5rem;
+ .conversation { padding-block: .75rem;
 }
  .composer { inline-size: calc(100% - 1rem);
 padding: .6rem;
 margin-block-end: .5rem;
 }
  .composer-context { flex-wrap: wrap;
-}
- .welcome h2 { font-size: 1.25rem;
-}
- .live-connection { font-size: .6rem;
 }
 }
 
@@ -1510,7 +1648,7 @@ margin-block-end: .5rem;
 align-items: center;
 gap: .6rem;
 padding: .6rem 1rem;
-margin: .3rem 1rem;
+margin: .3rem var(--column-inset);
 border-radius: .7rem;
 background: var(--grey-100);
 font-size: .85rem;
