@@ -12,6 +12,8 @@ import {
 	type VueWrapper,
 } from '@vue/test-utils'
 import FilePreview from './FilePreview.vue'
+import {createI18n} from 'vue-i18n'
+import en from '@/i18n/lang/en.json'
 import {queryClient} from '@/client/queryClient'
 import {attachmentKeys} from '@/client/queries/attachments'
 import type {TaskAttachment as IAttachment} from '@/client/generated'
@@ -32,11 +34,12 @@ function attachment(): IAttachment {
 }
 
 const mountedPreviews: VueWrapper[] = []
+const i18n = createI18n({legacy: false, locale: 'en', messages: {en}})
 
 function mountPreview() {
 	const wrapper = mount(FilePreview, {
 		props: {modelValue: attachment()},
-		global: {stubs: {Icon: true}},
+		global: {plugins: [i18n], stubs: {Icon: true}},
 	})
 	mountedPreviews.push(wrapper)
 	return wrapper

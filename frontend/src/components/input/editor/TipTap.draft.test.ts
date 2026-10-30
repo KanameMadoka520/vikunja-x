@@ -1,12 +1,14 @@
-import {describe, it, expect, beforeEach} from 'vitest'
+import {describe, it, expect, beforeEach, afterEach} from 'vitest'
 import {defineComponent, h, ref} from 'vue'
-import {mount, flushPromises} from '@vue/test-utils'
+import {mount, flushPromises, type VueWrapper} from '@vue/test-utils'
 import {createI18n} from 'vue-i18n'
+import {QueryClient, VueQueryPlugin} from '@tanstack/vue-query'
 
 import TipTap from './TipTap.vue'
 import en from '@/i18n/lang/en.json'
 
 const i18n = createI18n({legacy: false, locale: 'en', messages: {en}})
+const mountedEditors: {wrapper: VueWrapper, client: QueryClient}[] = []
 
 function mountWithDraft(draft: string) {
 	localStorage.setItem('editorDraft-task-comment-1', draft)
@@ -18,11 +20,23 @@ function mountWithDraft(draft: string) {
 			storageKey: 'task-comment-1',
 		}),
 	})
-	return mount(Parent, {global: {plugins: [i18n]}, attachTo: document.body})
+	const client = new QueryClient({defaultOptions: {queries: {retry: false}}})
+	const wrapper = mount(Parent, {
+		global: {plugins: [i18n, [VueQueryPlugin, {queryClient: client}]]},
+		attachTo: document.body,
+	})
+	mountedEditors.push({wrapper, client})
+	return wrapper
 }
 
 describe('TipTap draft restore', () => {
 	beforeEach(() => localStorage.clear())
+	afterEach(() => {
+		mountedEditors.splice(0).forEach(({wrapper, client}) => {
+			wrapper.unmount()
+			client.clear()
+		})
+	})
 
 	it.each([
 		'<p>hello</p>',
