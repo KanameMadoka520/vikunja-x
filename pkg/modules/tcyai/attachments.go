@@ -87,14 +87,24 @@ func attachmentIn(c Conversation, id string) (ChatAttachment, error) {
 	return ChatAttachment{}, ErrAttachmentMissing
 }
 func decorateAttachments(uid int64, c *Conversation) {
+	decorateAttachmentsWithHistory(uid, c, nil)
+}
+
+// history contributes references to storage totals without cloning its results or
+// mutating saved attachment flags. File metadata is read once per distinct ID.
+func decorateAttachmentsWithHistory(uid int64, c *Conversation, history []ChatTurn) {
 	stats := &ConversationStorage{}
 	if p, err := conversationPath(uid, c.ID); err == nil {
 		if info, err := os.Stat(p); err == nil {
 			stats.RecordBytes = info.Size()
 		}
 	}
-	seen := map[string]bool{}
+	missing := map[string]bool{}
 	check := func(a *ChatAttachment) {
+		if absent, seen := missing[a.ID]; seen {
+			a.Missing = absent
+			return
+		}
 		path, err := attachmentPath(uid, a.ID)
 		var size int64
 		if err == nil {
@@ -105,10 +115,7 @@ func decorateAttachments(uid int64, c *Conversation) {
 			}
 		}
 		a.Missing = err != nil
-		if seen[a.ID] {
-			return
-		}
-		seen[a.ID] = true
+		missing[a.ID] = a.Missing
 		stats.AttachmentCount++
 		if a.Missing {
 			stats.MissingCount++
@@ -122,6 +129,11 @@ func decorateAttachments(uid int64, c *Conversation) {
 	for i := range c.Turns {
 		for j := range c.Turns[i].Attachments {
 			check(&c.Turns[i].Attachments[j])
+		}
+	}
+	for _, turn := range history {
+		for _, attachment := range turn.Attachments {
+			check(&attachment)
 		}
 	}
 	stats.TotalBytes = stats.RecordBytes + stats.AttachmentBytes

@@ -244,28 +244,26 @@ func cloneConversation(record *conversationFile) Conversation {
 	out.Turns = append([]ChatTurn{}, out.Turns...)
 	out.Compactions = append([]Compaction{}, out.Compactions...)
 	for i := range out.Turns {
-		out.Turns[i].Retryable = retryableTurn(record, i)
-		out.Turns[i].Attachments = append([]ChatAttachment{}, out.Turns[i].Attachments...)
-		result := &out.Turns[i].Result
-		if i < len(record.States) && record.States[i] != nil {
-			result.Configuration = runOptions(record.States[i].Input)
-		} else if result.Configuration != nil {
-			options := *result.Configuration
-			options.WriteProjectIDs = append([]int64{}, options.WriteProjectIDs...)
-			result.Configuration = &options
-		}
-		result.Context = nil
-		result.Steps = append([]ModelStep{}, result.Steps...)
-		result.Actions = append([]Action{}, result.Actions...)
-		result.Operations = append([]Operation{}, result.Operations...)
-		result.Choices = append([]string{}, result.Choices...)
-		if result.Pending != nil {
-			proposal := *result.Pending
-			result.Pending = &proposal
-		}
+		out.Turns[i] = cloneConversationTurn(record, i)
 	}
 	return out
 }
+
+func cloneConversationTurn(record *conversationFile, index int) ChatTurn {
+	turn := record.Turns[index]
+	turn.Retryable = retryableTurn(record, index)
+	turn.Attachments = append([]ChatAttachment{}, turn.Attachments...)
+	turn.Result = publicResult(turn.Result)
+	if index < len(record.States) && record.States[index] != nil {
+		turn.Result.Configuration = runOptions(record.States[index].Input)
+	} else if turn.Result.Configuration != nil {
+		options := *turn.Result.Configuration
+		options.WriteProjectIDs = append([]int64{}, options.WriteProjectIDs...)
+		turn.Result.Configuration = &options
+	}
+	return turn
+}
+
 func getConversationLocked(uid int64, id string) (*conversationFile, error) {
 	if live := conversations.live[uid]; live != nil && live.id == id {
 		return live.record, nil
@@ -976,13 +974,17 @@ func GetConversationActivity(uid int64, id string) (ConversationActivity, error)
 	if err != nil {
 		return ConversationActivity{}, err
 	}
-	snapshot := cloneConversation(record)
-	decorateAttachments(uid, &snapshot)
+	// SSE sends only the latest turn. Do not clone old model steps, tool receipts
+	// and execution options on every stream tick merely to count attachments.
+	snapshot := Conversation{ID: record.ID, DraftAttachments: append([]ChatAttachment{}, record.DraftAttachments...)}
+	last := max(0, len(record.Turns)-1)
+	if len(record.Turns) > 0 {
+		snapshot.Turns = []ChatTurn{cloneConversationTurn(record, last)}
+	}
+	decorateAttachmentsWithHistory(uid, &snapshot, record.Turns[:last])
 	out := ConversationActivity{Storage: snapshot.Storage, CompactProgress: cloneCompactProgress(record.CompactProgress), Compacting: record.Compacting, CompactText: record.CompactText, CompactError: record.CompactError, Compactions: append([]Compaction{}, record.Compactions...)}
-	if n := len(record.Turns); n > 0 {
-		turn := snapshot.Turns[n-1]
-		turn.Result = publicResult(turn.Result)
-		out.Turn = &turn
+	if len(snapshot.Turns) > 0 {
+		out.Turn = &snapshot.Turns[0]
 	}
 	return out, nil
 }
