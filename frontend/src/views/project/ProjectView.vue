@@ -105,6 +105,15 @@ watchEffect(() => saveProjectView(props.projectId, props.viewId))
 </script>
 
 <template>
+	<p
+		v-if="currentProject?.is_completed"
+		class="completion-notice"
+	>
+		<Icon icon="check" /> {{ $t('projectHistory.completedBadge') }}
+		<RouterLink :to="{name: 'projects.history', query: {project: projectId}}">
+			{{ $t('projectHistory.viewHistory') }}
+		</RouterLink>
+	</p>
 	<ProjectList
 		v-if="currentView?.view_kind === 'list'"
 		:project-id="projectId"
@@ -131,3 +140,16 @@ watchEffect(() => saveProjectView(props.projectId, props.viewId))
 		:view-id
 	/>
 </template>
+
+<style scoped>
+.completion-notice {
+padding: .75rem 1rem;
+margin-block-end: 1rem;
+background: var(--white);
+border: 1px solid var(--grey-200);
+border-radius: .75rem;
+}
+.completion-notice a {
+margin-inline-start: 1rem;
+}
+</style>

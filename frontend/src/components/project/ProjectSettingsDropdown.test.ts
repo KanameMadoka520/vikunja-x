@@ -1,3 +1,4 @@
+import {QueryClient, VueQueryPlugin} from '@tanstack/vue-query'
 import {shallowMount} from '@vue/test-utils'
 import {defineComponent, h} from 'vue'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
@@ -43,7 +44,9 @@ import ProjectSettingsDropdown from './ProjectSettingsDropdown.vue'
 function mountDropdown(project: InstanceType<typeof ProjectSettingsDropdown>['$props']['project']) {
 	return shallowMount(ProjectSettingsDropdown, {
 		props: {project},
+		attrs: {class: 'project-title-dropdown'},
 		global: {
+			plugins: [[VueQueryPlugin, {queryClient: new QueryClient()}]],
 			stubs: {
 				BaseButton: true,
 				Dropdown: DropdownStub,
@@ -74,6 +77,11 @@ describe('ProjectSettingsDropdown subscriptions', () => {
 			entity: 'project',
 			entity_id: 1,
 		})
+	})
+
+	it('keeps the title dropdown styling when the confirmation dialog adds a second root', () => {
+		const wrapper = mountDropdown({id: 1, title: 'Project'})
+		expect(wrapper.findComponent(DropdownStub).attributes('class')).toContain('project-title-dropdown')
 	})
 
 	it('passes null for a project without a subscription', () => {

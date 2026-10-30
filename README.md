@@ -3,7 +3,7 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.25`
+- 版本：`v2.7.1-tcymc.26`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
 
@@ -374,3 +374,7 @@ mage test:e2e 'tests/e2e/user/settings/tcy-'
 前后端开发约定见 [AGENTS.md](AGENTS.md)。新增接口位于 API v2，客户端通过 `mage generate:frontend-client` 自动生成。开发中可分别运行 API 与 `frontend` 的 `pnpm dev`。
 
 提交作者使用 `KanameMadoka520 <90090108+KanameMadoka520@users.noreply.github.com>`，无需公开私人邮箱。本仓库不包含生产环境密码、SMTP 密码、模型密钥或 GitHub 访问令牌。
+
+### 项目年度回顾
+
+从左侧“项目年度回顾”按年份、项目、日期查看整个项目的完成与归档历程。项目菜单支持标记完成和重新打开；桌面全年方格、手机按月日历，历史记录分页展示。完成与归档独立，不会批量修改项目内任务。[使用与统计说明](docs/project-history.md)。

@@ -20,6 +20,11 @@
 			</RouterLink>
 			<menu class="menu-list other-menu-items">
 				<li>
+					<RouterLink :to="{name: 'projects.history'}">
+						<span class="menu-item-icon icon"><Icon icon="calendar" /></span>{{ t('projectHistory.title') }}
+					</RouterLink>
+				</li>
+				<li>
 					<RouterLink :to="{name: 'drive'}">
 						<span class="menu-item-icon icon"><Icon icon="folder" /></span>{{ t('drive.title') }}
 					</RouterLink>

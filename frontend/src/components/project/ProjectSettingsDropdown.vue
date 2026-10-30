@@ -1,5 +1,5 @@
 <template>
-	<Dropdown>
+	<Dropdown v-bind="$attrs">
 		<template #trigger="triggerProps">
 			<slot
 				name="trigger"
@@ -19,6 +19,21 @@
 			</slot>
 		</template>
 
+		<template v-if="project.id > 0">
+			<DropdownItem
+				:to="{name: 'projects.history', query: {project: project.id}}"
+				icon="calendar"
+			>
+				{{ $t('projectHistory.title') }}
+			</DropdownItem>
+			<DropdownItem
+				v-if="forceAllActions || project.max_permission === PERMISSIONS.ADMIN"
+				icon="check"
+				@click="confirmCompletion = true"
+			>
+				{{ $t(project.is_completed ? 'projectHistory.reopen' : 'projectHistory.complete') }}
+			</DropdownItem>
+		</template>
 		<template v-if="isSavedFilterProject(project)">
 			<DropdownItem
 				:to="{ name: 'filter.settings.edit', params: { projectId: project.id } }"
@@ -123,10 +138,34 @@
 			</DropdownItem>
 		</template>
 	</Dropdown>
+	<Modal
+		v-if="confirmCompletion"
+		:loading="completionMutation.isPending.value"
+		@close="confirmCompletion = false"
+		@submit="changeCompletion"
+	>
+		<template #header>
+			{{ $t(project.is_completed ? 'projectHistory.reopen' : 'projectHistory.complete') }}
+		</template>
+		<template #text>
+			<p>{{ project.title }}</p>
+			<p>{{ $t(project.is_completed ? 'projectHistory.reopenHelp' : 'projectHistory.completeHelp') }}</p>
+			<p>{{ $t('projectHistory.archiveHelp') }}</p>
+		</template>
+	</Modal>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
+const props = withDefaults(defineProps<{
+	project: Project & Required<Pick<Project, 'id'>>
+	forceAllActions?: boolean
+}>(), {
+	forceAllActions: false,
+})
+defineOptions({inheritAttrs: false})
+import Modal from '@/components/misc/Modal.vue'
+import {useProjectCompletionMutation} from '@/client/queries/projectHistory'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import Dropdown from '@/components/misc/Dropdown.vue'
@@ -139,12 +178,14 @@ import {useConfigStore} from '@/stores/config'
 import {useAuthStore} from '@/stores/auth'
 import {PERMISSIONS} from '@/constants/permissions'
 
-const props = withDefaults(defineProps<{
-	project: Project & Required<Pick<Project, 'id'>>
-	forceAllActions?: boolean
-}>(), {
-	forceAllActions: false,
-})
+const confirmCompletion = ref(false)
+const completionMutation = useProjectCompletionMutation()
+async function changeCompletion() {
+	try {
+		await completionMutation.mutateAsync({id: props.project.id, completed: !props.project.is_completed})
+		confirmCompletion.value = false
+	} catch { /* The mutation displays the error and keeps the confirmation open. */ }
+}
 
 const subscriptionMutation = useSetProjectSubscriptionMutation()
 

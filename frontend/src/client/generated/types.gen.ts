@@ -2505,6 +2505,10 @@ export type Project = {
      */
     readonly background_information?: unknown;
     /**
+     * Most recent explicit completion time; cleared when reopened.
+     */
+    readonly completed_at?: string;
+    /**
      * A timestamp when this project was created. You cannot change this value.
      */
     readonly created?: string;
@@ -2528,6 +2532,10 @@ export type Project = {
      * Whether the project is archived. Archived projects are read-only.
      */
     is_archived?: boolean;
+    /**
+     * Explicit project completion status. Change through the project completion endpoint; tasks remain unchanged.
+     */
+    readonly is_completed?: boolean;
     /**
      * Whether the project is a favorite of the requesting user. This value is per-user and depends on who makes the call.
      */
@@ -2566,6 +2574,17 @@ export type Project = {
     readonly views?: Array<ProjectView> | null;
 };
 
+export type ProjectCompletionRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * True marks the project complete; false reopens it. Task states remain unchanged.
+     */
+    completed?: boolean;
+};
+
 export type ProjectDuplicate = {
     /**
      * A URL to the JSON Schema for this object.
@@ -2585,6 +2604,57 @@ export type ProjectDuplicate = {
     parent_project_id?: number;
 };
 
+export type ProjectHistory = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    active_days?: number;
+    /**
+     * Number of project milestones per local YYYY-MM-DD; never task counts.
+     */
+    days?: {
+        [key: string]: number;
+    };
+    items?: Array<ProjectHistoryItem> | null;
+    /**
+     * Matching milestones in the selected year.
+     */
+    milestones?: number;
+    page?: number;
+    /**
+     * Distinct projects with a matching milestone in the selected year.
+     */
+    projects?: number;
+    total?: number;
+    total_pages?: number;
+    /**
+     * Matching legacy milestones without an original date.
+     */
+    unknown?: number;
+    years?: Array<number> | null;
+};
+
+export type ProjectHistoryItem = {
+    /**
+     * Project creation time, for displaying the recorded project span, not a planned work schedule.
+     */
+    created?: string;
+    id?: number;
+    is_archived?: boolean;
+    is_completed?: boolean;
+    /**
+     * completed, reopened, archived or unarchived.
+     */
+    kind?: string;
+    /**
+     * Server-recorded time. Zero means a legacy archive with unknown date.
+     */
+    occurred_at?: string;
+    project_id?: number;
+    title?: string;
+};
+
 export type ProjectReadBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -2598,6 +2668,10 @@ export type ProjectReadBody = {
      * Extra information about the background (e.g. attribution). When not null, the background is available at /projects/{projectID}/background.
      */
     readonly background_information?: unknown;
+    /**
+     * Most recent explicit completion time; cleared when reopened.
+     */
+    readonly completed_at?: string;
     /**
      * A timestamp when this project was created. You cannot change this value.
      */
@@ -2622,6 +2696,10 @@ export type ProjectReadBody = {
      * Whether the project is archived. Archived projects are read-only.
      */
     is_archived?: boolean;
+    /**
+     * Explicit project completion status. Change through the project completion endpoint; tasks remain unchanged.
+     */
+    readonly is_completed?: boolean;
     /**
      * Whether the project is a favorite of the requesting user. This value is per-user and depends on who makes the call.
      */
@@ -6304,6 +6382,13 @@ export type ProjectWritable = {
     title?: string;
 };
 
+export type ProjectCompletionRequestWritable = {
+    /**
+     * True marks the project complete; false reopens it. Task states remain unchanged.
+     */
+    completed?: boolean;
+};
+
 export type ProjectDuplicateWritable = {
     /**
      * Whether to copy the project's user, team and link shares to the duplicate. Defaults to false.
@@ -6313,6 +6398,33 @@ export type ProjectDuplicateWritable = {
      * The id of the project under which the duplicate should be created. Omit or 0 to place the copy at the top level; you need write access to the parent.
      */
     parent_project_id?: number;
+};
+
+export type ProjectHistoryWritable = {
+    active_days?: number;
+    /**
+     * Number of project milestones per local YYYY-MM-DD; never task counts.
+     */
+    days?: {
+        [key: string]: number;
+    };
+    items?: Array<ProjectHistoryItem> | null;
+    /**
+     * Matching milestones in the selected year.
+     */
+    milestones?: number;
+    page?: number;
+    /**
+     * Distinct projects with a matching milestone in the selected year.
+     */
+    projects?: number;
+    total?: number;
+    total_pages?: number;
+    /**
+     * Matching legacy milestones without an original date.
+     */
+    unknown?: number;
+    years?: Array<number> | null;
 };
 
 export type ProjectReadBodyWritable = {
@@ -10480,6 +10592,52 @@ export type ProjectsCreateResponses = {
 
 export type ProjectsCreateResponse = ProjectsCreateResponses[keyof ProjectsCreateResponses];
 
+export type ProjectHistoryData = {
+    body?: never;
+    path?: never;
+    query: {
+        year: number;
+        /**
+         * IANA timezone for calendar boundaries.
+         */
+        timezone?: string;
+        project?: number;
+        kind?: 'milestones' | 'all' | 'completed' | 'archived' | 'reopened' | 'unarchived';
+        /**
+         * Optional YYYY-MM-DD within the selected year.
+         */
+        day?: string;
+        /**
+         * Show legacy undated records instead of the selected year.
+         */
+        unknown?: boolean;
+        /**
+         * Search project titles.
+         */
+        q?: string;
+        page?: number;
+    };
+    url: '/projects/history';
+};
+
+export type ProjectHistoryErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type ProjectHistoryError = ProjectHistoryErrors[keyof ProjectHistoryErrors];
+
+export type ProjectHistoryResponses = {
+    /**
+     * OK
+     */
+    200: ProjectHistory;
+};
+
+export type ProjectHistoryResponse = ProjectHistoryResponses[keyof ProjectHistoryResponses];
+
 export type ProjectsDeleteData = {
     body?: never;
     path: {
@@ -10792,6 +10950,33 @@ export type ProjectsBackgroundUploadResponses = {
 };
 
 export type ProjectsBackgroundUploadResponse = ProjectsBackgroundUploadResponses[keyof ProjectsBackgroundUploadResponses];
+
+export type ProjectCompletionData = {
+    body: ProjectCompletionRequestWritable;
+    path: {
+        project: number;
+    };
+    query?: never;
+    url: '/projects/{project}/completion';
+};
+
+export type ProjectCompletionErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type ProjectCompletionError = ProjectCompletionErrors[keyof ProjectCompletionErrors];
+
+export type ProjectCompletionResponses = {
+    /**
+     * Created
+     */
+    201: Project;
+};
+
+export type ProjectCompletionResponse = ProjectCompletionResponses[keyof ProjectCompletionResponses];
 
 export type SharesListData = {
     body?: never;

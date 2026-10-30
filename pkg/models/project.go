@@ -59,6 +59,10 @@ type Project struct {
 	// Whether a project is archived.
 	IsArchived bool `xorm:"not null default false" json:"is_archived" query:"is_archived" doc:"Whether the project is archived. Archived projects are read-only."`
 
+	// Completion is explicit, independent of archive state and task completion.
+	IsCompleted bool      `xorm:"not null default false" json:"is_completed" readOnly:"true" doc:"Explicit project completion status. Change through the project completion endpoint; tasks remain unchanged."`
+	CompletedAt time.Time `xorm:"null" json:"completed_at" readOnly:"true" doc:"Most recent explicit completion time; cleared when reopened."`
+
 	// The id of the file this project has set as background
 	BackgroundFileID int64 `xorm:"null" json:"-"`
 	// Holds extra information about the background set since some background providers require attribution or similar. If not null, the background can be accessed at /projects/{projectID}/background
@@ -983,6 +987,8 @@ func checkProjectBeforeUpdateOrDelete(s *xorm.Session, project *Project) (err er
 }
 
 func CreateProject(s *xorm.Session, project *Project, auth web.Auth, createBacklogBucket bool, createDefaultViews bool) (err error) {
+	project.IsCompleted = false
+	project.CompletedAt = time.Time{}
 	err = project.CheckIsArchived(s)
 	if err != nil {
 		return err
@@ -1022,6 +1028,11 @@ func CreateProject(s *xorm.Session, project *Project, auth web.Auth, createBackl
 	_, err = s.Nullable("parent_project_id").Insert(project)
 	if err != nil {
 		return
+	}
+	if project.IsArchived {
+		if err = recordProjectArchive(s, project.ID, true); err != nil {
+			return err
+		}
 	}
 	_, err = s.Insert(&ProjectTaskCounter{ProjectID: project.ID})
 	if err != nil {
@@ -1214,6 +1225,9 @@ func UpdateProject(s *xorm.Session, project *Project, auth web.Auth, updateProje
 	// Only cascade on an actual state change: a plain edit of an unarchived
 	// parent must not un-archive individually archived children.
 	if project.IsArchived != storedProject.IsArchived {
+		if err = recordProjectArchive(s, project.ID, project.IsArchived); err != nil {
+			return err
+		}
 		err = SetArchiveStateForProjectDescendants(s, project.ID, project.IsArchived)
 		if err != nil {
 			return err
@@ -1406,6 +1420,8 @@ func updateProjectByTaskID(s *xorm.Session, taskID int64) (err error) {
 // @Failure 500 {object} models.Message "Internal error"
 // @Router /projects [put]
 func (p *Project) Create(s *xorm.Session, a web.Auth) (err error) {
+	p.IsCompleted = false
+	p.CompletedAt = time.Time{}
 	err = CreateProject(s, p, a, true, true)
 	if err != nil {
 		return
@@ -1545,6 +1561,11 @@ func (p *Project) Delete(s *xorm.Session, a web.Auth) (err error) {
 		return
 	}
 
+	_, err = s.Where("project_id = ?", p.ID).Delete(&ProjectLifecycleEvent{})
+	if err != nil {
+		return err
+	}
+
 	// Delete the project
 	_, err = s.ID(p.ID).Delete(&Project{})
 	if err != nil {
@@ -1630,6 +1651,15 @@ func SetArchiveStateForProjectDescendants(s *xorm.Session, parentProjectID int64
 	}
 
 	for chunk := range slices.Chunk(descendantIDs, archiveStateUpdateBatch) {
+		var changed []Project
+		if err = s.In("id", chunk).And("is_archived != ?", shouldBeArchived).Cols("id").Find(&changed); err != nil {
+			return err
+		}
+		for _, child := range changed {
+			if err = recordProjectArchive(s, child.ID, shouldBeArchived); err != nil {
+				return err
+			}
+		}
 		_, err = s.In("id", chunk).
 			And("is_archived != ?", shouldBeArchived).
 			Cols("is_archived").

@@ -289,7 +289,7 @@ export function createProjectMutationOptions() {
 				current ? replaceProjectInList(current, created) : current,
 			)
 		},
-		onSettled: (_input, client) => client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}),
+		onSettled: (_input, client) => Promise.all([client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}), client.invalidateQueries({queryKey: ['project-history']})]),
 		successMessage: () => i18n.global.t('project.create.createdSuccess'),
 		toastError,
 	})
@@ -333,6 +333,7 @@ export function updateProjectMutationOptions(successMessage?: string) {
 			)
 		},
 		onSettled: ({id}, client, context) => Promise.all([
+			client.invalidateQueries({queryKey: ['project-history']}),
 			// Archive and parent changes affect descendants beyond the patched project.
 			client.invalidateQueries({
 				queryKey: projectKeys.list(),
@@ -437,7 +438,7 @@ export function deleteProjectMutationOptions() {
 			ids.forEach(projectId => client.removeQueries({queryKey: projectKeys.detail(projectId)}))
 			removeProjectFromHistory({id})
 		},
-		onSettled: (_input, client) => client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}),
+		onSettled: (_input, client) => Promise.all([client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}), client.invalidateQueries({queryKey: ['project-history']})]),
 		successMessage: () => i18n.global.t('project.delete.success'),
 		toastError,
 	})
@@ -464,7 +465,7 @@ export function duplicateProjectMutationOptions() {
 				current ? replaceProjectInList(current, duplicate) : current,
 			)
 		},
-		onSettled: (_input, client) => client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}),
+		onSettled: (_input, client) => Promise.all([client.invalidateQueries({queryKey: projectKeys.list(), refetchType: 'none'}), client.invalidateQueries({queryKey: ['project-history']})]),
 		successMessage: () => i18n.global.t('project.duplicate.success'),
 		toastError,
 	})

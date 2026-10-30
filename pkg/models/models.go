@@ -45,6 +45,7 @@ func GetTables() []interface{} {
 	return []interface{}{
 		&Project{},
 		&ProjectAncestor{},
+		&ProjectLifecycleEvent{},
 		&Task{},
 		&ProjectTaskCounter{},
 		&TaskIndexAlias{},
