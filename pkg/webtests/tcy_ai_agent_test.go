@@ -328,6 +328,52 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	assert.Contains(t, projectResult.Body.String(), `"hex_color":"abcdef"`)
 	assert.Contains(t, projectResult.Body.String(), `"is_favorite":true`)
 	assert.Contains(t, projectResult.Body.String(), "Agent transaction fixture")
+	// Project completion is independent of tasks, preserves history, and obeys scope and review.
+	tasksBeforeCompletion := readTask(one)
+	_, conv = start("set_project_completed", map[string]any{
+		"id":        project.ID,
+		"completed": true,
+	}, "auto", []int64{project.ID + 9999}, 0)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, "SCOPE_DENIED")
+	path, conv = start("set_project_completed", map[string]any{
+		"id":        project.ID,
+		"completed": true,
+	}, "review", []int64{project.ID}, 0)
+	require.Equal(t, "awaiting_approval", conv.Turns[0].Status)
+	projectResult = humaRequest(t, e, "GET", fmt.Sprintf("/api/v2/projects/%d", project.ID), "", token, "")
+	assert.Contains(t, projectResult.Body.String(), `"is_completed":false`)
+	require.Equal(t, 201, review(path, conv, "approve", "").Code)
+	finished = wait(path)
+	require.True(t, finished.Turns[0].Result.Actions[1].Success, finished.Turns[0].Result.Actions[1].Result)
+	assert.Contains(t, finished.Turns[0].Result.Actions[1].Result, `"is_completed":true`)
+	assert.Equal(t, tasksBeforeCompletion, readTask(one))
+	_, conv = start("set_project_completed", map[string]any{
+		"id":        project.ID,
+		"completed": true,
+	}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	_, conv = start("list_project_history", map[string]any{
+		"year":       time.Now().Year(),
+		"timezone":   "UTC",
+		"project_id": project.ID,
+		"kind":       "all",
+	}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"milestones":1`)
+	_, conv = start("set_project_completed", map[string]any{
+		"id":        project.ID,
+		"completed": false,
+	}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"is_completed":false`)
+	_, conv = start("list_project_history", map[string]any{
+		"year":       time.Now().Year(),
+		"project_id": project.ID,
+		"kind":       "all",
+	}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"milestones":2`)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"kind":"reopened"`)
 	_, conv = start("update_project", map[string]any{"id": project.ID, "title": "forbidden change"}, "auto", []int64{project.ID + 9999}, 0)
 	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, "SCOPE_DENIED")
 	// Move checks both projects and actually persists the destination; an unrelated cover cannot be assigned.

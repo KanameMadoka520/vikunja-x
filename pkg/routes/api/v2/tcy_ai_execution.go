@@ -125,12 +125,16 @@ func aiSnapshotVersion(before []map[string]any) (string, string, error) {
 	raw, err := json.Marshal(before)
 	return string(raw), fmt.Sprintf("%x", sha256.Sum256(raw)), err
 }
+func isAIProjectMutation(name string) bool {
+	return name == "update_project" || name == "set_project_completed"
+}
+
 func (e *aiExecution) prepare(ctx context.Context, name string, raw json.RawMessage) (tcyai.Operation, error) {
 	op := tcyai.Operation{Units: 1, ProjectIDs: []int64{}, After: string(raw)}
 	if !tcyai.IsWriteTool(name) {
 		return op, nil
 	}
-	if name == "update_project" {
+	if isAIProjectMutation(name) {
 		var a struct {
 			ID int64 `json:"id"`
 		}
@@ -256,8 +260,8 @@ func (e *aiExecution) execute(ctx context.Context, name string, raw json.RawMess
 	if op != nil && op.Version != "" && preview.Version != op.Version {
 		return "", tcyai.ToolFailure("STATE_CONFLICT", "The task changed after preparation. Read the current task and prepare a fresh operation.")
 	}
-	if name == "update_project" {
-		return e.mutateProject(ctx, raw, preview)
+	if isAIProjectMutation(name) {
+		return e.mutateProject(ctx, name, raw, preview)
 	}
 	if name == "update_task" || name == "bulk_update_tasks" || name == "delete_task" {
 		return e.mutateTasks(ctx, name, raw, preview)
@@ -399,16 +403,17 @@ func aiProjectSnapshot(raw []byte) (map[string]any, error) {
 		return nil, err
 	}
 	out := map[string]any{}
-	for _, key := range []string{"id", "title", "description", "hex_color", "is_favorite", "identifier", "parent_project_id", "is_archived", "updated"} {
+	for _, key := range []string{"id", "title", "description", "hex_color", "is_favorite", "identifier", "parent_project_id", "is_archived", "is_completed", "completed_at", "updated"} {
 		out[key] = project[key]
 	}
 	return out, nil
 }
 
 // Lock, merge and recheck business permissions in one transaction, preserving unrelated fields.
-func (e *aiExecution) mutateProject(ctx context.Context, raw json.RawMessage, preview tcyai.Operation) (string, error) {
+func (e *aiExecution) mutateProject(ctx context.Context, name string, raw json.RawMessage, preview tcyai.Operation) (string, error) {
 	var args struct {
-		ID int64 `json:"id"`
+		ID        int64 `json:"id"`
+		Completed bool  `json:"completed"`
 	}
 	if err := json.Unmarshal(raw, &args); err != nil {
 		return "", err
@@ -446,21 +451,28 @@ func (e *aiExecution) mutateProject(ctx context.Context, raw json.RawMessage, pr
 	if version != preview.Version {
 		return "", tcyai.ToolFailure("STATE_CONFLICT", "Project changed; read it and prepare a fresh operation.")
 	}
-	if err = json.Unmarshal(raw, project); err != nil {
-		return "", err
-	}
-	can, err := project.CanUpdate(s, e.auth)
-	if err != nil {
-		return "", err
-	}
-	if !can {
-		return "", tcyai.ToolFailure("FORBIDDEN", "Current project permissions deny this change.")
-	}
-	if err = project.Update(s, e.auth); err != nil {
-		return "", err
-	}
-	if err = project.ReadOne(s, e.auth); err != nil {
-		return "", err
+	if name == "set_project_completed" {
+		project, err = models.SetProjectCompleted(s, e.auth, args.ID, args.Completed)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		if err = json.Unmarshal(raw, project); err != nil {
+			return "", err
+		}
+		can, err := project.CanUpdate(s, e.auth)
+		if err != nil {
+			return "", err
+		}
+		if !can {
+			return "", tcyai.ToolFailure("FORBIDDEN", "Current project permissions deny this change.")
+		}
+		if err = project.Update(s, e.auth); err != nil {
+			return "", err
+		}
+		if err = project.ReadOne(s, e.auth); err != nil {
+			return "", err
+		}
 	}
 	if err = ctx.Err(); err != nil {
 		return "", err

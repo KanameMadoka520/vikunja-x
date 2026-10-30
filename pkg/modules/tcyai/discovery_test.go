@@ -131,3 +131,28 @@ func TestAppearanceToolDiscovery(t *testing.T) {
 	_, err := ValidateTool("update_project", json.RawMessage(`{"id":1,"hex_color":"123456"}`), RunInput{Mode: "read"})
 	require.Error(t, err)
 }
+
+func TestTCYAIProjectLifecycleContracts(t *testing.T) {
+	read := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "read"})
+	result, err := read.discover(json.RawMessage(`{"query":"list_project_history"}`))
+	require.NoError(t, err)
+	assert.Contains(t, result, `"name":"list_project_history"`)
+	_, err = ValidateTool("set_project_completed", json.RawMessage(`{"id":1,"completed":true}`), RunInput{Mode: "read"})
+	require.ErrorContains(t, err, "TOOL_NOT_ALLOWED")
+	for _, raw := range []string{`{"id":1}`, `{"id":1,"completed":"false"}`, `{"id":0,"completed":true}`, `{"id":1,"completed":true,"is_archived":true}`} {
+		_, err = ValidateTool("set_project_completed", json.RawMessage(raw), RunInput{Mode: "write"})
+		require.Error(t, err, raw)
+	}
+	for _, raw := range []string{`{"year":2026,"kind":"task_done"}`, `{"year":2026,"timezone":5}`, `{"year":2026,"project_id":-1}`, `{"year":2026,"page":0}`} {
+		_, err = ValidateTool("list_project_history", json.RawMessage(raw), RunInput{Mode: "read"})
+		require.Error(t, err, raw)
+	}
+	result = compactToolResult("list_project_history", json.RawMessage(`{"year":2026}`), `{"days":{"2026-10-31":1},"items":[{"id":1,"kind":"completed"}],"total":1,"page":1,"total_pages":1,"unknown":0,"milestones":1}`)
+	assert.NotContains(t, result, `"days"`, "model does not need the heatmap rendering payload")
+	assert.Contains(t, result, `"kind":"completed"`)
+	assert.Contains(t, result, `"total_pages":1`)
+	result = compactToolResult("set_project_completed", json.RawMessage(`{"id":1,"completed":false}`), `{"id":1,"title":"work","is_completed":false,"is_archived":true,"description":"large unused text"}`)
+	assert.Contains(t, result, `"is_completed":false`)
+	assert.Contains(t, result, `"is_archived":true`)
+	assert.NotContains(t, result, "description")
+}

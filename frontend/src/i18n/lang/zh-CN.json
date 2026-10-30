@@ -2531,6 +2531,7 @@
 		"tokenHelp": "按服务商报告的用量在请求间检查；单次请求可能超过上限，服务商未报告的用量无法计入。",
 		"waitingReview": "本轮已暂停，请在上方操作卡片中处理，或停止本轮后再发送新消息。",
 		"fields": {
+      "completed": "整个项目的完成状态",
       "hex_color": "颜色",
       "percent_done": "进度（0–1）",
       "is_favorite": "收藏",
@@ -2554,6 +2555,8 @@
 			"relation_kind": "关系类型"
 		},
 		"tools": {
+      "list_project_history": "回顾项目历程",
+      "set_project_completed": "完成或重新打开项目",
       "update_project": "修改项目",
 			"find_tools": "发现并加载工具",
 			"ask_user": "询问补充信息",

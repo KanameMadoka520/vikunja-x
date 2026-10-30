@@ -21,3 +21,11 @@
 - Migration `20261031032235` uses `partialSync` for existing project columns and adds the new event table. Legacy archived projects get an undated event. No project, task or original index is deleted.
 
 The overview describes project milestones, not an immutable title/audit snapshot and not a time-tracking report.
+
+## 阿罗娜协作 / Arona tools (tcymc.27)
+
+可以直接询问“今年完成过哪些项目”“某项目的归档和重开记录”，或要求“将这个项目标记完成／重新打开”。阿罗娜按需发现 `list_project_history` 和 `set_project_completed`，不会增加每轮固定工具声明的数量。历史工具保留分页和当前访问权限；日期未知的旧记录单独查询，不虚构时间。模型只接收分页记录和统计，日历绘制数据保留在完整操作记录中。
+
+完成操作使用相同的项目管理员权限、事务和幂等逻辑，还受本轮写入项目范围与审核策略约束。审核期间项目有变化会重新生成审核内容；修改成功后刷新项目与年度回顾。只读模式不能发现或执行完成工具，切换模式不会沿用旧写权限。
+
+The assistant discovers project history and completion tools on demand through the existing stable tool transport. Completion is independently scoped, permission-checked and reviewed, with a locked current-state check before the transaction commits. It never changes task completion or archive state. Full operation evidence remains in the conversation; model-facing results omit the heatmap rendering payload.

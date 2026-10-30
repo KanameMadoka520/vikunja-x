@@ -148,7 +148,7 @@ func compactToolResult(name string, raw json.RawMessage, data string) string {
 			if !ok {
 				return data
 			}
-			keys := []string{"id", "title", "project_id", "done", "due_date", "start_date", "end_date", "priority", "hex_color", "percent_done", "is_favorite", "repeat_after", "repeat_mode", "identifier", "parent_project_id", "is_archived"}
+			keys := []string{"id", "title", "project_id", "done", "due_date", "start_date", "end_date", "priority", "hex_color", "percent_done", "is_favorite", "repeat_after", "repeat_mode", "identifier", "parent_project_id", "is_archived", "is_completed", "completed_at"}
 			summary := selectFields(item, keys...)
 			for _, key := range []string{"labels", "assignees"} {
 				if entries, ok := item[key].([]any); ok && len(entries) > 0 {
@@ -169,6 +169,10 @@ func compactToolResult(name string, raw json.RawMessage, data string) string {
 			result["detail_tool"] = "get_project"
 		}
 		output = result
+	case "list_project_history":
+		output = selectFields(asObject(value), "years", "unknown", "milestones", "projects", "active_days", "items", "total", "page", "total_pages")
+	case "set_project_completed":
+		output = selectFields(asObject(value), "id", "title", "is_completed", "completed_at", "is_archived", "updated")
 	case "create_task", "update_task", "create_project", "update_project":
 		item, ok := value.(map[string]any)
 		if !ok {

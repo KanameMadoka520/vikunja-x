@@ -2531,6 +2531,7 @@
     "tokenHelp": "Checked between requests using provider-reported usage. A single request may exceed the limit; unreported usage cannot be counted.",
     "waitingReview": "This turn is paused. Use its operation card above, or stop this turn before sending a new message.",
     "fields": {
+      "completed": "Whole project completion",
       "hex_color": "Color",
       "percent_done": "Progress (0–1)",
       "is_favorite": "Favorite",
@@ -2554,6 +2555,8 @@
       "relation_kind": "Relation type"
     },
     "tools": {
+      "list_project_history": "Review project history",
+      "set_project_completed": "Complete or reopen project",
       "update_project": "Update project",
       "find_tools": "Discover and load tools",
       "ask_user": "Ask for clarification",

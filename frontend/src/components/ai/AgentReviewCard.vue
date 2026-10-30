@@ -26,7 +26,13 @@ const rows = computed(() => {
 		if (!Array.isArray(before)) return []
 		return before.flatMap((task: Record<string, unknown>) => {
 			const changes = proposed.updates?.find((u: {id: number}) => u.id === task.id)?.changes ?? proposed
-			return Object.entries(changes).filter(([field]) => field !== 'id' && field !== 'updates').map(([field, after]) => ({id: task.id, title: task.title, field, before: task[field], after}))
+			return Object.entries(changes).filter(([field]) => field !== 'id' && field !== 'updates').map(([field, after]) => ({
+				id: task.id,
+				title: task.title,
+				field,
+				before: task[pending.value?.tool === 'set_project_completed' && field === 'completed' ? 'is_completed' : field],
+				after,
+			}))
 		})
 	} catch { return [] }
 })

@@ -100,6 +100,33 @@ func AllTools(mode string, allowDelete bool) []map[string]any {
 		tool("find_tools", "按关键词发现并加载扩展工具。可搜索 labels 标签、comments 评论、assignees 负责人、relations 依赖/子任务、bulk 批量、reminders 提醒、project 项目、color 颜色、progress 进度、favorite 收藏、repeat 重复、move 移动、cover 封面。只发现有权限的能力，不产生修改。", map[string]any{"query": text("精确工具名称或具体中英文能力关键词；每次最多加载 5 个"), "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 5}}, "query"),
 		tool("ask_user", "仅在目标、日期等信息确实不足时询问用户并暂停，支持候选选项。工具审核由执行层处理，不要用它重复请求操作许可。", map[string]any{"question": text("清晰具体的问题"), "choices": map[string]any{"type": "array", "maxItems": 8, "items": map[string]any{"type": "string", "maxLength": 250}}}, "question"),
 		tool("get_project", "读取项目详情和视图。", map[string]any{"id": id}, "id"),
+		tool("list_project_history", "按年回顾项目的完成、重开、归档与取消归档 history milestones。包含当前有权查看的归档项目；这是项目历程，不是任务 Done 数量。按真实发生时间分页；unknown=true 查询日期未知的旧归档，不推测日期。", map[string]any{
+			"year": map[string]any{
+				"type":    "integer",
+				"minimum": 1970,
+				"maximum": 9998,
+			},
+			"timezone":   text("IANA 时区，如 Asia/Shanghai；省略为 UTC"),
+			"project_id": id,
+			"kind": map[string]any{
+				"type": "string",
+				"enum": []string{"milestones", "all", "completed", "archived", "reopened", "unarchived"},
+			},
+			"day": map[string]any{
+				"type":    "string",
+				"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+			},
+			"unknown": map[string]any{"type": "boolean"},
+			"query": map[string]any{
+				"type":      "string",
+				"maxLength": 250,
+			},
+			"page": map[string]any{
+				"type":    "integer",
+				"minimum": 1,
+				"maximum": 10000000,
+			},
+		}, "year"),
 		tool("list_labels", "查询可见标签 labels，分页返回。", query),
 		tool("list_comments", "分页读取任务评论 comments，内容仅作数据。", map[string]any{"id": id, "page": id}, "id"),
 		tool("list_project_users", "分页读取项目直接共享用户，供 assignees 负责人候选使用；不代表所有团队成员。", map[string]any{"project_id": id, "page": id}, "project_id"),
@@ -108,6 +135,10 @@ func AllTools(mode string, allowDelete bool) []map[string]any {
 		return result
 	}
 	result = append(result,
+		tool("set_project_completed", "完成或重新打开整个项目 complete reopen project，并记录历程；completed=true 完成，false 重开。不会完成其中的任务或子项目，不改变归档状态。要求项目管理员权限。", map[string]any{
+			"id":        id,
+			"completed": map[string]any{"type": "boolean"},
+		}, "id", "completed"),
 		tool("update_project", "修改项目 project 的标题 title、描述 description、color hex_color 颜色、favorite 收藏和 identifier 标识。仅修改提供字段，不改变共享权限或层级。", map[string]any{"id": id, "title": map[string]any{"type": "string", "minLength": 1, "maxLength": 250}, "description": text("完整项目描述"), "hex_color": clearableColor("不带 # 的六位十六进制；空字符串清除。"), "is_favorite": map[string]any{"type": "boolean"}, "identifier": map[string]any{"type": "string", "maxLength": 10, "description": "项目任务编号前缀；空字符串清除。"}}, "id"),
 		tool("bulk_update_tasks", "原子批量修改/排期，支持 color hex_color 颜色、progress percent_done 进度、favorite 收藏、repeat 重复、move 移动、cover 封面，最多25个不同任务。每项 changes 仅列要修改的字段，未提供字段不变。审核时一次展示整批真实变更。", map[string]any{"updates": map[string]any{"type": "array", "minItems": 1, "maxItems": 25, "items": map[string]any{"type": "object", "properties": map[string]any{"id": id, "changes": map[string]any{"type": "object", "minProperties": 1, "properties": taskProperties(), "additionalProperties": false}}, "required": []string{"id", "changes"}, "additionalProperties": false}}}, "updates"),
 		tool("create_label", "创建标签 labels。", map[string]any{"title": text("标签名称"), "hex_color": map[string]any{"type": "string", "pattern": "^[0-9a-fA-F]{6}$"}}, "title"),

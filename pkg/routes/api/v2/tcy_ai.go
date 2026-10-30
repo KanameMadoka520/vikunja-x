@@ -386,6 +386,25 @@ func dispatchAI(ctx context.Context, api huma.API, caller *http.Request, name st
 	return serveAITool(ctx, api, caller, name, path, method, args, query)
 }
 
+func aiProjectHistoryQuery(args map[string]json.RawMessage, query url.Values) error {
+	for key, rawValue := range args {
+		var value any
+		decoder := json.NewDecoder(bytes.NewReader(rawValue))
+		decoder.UseNumber()
+		if err := decoder.Decode(&value); err != nil {
+			return err
+		}
+		switch key {
+		case "project_id":
+			key = "project"
+		case "query":
+			key = "q"
+		}
+		query.Set(key, fmt.Sprint(value))
+	}
+	return nil
+}
+
 func serveAITool(ctx context.Context, api huma.API, caller *http.Request, name, path, method string, args map[string]json.RawMessage, query url.Values) (string, error) {
 	body, err := json.Marshal(args)
 	if err != nil {
@@ -454,6 +473,10 @@ func aiQuery(args map[string]json.RawMessage, query url.Values) error {
 func aiExtendedRoute(name string, args map[string]json.RawMessage, id func(string) (int64, error), query url.Values) (string, string, error) {
 	method := "GET"
 	switch name {
+	case "list_project_history":
+		err := aiProjectHistoryQuery(args, query)
+		clear(args)
+		return "/projects/history", method, err
 	case "get_project":
 		n, err := id("id")
 		return fmt.Sprintf("/projects/%d", n), method, err

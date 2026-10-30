@@ -116,6 +116,7 @@ export function useRefreshAgentChanges() {
 		onSettled: (_, client) => Promise.all([
 			client.invalidateQueries({queryKey: taskKeys.all}),
 			client.invalidateQueries({queryKey: projectKeys.all}),
+			client.invalidateQueries({queryKey: ['project-history']}),
 			client.invalidateQueries({queryKey: labelKeys.all}),
 			client.invalidateQueries({queryKey: conversationKeys.lists()}),
 		]),

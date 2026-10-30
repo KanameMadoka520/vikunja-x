@@ -57,7 +57,7 @@ const labels = computed<Record<string, string>>(() => ({
 	create_task: t('tcymc.text.create_task'),
 	update_task: t('tcymc.text.update_task'),
 	delete_task: t('tcymc.text.delete_task'),
-	...Object.fromEntries(['find_tools','ask_user','get_project','list_labels','list_comments','list_project_users','bulk_update_tasks','create_label','add_task_label','remove_task_label','add_comment','assign_task','unassign_task','relate_tasks','unrelate_tasks'].map(name => [name, t(`agent.tools.${name}`)])),
+	...Object.fromEntries(['list_project_history','set_project_completed','update_project','find_tools','ask_user','get_project','list_labels','list_comments','list_project_users','bulk_update_tasks','create_label','add_task_label','remove_task_label','add_comment','assign_task','unassign_task','relate_tasks','unrelate_tasks'].map(name => [name, t(`agent.tools.${name}`)])),
 }))
 function seconds(value?: number | null) {
 	return value == null ? t('chat.unavailable') : t('chat.seconds', {value: (value / 1000).toFixed(2)})
