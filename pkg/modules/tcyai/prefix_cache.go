@@ -169,6 +169,17 @@ func compactToolResult(name string, raw json.RawMessage, data string) string {
 			result["detail_tool"] = "get_project"
 		}
 		output = result
+	case "list_project_timeline":
+		envelope := asObject(value)
+		summary := selectFields(envelope, "year", "timezone", "today", "first_year", "last_year", "projects", "scheduled_days", "elapsed_days", "dated_tasks", "done_tasks", "overdue_tasks", "excluded_tasks", "invalid_tasks", "total", "page", "total_pages")
+		items := []any{}
+		if rows, ok := envelope["items"].([]any); ok {
+			for _, row := range rows {
+				items = append(items, selectFields(asObject(row), "id", "title", "is_completed", "is_archived", "start_date", "end_date", "scheduled_days", "elapsed_days", "task_count", "done_tasks", "overdue_tasks", "progress", "next_deadline", "overdue_since", "last_deadline"))
+			}
+		}
+		summary["items"] = items
+		output = summary
 	case "list_project_history":
 		output = selectFields(asObject(value), "years", "unknown", "milestones", "projects", "active_days", "items", "total", "page", "total_pages")
 	case "set_project_completed":

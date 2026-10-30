@@ -2753,6 +2753,140 @@ export type ProjectRule = {
     mode?: 'hidden' | 'busy' | 'titles';
 };
 
+export type ProjectTimeline = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    dated_tasks?: number;
+    /**
+     * Year-wide coverage, independent of day selection and pagination.
+     */
+    days?: {
+        [key: string]: ProjectTimelineDay;
+    };
+    done_tasks?: number;
+    elapsed_days?: number;
+    /**
+     * Scope-wide tasks missing start or end/due. They cannot be assigned to a year and never enter the chart.
+     */
+    excluded_tasks?: number;
+    /**
+     * Earliest eligible schedule year in the accessible filtered scope; 0 when none.
+     */
+    first_year?: number;
+    /**
+     * Scope-wide reversed or unsupported date ranges; excluded from coverage.
+     */
+    invalid_tasks?: number;
+    items?: Array<ProjectTimelineItem> | null;
+    /**
+     * Latest eligible schedule year in the accessible filtered scope; 0 when none.
+     */
+    last_year?: number;
+    overdue_tasks?: number;
+    page?: number;
+    /**
+     * Projects with eligible tasks overlapping the year, before day selection.
+     */
+    projects?: number;
+    /**
+     * Union of covered days across projects, not their sum.
+     */
+    scheduled_days?: number;
+    timezone?: string;
+    /**
+     * Today's date in the requested timezone.
+     */
+    today?: string;
+    /**
+     * Projects matching the year and optional day selection.
+     */
+    total?: number;
+    total_pages?: number;
+    year?: number;
+};
+
+export type ProjectTimelineDay = {
+    /**
+     * Task due dates on this day among eligible tasks; not inferred from end_date.
+     */
+    deadlines?: number;
+    /**
+     * Distinct projects with elapsed scheduled coverage; not evidence of hours worked.
+     */
+    elapsed_projects?: number;
+    /**
+     * Distinct accessible projects with explicitly scheduled tasks covering this day.
+     */
+    scheduled_projects?: number;
+};
+
+export type ProjectTimelineItem = {
+    done_tasks?: number;
+    /**
+     * Covered days through today, capped at known task completion dates.
+     */
+    elapsed_days?: number;
+    elapsed_spans?: Array<ProjectTimelineSpan> | null;
+    /**
+     * Latest explicit task end (or due date when no end is set); may be outside the year.
+     */
+    end_date?: string;
+    hex_color?: string;
+    /**
+     * Project ID. Only this project's direct tasks are aggregated.
+     */
+    id?: number;
+    is_archived?: boolean;
+    is_completed?: boolean;
+    /**
+     * Latest explicit due date of eligible tasks; never substituted with end_date.
+     */
+    last_deadline?: string;
+    /**
+     * Nearest upcoming explicit due date of an eligible unfinished task; empty if none.
+     */
+    next_deadline?: string;
+    /**
+     * Earliest overdue explicit due date of eligible unfinished tasks; empty if none.
+     */
+    overdue_since?: string;
+    /**
+     * Eligible unfinished tasks with an explicit due_date before now.
+     */
+    overdue_tasks?: number;
+    /**
+     * Current mean task progress, 0..1; done tasks count as 1. Not a historical snapshot or elapsed-time percentage.
+     */
+    progress?: number;
+    /**
+     * Unique covered calendar days in the selected year, not the gap-filled bounding span.
+     */
+    scheduled_days?: number;
+    scheduled_spans?: Array<ProjectTimelineSpan> | null;
+    /**
+     * Earliest explicit task start among eligible tasks overlapping the year; may be outside the year.
+     */
+    start_date?: string;
+    /**
+     * Eligible tasks overlapping the selected year.
+     */
+    task_count?: number;
+    title?: string;
+};
+
+export type ProjectTimelineSpan = {
+    /**
+     * Last local calendar date, inclusive; gaps between separate spans are not filled.
+     */
+    end?: string;
+    /**
+     * First local calendar date, inclusive; clipped to the selected year.
+     */
+    start?: string;
+};
+
 export type ProjectUser = {
     /**
      * A URL to the JSON Schema for this object.
@@ -6460,6 +6594,56 @@ export type ProjectReadBodyWritable = {
      * The title of the project. You'll see this in the overview.
      */
     title?: string;
+};
+
+export type ProjectTimelineWritable = {
+    dated_tasks?: number;
+    /**
+     * Year-wide coverage, independent of day selection and pagination.
+     */
+    days?: {
+        [key: string]: ProjectTimelineDay;
+    };
+    done_tasks?: number;
+    elapsed_days?: number;
+    /**
+     * Scope-wide tasks missing start or end/due. They cannot be assigned to a year and never enter the chart.
+     */
+    excluded_tasks?: number;
+    /**
+     * Earliest eligible schedule year in the accessible filtered scope; 0 when none.
+     */
+    first_year?: number;
+    /**
+     * Scope-wide reversed or unsupported date ranges; excluded from coverage.
+     */
+    invalid_tasks?: number;
+    items?: Array<ProjectTimelineItem> | null;
+    /**
+     * Latest eligible schedule year in the accessible filtered scope; 0 when none.
+     */
+    last_year?: number;
+    overdue_tasks?: number;
+    page?: number;
+    /**
+     * Projects with eligible tasks overlapping the year, before day selection.
+     */
+    projects?: number;
+    /**
+     * Union of covered days across projects, not their sum.
+     */
+    scheduled_days?: number;
+    timezone?: string;
+    /**
+     * Today's date in the requested timezone.
+     */
+    today?: string;
+    /**
+     * Projects matching the year and optional day selection.
+     */
+    total?: number;
+    total_pages?: number;
+    year?: number;
 };
 
 export type ProjectUserWritable = {
@@ -10637,6 +10821,48 @@ export type ProjectHistoryResponses = {
 };
 
 export type ProjectHistoryResponse = ProjectHistoryResponses[keyof ProjectHistoryResponses];
+
+export type ProjectTimelineData = {
+    body?: never;
+    path?: never;
+    query: {
+        year: number;
+        /**
+         * IANA timezone for all inclusive calendar boundaries.
+         */
+        timezone?: string;
+        project?: number;
+        status?: 'all' | 'active' | 'completed' | 'archived';
+        /**
+         * Search project titles.
+         */
+        q?: string;
+        /**
+         * Filter project rows by a covered date in the selected year; statistics remain year-wide.
+         */
+        day?: string;
+        page?: number;
+    };
+    url: '/projects/timeline';
+};
+
+export type ProjectTimelineErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type ProjectTimelineError = ProjectTimelineErrors[keyof ProjectTimelineErrors];
+
+export type ProjectTimelineResponses = {
+    /**
+     * OK
+     */
+    200: ProjectTimeline;
+};
+
+export type ProjectTimelineResponse = ProjectTimelineResponses[keyof ProjectTimelineResponses];
 
 export type ProjectsDeleteData = {
     body?: never;

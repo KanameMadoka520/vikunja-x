@@ -156,3 +156,20 @@ func TestTCYAIProjectLifecycleContracts(t *testing.T) {
 	assert.Contains(t, result, `"is_archived":true`)
 	assert.NotContains(t, result, "description")
 }
+
+func TestTCYAIProjectTimelineContract(t *testing.T) {
+	read := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "read"})
+	result, err := read.discover(json.RawMessage(`{"query":"list_project_timeline"}`))
+	require.NoError(t, err)
+	assert.Contains(t, result, `"name":"list_project_timeline"`)
+	for _, raw := range []string{`{"year":2026,"status":"task_done"}`, `{"year":2026,"timezone":5}`, `{"year":2026,"project_id":-1}`, `{"year":2026,"page":0}`, `{"year":2026,"unknown":true}`} {
+		_, err = ValidateTool("list_project_timeline", json.RawMessage(raw), RunInput{Mode: "read"})
+		require.Error(t, err, raw)
+	}
+	result = compactToolResult("list_project_timeline", json.RawMessage(`{"year":2026}`), `{"days":{"2026-10-31":{"scheduled_projects":1}},"items":[{"id":1,"progress":0.5,"overdue_since":"2026-10-30","scheduled_spans":[{"start":"2026-10-01","end":"2026-10-31"}]}],"total":1,"page":1,"total_pages":1,"excluded_tasks":2,"dated_tasks":3}`)
+	assert.NotContains(t, result, `"days"`)
+	assert.NotContains(t, result, "scheduled_spans")
+	assert.Contains(t, result, `"progress":0.5`)
+	assert.Contains(t, result, `"excluded_tasks":2`)
+	assert.Contains(t, result, `"overdue_since":"2026-10-30"`)
+}

@@ -473,9 +473,12 @@ func aiQuery(args map[string]json.RawMessage, query url.Values) error {
 func aiExtendedRoute(name string, args map[string]json.RawMessage, id func(string) (int64, error), query url.Values) (string, string, error) {
 	method := "GET"
 	switch name {
-	case "list_project_history":
+	case "list_project_history", "list_project_timeline":
 		err := aiProjectHistoryQuery(args, query)
 		clear(args)
+		if name == "list_project_timeline" {
+			return "/projects/timeline", method, err
+		}
 		return "/projects/history", method, err
 	case "get_project":
 		n, err := id("id")

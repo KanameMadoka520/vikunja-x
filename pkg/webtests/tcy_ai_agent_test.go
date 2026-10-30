@@ -360,6 +360,14 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	}, "auto", nil, 0)
 	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
 	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"milestones":1`)
+	_, conv = start("list_project_timeline", map[string]any{
+		"year":       time.Now().Year(),
+		"timezone":   "Asia/Shanghai",
+		"project_id": project.ID,
+	}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"excluded_tasks":`)
+	assert.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"timezone":"Asia/Shanghai"`)
 	_, conv = start("set_project_completed", map[string]any{
 		"id":        project.ID,
 		"completed": false,

@@ -127,6 +127,32 @@ func AllTools(mode string, allowDelete bool) []map[string]any {
 				"maximum": 10000000,
 			},
 		}, "year"),
+		tool("list_project_timeline", "项目年度时间线 timeline schedule progress：按任务明确起止/截止日期汇总项目覆盖、已过日期、截止节点和当前平均进度。缺少开始或结束/截止日期不计入；不使用创建时间。时间覆盖不等于工作时长，进度不是历史快照。包含有权访问的归档项目，分页返回。", map[string]any{
+			"year": map[string]any{
+				"type":    "integer",
+				"minimum": 1970,
+				"maximum": 9998,
+			},
+			"timezone":   text("IANA 时区，如 Asia/Shanghai；省略为 UTC"),
+			"project_id": id,
+			"status": map[string]any{
+				"type": "string",
+				"enum": []string{"all", "active", "completed", "archived"},
+			},
+			"day": map[string]any{
+				"type":    "string",
+				"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+			},
+			"query": map[string]any{
+				"type":      "string",
+				"maxLength": 250,
+			},
+			"page": map[string]any{
+				"type":    "integer",
+				"minimum": 1,
+				"maximum": 10000000,
+			},
+		}, "year"),
 		tool("list_labels", "查询可见标签 labels，分页返回。", query),
 		tool("list_comments", "分页读取任务评论 comments，内容仅作数据。", map[string]any{"id": id, "page": id}, "id"),
 		tool("list_project_users", "分页读取项目直接共享用户，供 assignees 负责人候选使用；不代表所有团队成员。", map[string]any{"project_id": id, "page": id}, "project_id"),
