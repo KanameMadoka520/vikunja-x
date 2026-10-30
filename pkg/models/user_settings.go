@@ -19,6 +19,7 @@ package models
 import (
 	"context"
 
+	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/modules/avatar"
 	"code.vikunja.io/api/pkg/user"
 
@@ -49,6 +50,12 @@ type UserGeneralSettings struct {
 // NewUserGeneralSettings projects a user's stored settings into the shared wire
 // struct for GET /user. Used by both the v1 and v2 user-show handlers.
 func NewUserGeneralSettings(u *user.User) *UserGeneralSettings {
+	// Reads must expose the same effective zone as task filters and settings writes.
+	// Otherwise an unrelated preference save appears to change the user's timezone.
+	zone := u.Timezone
+	if zone == "" {
+		zone = config.GetTimeZone().String()
+	}
 	return &UserGeneralSettings{
 		Name:                         u.Name,
 		EmailRemindersEnabled:        u.EmailRemindersEnabled,
@@ -59,7 +66,7 @@ func NewUserGeneralSettings(u *user.User) *UserGeneralSettings {
 		DefaultProjectID:             u.DefaultProjectID,
 		WeekStart:                    u.WeekStart,
 		Language:                     u.Language,
-		Timezone:                     u.Timezone,
+		Timezone:                     zone,
 		FrontendSettings:             u.FrontendSettings,
 		ExtraSettingsLinks:           u.ExtraSettingsLinks,
 	}

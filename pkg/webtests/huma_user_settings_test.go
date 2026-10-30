@@ -54,6 +54,17 @@ func TestHumaUserShow(t *testing.T) {
 	assert.Contains(t, body, `"frontend_settings":`)
 	assert.Contains(t, body, `"extra_settings_links":`)
 
+	t.Run("Effective server timezone for legacy accounts", func(t *testing.T) {
+		previous := config.ServiceTimeZone.GetString()
+		t.Cleanup(func() { config.ServiceTimeZone.Set(previous) })
+		config.ServiceTimeZone.Set("America/New_York")
+		for _, path := range []string{"/api/v2/user", "/api/v2/user/settings/general"} {
+			response := humaRequest(t, e, http.MethodGet, path, "", token, "")
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			assert.Contains(t, response.Body.String(), `"timezone":"America/New_York"`)
+		}
+	})
+
 	t.Run("Unauthenticated", func(t *testing.T) {
 		rec := humaRequest(t, e, http.MethodGet, "/api/v2/user", "", "", "")
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
