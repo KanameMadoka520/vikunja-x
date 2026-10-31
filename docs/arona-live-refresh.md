@@ -40,6 +40,8 @@ caches only in mutation callbacks.
 | `add_comment` | The task's comment list refreshes and its comment count is read from the server, never `+1` locally (a concurrent full read may already count the comment). |
 | `create_label` | Appended to the labels cache. |
 | `create_project`, `update_project`, `set_project_completed` | Merged into the navigation list and project detail, keeping views and permissions. History and timeline only for completion, title or colour changes. |
+| `check_in_task_routine`, `configure_task_routine` | The returned task goes through `applyServerTaskChanges` like `update_task`; that task's routine summary and history queries are invalidated (only mounted ones refetch). `done` never moves with a routine, so done buckets stay put. |
+| `update_project_announcement` | Only that project's announcement query (`['project-announcement', id]`) is invalidated; navigation, history and timeline are untouched. |
 | Unknown write tool | Named task (`id`/`task_id`) and project (`project_id`) refetched, lists marked stale, project list, history and timeline invalidated. |
 
 All task changes of one batch of receipts go through `applyServerTaskChanges` together, so open

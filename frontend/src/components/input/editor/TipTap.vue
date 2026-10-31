@@ -13,6 +13,8 @@
 				v-if="editor"
 				v-show="isEditing"
 				:editor="editor"
+				:allow-images="allowImages"
+				:allow-task-lists="allowTaskLists"
 				@imageUploadClicked="triggerImageInput"
 			/>
 			<BubbleMenu
@@ -246,6 +248,8 @@ import {error} from '@/message'
 
 const props = withDefaults(defineProps<{
 	uploadCallback?: UploadCallback,
+allowImages?: boolean,
+allowTaskLists?: boolean,
  driveTaskId?: number,
 	isEditEnabled?: boolean,
 	bottomActions?: BottomAction[],
@@ -258,6 +262,8 @@ const props = withDefaults(defineProps<{
 	storageKey?: string,
 }>(), {
 	uploadCallback: undefined,
+	allowImages: true,
+	allowTaskLists: true,
 	driveTaskId: undefined,
 	isEditEnabled: true,
 	bottomActions: () => [],
@@ -319,6 +325,8 @@ watch(
 	},
 )
 
+// Schema capabilities are fixed for this editor instance, just like enableMentions below.
+// eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const extensions: Extensions = createEditorExtensions({
 	t,
 	isEditing,
@@ -329,6 +337,8 @@ const extensions: Extensions = createEditorExtensions({
 	getEditor: () => editor.value,
 	uploadCallback: () => props.uploadCallback,
 	uploadAndInsertFiles,
+	allowImages: props.allowImages,
+	allowTaskLists: props.allowTaskLists,
 })
 
 // Add mention extension if enabled
@@ -558,6 +568,7 @@ function uploadAndInsertFiles(files: File[] | FileList) {
 }
 
 function triggerImageInput(event: Event) {
+	if (!props.allowImages) return
 	if (typeof props.uploadCallback !== 'undefined') {
 		uploadInputRef.value?.click()
 		return
@@ -567,6 +578,7 @@ function triggerImageInput(event: Event) {
 }
 
 async function addImage(event: Event) {
+	if (!props.allowImages) return
 
 	if (typeof props.uploadCallback !== 'undefined') {
 		const files = uploadInputRef.value?.files

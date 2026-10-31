@@ -33,6 +33,8 @@ import {PERMISSIONS} from '@/constants/permissions'
 import {contextMutationOptions} from './contextMutation'
 import {commentKeys} from './comments'
 import {kanbanKeys} from './kanban'
+import {projectAnnouncementKeys} from './projectAnnouncements'
+import {taskRoutineKeys} from './taskRoutines'
 import {labelKeys} from './labels'
 import {
 	mapProjectNavigationItem,
@@ -210,6 +212,9 @@ export type AgentRefreshPlan = {
 	labels: boolean
 	history: boolean
 	timeline: boolean
+	// Projects whose announcement changed, and tasks whose routine summary or history changed.
+	announcements: number[]
+	routines: number[]
 }
 
 const READ_ONLY_TOOLS = new Set(['find_tools', 'ask_user', 'web_search', 'invoke_tool'])
@@ -380,6 +385,8 @@ function emptyPlan(): AgentRefreshPlan {
 		labels: false,
 		history: false,
 		timeline: false,
+		announcements: [],
+		routines: [],
 	}
 }
 
@@ -476,6 +483,27 @@ export function planAgentRefresh(receipts: readonly AgentReceipt[]): AgentRefres
 				plan.timeline ||= shown
 				break
 			}
+			case 'update_project_announcement': {
+				// Only that project's announcement; nothing else derives from it.
+				const project = positiveId(args.project_id) ?? id
+					?? (isRecord(result) ? positiveId(result.project_id) : undefined)
+				if (project) plan.announcements.push(project)
+				break
+			}
+			case 'configure_task_routine':
+			case 'check_in_task_routine': {
+				// The full task comes back: patched like any task change. The routine never moves done or
+				// list membership, so open lists are not marked stale.
+				const task = positiveId(args.task_id) ?? id
+				if (isTaskEntity(result) && (task === undefined || result.id === task)) {
+					plan.operations.push({kind: 'task', task: result})
+					plan.routines.push(result.id)
+				} else if (task) {
+					plan.refetchTasks.push(task)
+					plan.routines.push(task)
+				}
+				break
+			}
 			default: {
 				// Unknown write: the named records and stale lists only, never a refetch of everything.
 				const task = id ?? positiveId(args.task_id)
@@ -493,6 +521,8 @@ export function planAgentRefresh(receipts: readonly AgentReceipt[]): AgentRefres
 	plan.refetchTasks = [...new Set(plan.refetchTasks)]
 	plan.refetchProjects = [...new Set(plan.refetchProjects)]
 	plan.comments = [...new Set(plan.comments)]
+	plan.announcements = [...new Set(plan.announcements)]
+	plan.routines = [...new Set(plan.routines)]
 	return plan
 }
 
@@ -694,6 +724,8 @@ async function settleAgentChanges(client: QueryClient, plan: AgentRefreshPlan) {
 		plan.labels ? client.invalidateQueries({queryKey: labelKeys.all, refetchType: 'none'}) : undefined,
 		plan.history ? client.invalidateQueries({queryKey: projectHistoryKey}) : undefined,
 		plan.timeline ? client.invalidateQueries({queryKey: projectTimelineKeys.all}) : undefined,
+		...plan.announcements.map(id => client.invalidateQueries({queryKey: projectAnnouncementKeys.detail(id)})),
+		...plan.routines.map(id => client.invalidateQueries({queryKey: taskRoutineKeys.task(id)})),
 	])
 }
 

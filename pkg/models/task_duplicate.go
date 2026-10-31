@@ -95,6 +95,10 @@ func (td *TaskDuplicate) Create(s *xorm.Session, doer web.Auth) (err error) {
 		return err
 	}
 
+	if err = duplicateTaskRoutine(s, td.TaskID, newTask.ID); err != nil {
+		return err
+	}
+
 	// Duplicate labels
 	labelTasks := []*LabelTask{}
 	err = s.Where("task_id = ?", td.TaskID).Find(&labelTasks)

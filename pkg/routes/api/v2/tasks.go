@@ -149,6 +149,9 @@ func tasksRead(ctx context.Context, in *struct {
 	}
 	body := &taskReadOneBody{Task: *task, MaxPermission: models.Permission(maxPermission)}
 	convertTasksToMarkdown(ctx, &body.Task)
+	if task.Routine != nil {
+		return conditionalRepresentationResponse(&in.Params, body)
+	}
 	return conditionalReadResponse(&in.Params, body, task.Updated, maxPermission)
 }
 
@@ -185,7 +188,12 @@ func tasksReadByIndex(ctx context.Context, in *struct {
 	if err == nil {
 		body := &taskReadOneBody{Task: *task, MaxPermission: models.Permission(maxPermission)}
 		convertTasksToMarkdown(ctx, &body.Task)
-		response, err := conditionalReadResponse(&in.Params, body, task.Updated, maxPermission)
+		var response *singleReadBody[taskReadOneBody]
+		if task.Routine != nil {
+			response, err = conditionalRepresentationResponse(&in.Params, body)
+		} else {
+			response, err = conditionalReadResponse(&in.Params, body, task.Updated, maxPermission)
+		}
 		if err != nil {
 			return nil, err
 		}

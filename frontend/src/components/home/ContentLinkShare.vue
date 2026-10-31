@@ -61,6 +61,7 @@ import {useRoute} from 'vue-router'
 import {useBaseStore} from '@/stores/base'
 import {useAuthStore} from '@/stores/auth'
 import {useCurrentProject} from '@/composables/useCurrentProject'
+import {useRoutineDayRefresh} from '@/composables/useRoutineDayRefresh'
 import {ensureProject} from '@/client/queries/projects'
 
 import Logo from '@/components/home/Logo.vue'
@@ -74,6 +75,8 @@ const authStore = useAuthStore()
 const route = useRoute()
 
 const {currentProject} = useCurrentProject()
+// One app-level clock re-reads visible routines when a new local day starts or the window regains focus.
+useRoutineDayRefresh()
 const background = computed(() => baseStore.background)
 // link-share.scss paints it on a fixed layer instead of the scrolling container.
 const backgroundStyle = computed(() => background.value

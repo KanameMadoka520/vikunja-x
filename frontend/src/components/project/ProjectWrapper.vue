@@ -75,15 +75,25 @@
 				</div>
 			</nav>
 			<div class="project-view-actions">
+				<ProjectAnnouncementAdd
+					v-if="announcementProjectId > 0"
+					:project-id="announcementProjectId"
+					:archived="currentProject.is_archived"
+					@add="openAnnouncementEditor"
+				/>
 				<ScreenshotPreview />
 				<slot name="header" />
 			</div>
 		</div>
 
-		<div
-			v-if="currentProject.is_completed || currentProject.is_archived"
-			class="project-view-banners d-print-none"
-		>
+		<!-- Always rendered: :empty hides it, so a project without notices gets no extra space. -->
+		<div class="project-view-banners d-print-none">
+			<ProjectAnnouncement
+				v-if="announcementProjectId > 0"
+				:project-id="announcementProjectId"
+				:archived="currentProject.is_archived"
+				@edit="openAnnouncementEditor"
+			/>
 			<p
 				v-if="currentProject.is_completed"
 				class="completion-notice"
@@ -107,6 +117,14 @@
 		</div>
 
 		<slot v-if="!isLoadingProject" />
+
+		<ProjectAnnouncementEditor
+			v-if="announcementDraft"
+			:key="announcementDraft.project_id"
+			:project-id="announcementDraft.project_id"
+			:initial="announcementDraft"
+			@close="announcementDraft = null"
+		/>
 	</div>
 </template>
 
@@ -121,6 +139,9 @@ import Dropdown from '@/components/misc/Dropdown.vue'
 import DropdownItem from '@/components/misc/DropdownItem.vue'
 import Icon from '@/components/misc/Icon'
 import Message from '@/components/misc/Message.vue'
+import ProjectAnnouncement from '@/components/project/announcement/ProjectAnnouncement.vue'
+import ProjectAnnouncementAdd from '@/components/project/announcement/ProjectAnnouncementAdd.vue'
+import ProjectAnnouncementEditor from '@/components/project/announcement/ProjectAnnouncementEditor.vue'
 
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 import {useTitle} from '@/composables/useTitle'
@@ -129,6 +150,7 @@ import {useViewFiltersStore} from '@/stores/viewFilters'
 import {useCurrentProject} from '@/composables/useCurrentProject'
 
 import type {ProjectView} from '@/client/generated'
+import type {ProjectAnnouncementResponse} from '@/client/queries/projectAnnouncements'
 import {normalizeProject} from '@/client/queries/projects'
 
 const props = defineProps<{
@@ -171,6 +193,15 @@ const currentProject = computed(() => queriedProject.value ?? normalizeProject({
 useTitle(() => currentProject.value?.id ? getProjectTitle(currentProject.value) : '')
 
 const views = computed(() => currentProject.value.views)
+
+// Favorites and saved filters (ids <= 0) are not projects of their own and have no announcement.
+const announcementProjectId = computed(() => currentProject.value.id > 0 ? currentProject.value.id : 0)
+// The version the user opened the editor on; the editor seeds its draft from it once.
+const announcementDraft = ref<ProjectAnnouncementResponse | null>(null)
+
+function openAnnouncementEditor(announcement: ProjectAnnouncementResponse) {
+	announcementDraft.value = announcement
+}
 
 const activeViewTitle = computed(() => {
 	const activeView = views.value.find((view: ProjectView) => view.id === props.viewId)
@@ -336,6 +367,11 @@ function getViewRoute(view: ProjectView) {
 	flex-direction: column;
 	gap: var(--space-2);
 	margin-block-end: var(--space-4);
+
+	// Children that render nothing leave only comment nodes, which :empty ignores.
+	&:empty {
+		display: none;
+	}
 }
 
 // Same shape as Message (leading status rule over a faint tint), so both notices read as one family.

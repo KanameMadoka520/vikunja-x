@@ -19,6 +19,12 @@ const AGENT_TOOLS = [
 	'unassign_task',
 	'relate_tasks',
 	'unrelate_tasks',
+	'get_project_announcement',
+	'update_project_announcement',
+	'get_task_routine',
+	'configure_task_routine',
+	'check_in_task_routine',
+	'get_task_routine_history',
 ] as const
 
 // Deleting is irreversible; everything else Arona writes can be edited back.

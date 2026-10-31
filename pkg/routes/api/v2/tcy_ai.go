@@ -473,6 +473,32 @@ func aiQuery(args map[string]json.RawMessage, query url.Values) error {
 func aiExtendedRoute(name string, args map[string]json.RawMessage, id func(string) (int64, error), query url.Values) (string, string, error) {
 	method := "GET"
 	switch name {
+	case "get_project_announcement", "update_project_announcement":
+		n, err := id("id")
+		if name == "update_project_announcement" {
+			method = "PUT"
+		}
+		return fmt.Sprintf("/projects/%d/announcement", n), method, err
+	case "get_task_routine", "configure_task_routine", "check_in_task_routine", "get_task_routine_history":
+		n, err := id("id")
+		if err != nil {
+			return "", "", err
+		}
+		path := fmt.Sprintf("/tasks/%d/routine", n)
+		switch name {
+		case "configure_task_routine":
+			method = "PUT"
+		case "check_in_task_routine":
+			method = "POST"
+			path += "/check-in"
+		case "get_task_routine_history":
+			path += "/history"
+			for _, key := range []string{"year", "month"} {
+				query.Set(key, string(args[key]))
+			}
+			clear(args)
+		}
+		return path, method, nil
 	case "list_project_history", "list_project_timeline":
 		err := aiProjectHistoryQuery(args, query)
 		clear(args)

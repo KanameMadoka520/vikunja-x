@@ -18,6 +18,8 @@ import {commentKeys} from './comments'
 import {normalizeProject, projectKeys, type ProjectListResult, type ProjectResponse} from './projects'
 import {projectTimelineKeys} from './projectTimeline'
 import {mapTaskEverywhere, TaskDeletedError} from './taskCache'
+import {projectAnnouncementKeys} from './projectAnnouncements'
+import {taskRoutineKeys} from './taskRoutines'
 
 const sdk = vi.hoisted(() => ({
 	tasksRead: vi.fn(),
@@ -201,6 +203,31 @@ describe('receipt refresh plan', () => {
 		expect(completed).toMatchObject({history: true, timeline: true, projectList: true, taskLists: false})
 		const described = planAgentRefresh([receipt('update_project', {id: 7, description: 'd'}, project)])
 		expect(described).toMatchObject({history: false, timeline: false, projectList: true})
+	})
+
+	it('applies a returned routine task like a task change and refreshes only its routine data', () => {
+		const routineTask = {...serverTask, routine: {enabled: true, completed_today: true, date: '2026-11-01'}}
+		const checkedIn = planAgentRefresh([receipt('check_in_task_routine', {id: 3, date: '2026-11-01', completed: true}, routineTask)])
+		expect(checkedIn.operations).toEqual([{kind: 'task', task: routineTask}])
+		expect(checkedIn).toMatchObject({routines: [3], refetchTasks: [], taskLists: false, projectList: false, timeline: false})
+		const unknownResult = planAgentRefresh([receipt('configure_task_routine', {id: 5, enabled: true, paused: true, timezone: 'Asia/Shanghai', revision: 2}, {success: true})])
+		expect(unknownResult).toMatchObject({operations: [], refetchTasks: [5], routines: [5], taskLists: false})
+	})
+
+	it('refreshes only the announcement of the project it changed', () => {
+		const plan = planAgentRefresh([
+			receipt('update_project_announcement', {id: 7, title: 'Hi', content: '<p>x</p>', revision: 1}, {project_id: 7, revision: 2}),
+			receipt('update_project_announcement', {title: '', content: '', revision: 2}, {project_id: 8, revision: 3}),
+		])
+		expect(plan).toMatchObject({
+			announcements: [7, 8],
+			operations: [],
+			refetchProjects: [],
+			projectList: false,
+			history: false,
+			timeline: false,
+			taskLists: false,
+		})
 	})
 
 	it('narrows unknown writes to the named records', () => {
@@ -417,6 +444,28 @@ describe('receipt refresh cache writes', () => {
 		expect(client.getQueryState(projectTimelineKeys.query({year: 2026}))?.isInvalidated).toBe(true)
 		expect(client.getQueryState(['project-history', {year: 2026}])?.isInvalidated).toBe(true)
 		expect(client.getQueryState(listKey)?.isInvalidated).toBe(false)
+	})
+
+	it('patches a checked-in routine everywhere and invalidates only that task\'s routine and that announcement', async () => {
+		const routine = {enabled: true, paused: false, completed_today: true, date: '2026-11-01', completed_at: '2026-11-01T08:00:00+08:00'}
+		client.setQueryData(taskRoutineKeys.summary(3), {enabled: true, completed_today: false})
+		client.setQueryData(taskRoutineKeys.summary(4), {enabled: true, completed_today: false})
+		client.setQueryData(projectAnnouncementKeys.detail(1), {project_id: 1, revision: 1})
+		client.setQueryData(projectAnnouncementKeys.detail(2), {project_id: 2, revision: 1})
+		serverList([normalizeTask({...task, routine} as Task)])
+		await apply([
+			receipt('check_in_task_routine', {id: 3, date: '2026-11-01', completed: true}, {...serverTask, routine}),
+			receipt('update_project_announcement', {id: 1, title: '', content: '<p>New</p>', revision: 1}, {project_id: 1, revision: 2}),
+		])
+		const card = client.getQueryData<BoardData>(boardKey)!.buckets[0].tasks[0] as TaskResponse & {routine?: unknown}
+		expect(card.routine).toMatchObject({completed_today: true})
+		expect(card.done).toBe(false)
+		expect(client.getQueryData<BoardData>(boardKey)!.pages).toEqual({8: 2})
+		expect(boardFetch).not.toHaveBeenCalled()
+		expect(client.getQueryState(taskRoutineKeys.summary(3))?.isInvalidated).toBe(true)
+		expect(client.getQueryState(taskRoutineKeys.summary(4))?.isInvalidated).toBe(false)
+		expect(client.getQueryState(projectAnnouncementKeys.detail(1))?.isInvalidated).toBe(true)
+		expect(client.getQueryState(projectAnnouncementKeys.detail(2))?.isInvalidated).toBe(false)
 	})
 })
 

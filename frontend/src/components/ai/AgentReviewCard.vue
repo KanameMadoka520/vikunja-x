@@ -25,18 +25,41 @@ function pretty(value?: string) {
 	try { return JSON.stringify(JSON.parse(value ?? ''), null, 2) } catch { return value ?? '' }
 }
 const valid = computed(() => { try { const parsed = JSON.parse(args.value); return parsed && typeof parsed === 'object' && !Array.isArray(parsed) } catch { return false } })
+// Where an argument's current value sits in the snapshot when the names differ (the argument asks for a
+// state, the snapshot records it), and argument names whose generic label would mislead for that tool.
+const SNAPSHOT_FIELDS: Record<string, Record<string, string>> = {
+	set_project_completed: {completed: 'is_completed'},
+	check_in_task_routine: {completed: 'routine.completed_today', date: 'routine.date'},
+	configure_task_routine: {enabled: 'routine.enabled', paused: 'routine.paused', timezone: 'routine.timezone'},
+}
+function snapshotValue(entity: Record<string, unknown>, path: string): unknown {
+	return path.split('.').reduce<unknown>((value, key) =>
+		value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined, entity)
+}
+const FIELD_LABELS: Record<string, Record<string, string>> = {
+	check_in_task_routine: {completed: 'routine_completed'},
+}
+// Arguments that name the target or carry a concurrency token rather than a change.
+const NOT_CHANGES = ['id', 'updates', 'task_id']
+const TOOL_NOT_CHANGES: Record<string, string[]> = {
+	update_project_announcement: ['project_id', 'revision'],
+	configure_task_routine: ['revision'],
+}
 const rows = computed(() => {
+	const tool = pending.value?.tool ?? ''
 	try {
 		const before = JSON.parse(pending.value?.before ?? 'null')
 		const proposed = JSON.parse(pending.value?.arguments ?? '{}')
 		if (!Array.isArray(before)) return []
 		return before.flatMap((task: Record<string, unknown>) => {
 			const changes = proposed.updates?.find((u: {id: number}) => u.id === task.id)?.changes ?? proposed
-			return Object.entries(changes).filter(([field]) => field !== 'id' && field !== 'updates').map(([field, after]) => ({
-				id: task.id,
+			return Object.entries(changes).filter(([field]) => !NOT_CHANGES.includes(field) && !TOOL_NOT_CHANGES[tool]?.includes(field)).map(([field, after]) => ({
+				// An announcement snapshot names its project instead of carrying an id.
+				id: task.id ?? task.project_id,
 				title: task.title,
 				field,
-				before: task[pending.value?.tool === 'set_project_completed' && field === 'completed' ? 'is_completed' : field],
+				label: FIELD_LABELS[tool]?.[field] ?? field,
+				before: snapshotValue(task, SNAPSHOT_FIELDS[tool]?.[field] ?? field),
 				after,
 			}))
 		})
@@ -80,7 +103,7 @@ function decide(decision: ReviewInput['decision']) {
 							v-for="(row, index) in rows"
 							:key="index"
 						>
-							<td>#{{ row.id }} {{ row.title }}</td><td>{{ t(`agent.fields.${row.field}`, row.field) }}</td><td>{{ display(row.before) }}</td><td>{{ display(row.after) }}</td>
+							<td>#{{ row.id }} {{ row.title }}</td><td>{{ t(`agent.fields.${row.label}`, row.field) }}</td><td>{{ display(row.before) }}</td><td>{{ display(row.after) }}</td>
 						</tr>
 					</tbody>
 				</table>

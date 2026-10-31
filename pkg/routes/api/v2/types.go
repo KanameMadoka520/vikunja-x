@@ -17,6 +17,8 @@
 package apiv2
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -98,3 +100,20 @@ func conditionalReadResponse[T any](p *conditional.Params, body *T, modified tim
 
 // emptyBody marks delete / no-content operations.
 type emptyBody struct{}
+
+// A calendar-dependent representation cannot use only its stored updated time.
+// Hash the actual authorized representation; date headers cannot describe its changes.
+func conditionalRepresentationResponse[T any](params *conditional.Params, body *T) (*singleReadBody[T], error) {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	etag := fmt.Sprintf("%x", sha256.Sum256(raw))
+	p := *params
+	p.IfModifiedSince = time.Time{}
+	p.IfUnmodifiedSince = time.Time{}
+	if err := p.PreconditionFailed(etag, time.Time{}); err != nil {
+		return nil, err
+	}
+	return &singleReadBody[T]{ETag: `"` + etag + `"`, Body: body}, nil
+}

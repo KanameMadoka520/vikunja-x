@@ -75,6 +75,8 @@ func validateTaskForCreation(t *Task) error {
 
 // Task represents a task in a project
 type Task struct {
+	// Daily check-in state is computed, not an alternate writable done field.
+	Routine *TaskRoutine `xorm:"-" json:"routine,omitempty" readOnly:"true"`
 	// The unique, numeric id of this task.
 	ID int64 `xorm:"bigint autoincr not null unique pk" json:"id" param:"projecttask" readOnly:"true" doc:"The unique, numeric id of this task."`
 	// The task text. This is what you'll see in the project.
@@ -724,6 +726,10 @@ func addMoreInfoToTasks(s *xorm.Session, taskMap map[int64]*Task, a web.Auth, vi
 			userIDs = append(userIDs, i.CreatedByID)
 		}
 		projectIDs = append(projectIDs, i.ProjectID)
+	}
+
+	if err = addRoutineInfoToTasks(s, taskMap, time.Now()); err != nil {
+		return
 	}
 
 	err = addAssigneesToTasks(s, taskIDs, taskMap)
@@ -1681,6 +1687,13 @@ func (t *Task) updateSingleTask(s *xorm.Session, a web.Auth, fields []string) (e
 		return err
 	}
 
+	if err = validateTaskRoutineState(s, t); err != nil {
+		return err
+	}
+	if err = addRoutineInfoToTasks(s, map[int64]*Task{t.ID: t}, time.Now()); err != nil {
+		return err
+	}
+
 	// Get the task updated timestamp in a new struct - if we'd just try to put it into t which we already have, it
 	// would still contain the old updated date.
 	nt := &Task{}
@@ -2220,6 +2233,12 @@ func (t *Task) Delete(s *xorm.Session, a web.Auth) (err error) {
 // It does not dispatch a TaskDeletedEvent — that already happened when the
 // task was soft-deleted by the user.
 func hardDeleteTask(s *xorm.Session, t *Task) (err error) {
+	if _, err = s.Where("task_id = ?", t.ID).Delete(&TaskRoutineCheckin{}); err != nil {
+		return err
+	}
+	if _, err = s.ID(t.ID).Delete(&TaskRoutine{}); err != nil {
+		return err
+	}
 
 	// Delete assignees
 	if _, err = s.Where("task_id = ?", t.ID).Delete(&TaskAssginee{}); err != nil {

@@ -56,6 +56,7 @@ import type {Bucket as IBucket} from '@/client/generated'
 import {PROJECT_VIEW_KINDS} from '@/constants/projectView'
 
 import {useProjects} from '@/composables/useProjects'
+import {isRoutineTask} from '@/helpers/taskRoutine'
 import {useBaseStore} from '@/stores/base'
 
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -63,7 +64,7 @@ import Dropdown from '@/components/misc/Dropdown.vue'
 import DropdownItem from '@/components/misc/DropdownItem.vue'
 
 
-import {success} from '@/message'
+import {error, success, translatedError} from '@/message'
 
 const props = defineProps<{
 	task: ITask
@@ -119,6 +120,11 @@ const currentBucketTitle = computed(() => {
 
 async function changeBucket(bucket: IBucket) {
 	if (!kanbanView.value || currentBucket.value?.id === bucket.id) {
+		return
+	}
+	// Same guard as dragging on the board: a routine is checked in, never moved into done.
+	if (bucket.id === kanbanView.value.done_bucket_id && isRoutineTask(props.task)) {
+		error(translatedError('task.routine.doneBucketBlocked'))
 		return
 	}
 

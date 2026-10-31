@@ -29,7 +29,9 @@ import (
 // would persist and pollute subsequent tests that reuse the same
 // auto-increment IDs.
 var dependentTestingTables = map[string][]string{
-	"users": {"notifications"},
+	"users":    {"notifications"},
+	"projects": {"project_announcements"},
+	"tasks":    {"task_routines", "task_routine_checkins"},
 }
 
 // ReplaceTableContents resets a single table to the provided rows for the e2e

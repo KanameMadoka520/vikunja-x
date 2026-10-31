@@ -15,12 +15,13 @@ window.API_URL = API_URL
 
 const ATTACHMENT_URL = `${API_URL}/api/v2/tasks/5/attachments/9`
 
-function createEditor(content: string) {
+function createEditor(content: string, capabilities: Pick<EditorExtensionDeps, 'allowImages' | 'allowTaskLists'> = {}) {
 	const holder = document.createElement('div')
 	document.body.appendChild(holder)
 
 	let editor: Editor
 	const deps: EditorExtensionDeps = {
+...capabilities,
 		t: key => key,
 		isEditing: ref(true),
 		isEditEnabled: () => true,
@@ -207,4 +208,15 @@ describe('CustomTableCell backgroundColor', () => {
 		expect(editor.getHTML()).not.toContain('position')
 		expect(editor.view.dom.querySelector('td')!.getAttribute('style') ?? '').not.toContain('position')
 	})
+})
+
+describe('announcement editor capabilities', () => {
+ it('drops images and checklist controls while keeping readable pasted text', () => {
+  const {editor} = createEditor('<p>Notice<img src="https://example.com/a.png"></p><ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Read this</p></li></ul>', {allowImages: false, allowTaskLists: false})
+  expect(editor.schema.nodes.image).toBeUndefined()
+  expect(editor.schema.nodes.taskList).toBeUndefined()
+  expect(editor.getHTML()).not.toContain('<img')
+  expect(editor.getText()).toContain('Read this')
+  editor.destroy()
+ })
 })

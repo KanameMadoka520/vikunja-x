@@ -278,7 +278,13 @@
 										</RouterLink>
 									</td>
 									<td v-if="activeColumns.done">
+										<!-- A routine's state is today's check-in; its done flag stays false. -->
+										<RoutineStatusChip
+											v-if="isRoutineTask(t)"
+											:task="t"
+										/>
 										<Done
+											v-else
 											:is-done="t.done"
 											variant="small"
 										/>
@@ -382,6 +388,7 @@ import TaskGlanceTooltip from '@/components/tasks/partials/TaskGlanceTooltip.vue
 import TaskHierarchySummary from '@/components/tasks/partials/TaskHierarchySummary.vue'
 import DateTableCell from '@/components/tasks/partials/DateTableCell.vue'
 import CommentCount from '@/components/tasks/partials/CommentCount.vue'
+import RoutineStatusChip from '@/components/tasks/partials/RoutineStatusChip.vue'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import Sort from '@/components/tasks/partials/Sort.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'
@@ -395,6 +402,7 @@ import {useTableSort} from '@/composables/useTableSort'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
 import {getTaskIdentifier} from '@/helpers/task'
+import {isRoutineTask} from '@/helpers/taskRoutine'
 import { camelCase } from 'change-case'
 import {isSavedFilterProject} from '@/client/queries/projects'
 import {useProjects} from '@/composables/useProjects'

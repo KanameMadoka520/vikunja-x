@@ -398,6 +398,35 @@ func TestTCYAIAgentExecution(t *testing.T) {
 	_, conv = start("update_task", map[string]any{"id": two, "cover_image_attachment_id": 999999}, "auto", nil, 0)
 	require.False(t, conv.Turns[0].Result.Actions[1].Success)
 	assert.Contains(t, readTask(two), `"cover_image_attachment_id":0`)
+	// New deferred tools obey the same scope/review layer and return actual daily state.
+	daily := createTask("Daily routine")
+	_, conv = start("configure_task_routine", map[string]any{"id": daily, "enabled": true, "paused": false, "timezone": "UTC", "revision": 0}, "auto", []int64{project.ID}, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	var dailyTask struct {
+		Routine struct {
+			Date           string `json:"date"`
+			CompletedToday bool   `json:"completed_today"`
+		} `json:"routine"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(readTask(daily)), &dailyTask))
+	_, conv = start("check_in_task_routine", map[string]any{"id": daily, "date": dailyTask.Routine.Date, "completed": true}, "auto", []int64{project.ID}, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	require.NoError(t, json.Unmarshal([]byte(readTask(daily)), &dailyTask))
+	require.True(t, dailyTask.Routine.CompletedToday)
+	_, conv = start("check_in_task_routine", map[string]any{"id": daily, "date": dailyTask.Routine.Date, "completed": false}, "auto", []int64{project.ID + 9999}, 0)
+	require.Contains(t, conv.Turns[0].Result.Actions[1].Result, "SCOPE_DENIED")
+	path, conv = start("update_project_announcement", map[string]any{"id": project.ID, "title": "Notice", "content": "<p>Daily briefing</p>", "revision": 0}, "auto", []int64{project.ID}, 0)
+	require.Equal(t, "awaiting_approval", conv.Turns[0].Status)
+	require.Equal(t, 201, review(path, conv, "approve", "").Code)
+	conv = wait(path)
+	require.True(t, conv.Turns[0].Result.Actions[0].Success, conv.Turns[0].Result.Actions[0].Result)
+	announcement := humaRequest(t, e, "GET", fmt.Sprintf("/api/v2/projects/%d/announcement", project.ID), "", token, "")
+	require.Equal(t, 200, announcement.Code)
+	require.Contains(t, announcement.Body.String(), "Daily briefing")
+	_, conv = start("get_task_routine_history", map[string]any{"id": daily, "year": time.Now().UTC().Year(), "month": int(time.Now().UTC().Month())}, "auto", nil, 0)
+	require.True(t, conv.Turns[0].Result.Actions[1].Success, conv.Turns[0].Result.Actions[1].Result)
+	require.Contains(t, conv.Turns[0].Result.Actions[1].Result, `"total_checkins":1`)
+
 	doomed := createTask("delete after review")
 	path, conv = start("delete_task", map[string]any{"id": doomed}, "auto", nil, 0)
 	require.Equal(t, "awaiting_approval", conv.Turns[0].Status)

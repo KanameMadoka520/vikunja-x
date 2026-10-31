@@ -101,6 +101,7 @@ import {useSidebarResize} from '@/composables/useSidebarResize'
 import {useWebSocket} from '@/composables/useWebSocket'
 import {useServerCacheEvents} from '@/composables/useServerCacheEvents'
 import {useAronaRunObserver} from '@/composables/useAronaRunObserver'
+import {useRoutineDayRefresh} from '@/composables/useRoutineDayRefresh'
 import {useAuthStore} from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -150,6 +151,8 @@ useRenewTokenOnFocus()
 useServerCacheEvents()
 // Arona receipts keep applying after leaving the assistant, with or without the floating panel open.
 useAronaRunObserver()
+// One app-level clock re-reads visible routines when a new local day starts or the window regains focus.
+useRoutineDayRefresh()
 const {connect} = useWebSocket()
 connect()
 

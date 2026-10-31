@@ -5,7 +5,7 @@
 	>
 		<div
 			ref="taskRoot"
-			:class="{'is-loading': isLoading, 'is-done': task.done, 'has-project-context': showProjectContext}"
+			:class="{'is-loading': isLoading, 'is-done': task.done, 'has-project-context': showProjectContext, 'is-routine': isRoutine}"
 			class="task loader-container single-task"
 			tabindex="-1"
 			:data-is-overdue="isOverdue || undefined"
@@ -13,14 +13,14 @@
 			@keyup.enter="openTaskDetail"
 		>
 			<span
-				v-tooltip="!canMarkAsDone ? $t('task.readOnlyCheckbox') : ''"
+				v-tooltip="checkboxTooltip"
 				class="single-task__check"
 			>
 				<FancyCheckbox
-					:model-value="task.done ?? false"
-					:disabled="isArchived || disabled || !canMarkAsDone"
+					:model-value="isRoutine ? routineDone : (task.done ?? false)"
+					:disabled="isArchived || disabled || !canMarkAsDone || routinePaused || routineSaving"
 					:aria-label="checkboxLabel"
-					@update:modelValue="markAsDone"
+					@update:modelValue="toggleDone"
 					@click.stop
 				/>
 			</span>
@@ -66,6 +66,12 @@
 			</div>
 
 			<div class="single-task__meta">
+				<RoutineStatusChip
+					v-if="isRoutine"
+					:task="task"
+					class="single-task__routine"
+				/>
+
 				<PriorityLabel
 					:priority="task.priority ?? 0"
 					:done="task.done"
@@ -244,6 +250,7 @@ import ChecklistSummary from '@/components/tasks/partials/ChecklistSummary.vue'
 import TaskHierarchySummary from './TaskHierarchySummary.vue'
 import {buildTaskHierarchy, type TaskHierarchy} from '@/helpers/taskHierarchy'
 import CommentCount from '@/components/tasks/partials/CommentCount.vue'
+import RoutineStatusChip from '@/components/tasks/partials/RoutineStatusChip.vue'
 
 import ProgressBar from '@/components/misc/ProgressBar.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -268,6 +275,8 @@ import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import {dueGroupOf} from '@/helpers/workspaceTasks'
 import {resolveUserTimezone} from '@/helpers/time/userTimezone'
 import {useAuthStore} from '@/stores/auth'
+import {useRoutineCheckIn} from '@/composables/useRoutineCheckIn'
+import {routineOf, routineStatus} from '@/helpers/taskRoutine'
 
 const props = withDefaults(defineProps<{
 	theTask: ITask,
@@ -308,7 +317,9 @@ const isRepeating = computed(() => (task.value.repeat_after ?? 0) > 0
 const projectList = useProjects()
 const updateTask = useUpdateTaskMutation(true)
 const favoriteTask = useFavoriteTaskMutation()
-const isLoading = useDelayedLoading(() => updateTask.isPending.value || favoriteTask.isPending.value)
+const routineCheckIn = useRoutineCheckIn()
+const routineSaving = computed(() => routineCheckIn.isPending(task.value.id))
+const isLoading = useDelayedLoading(() => updateTask.isPending.value || favoriteTask.isPending.value || routineSaving.value)
 
 const project = computed(() => projectList.projects[task.value.project_id ?? 0])
 const projectColor = computed(() => project.value?.hex_color ?? '')
@@ -321,9 +332,17 @@ const showProjectContext = computed(() => Boolean(project.value) && (props.showP
 	|| currentProject.value?.id !== task.value.project_id))
 
 const checkboxLabel = computed(() => {
-	const label = t('task.detail.markAsDone', {task: task.value.title})
+	const label = isRoutine.value
+		? t('task.routine.checkInLabel', {task: task.value.title})
+		: t('task.detail.markAsDone', {task: task.value.title})
 	// The tooltip on a disabled checkbox never reaches keyboard or screen reader users.
-	return props.canMarkAsDone ? label : `${label}. ${t('task.readOnlyCheckbox')}`
+	if (!props.canMarkAsDone) return `${label}. ${t('task.readOnlyCheckbox')}`
+	return routinePaused.value ? `${label}. ${t('task.routine.pausedNoCheckIn')}` : label
+})
+
+const checkboxTooltip = computed(() => {
+	if (!props.canMarkAsDone) return t('task.readOnlyCheckbox')
+	return routinePaused.value ? t('task.routine.pausedNoCheckIn') : ''
 })
 
 const hasDescription = computed(() => !isEditorContentEmpty(task.value.description ?? ''))
@@ -357,7 +376,24 @@ onMounted(updateDueDate)
 watch(() => task.value.due_date, updateDueDate)
 
 const {now} = useGlobalNow()
+
+// An enabled routine is checked in for today instead of being marked done; task.done never moves with it.
+const routine = computed(() => routineOf(task.value))
+const isRoutine = computed(() => routine.value?.enabled === true)
+const routineDone = computed(() => routineStatus(routine.value, now.value) === 'done')
+const routinePaused = computed(() => routineStatus(routine.value, now.value) === 'paused')
+
+function toggleDone(checked: boolean) {
+	if (isRoutine.value) {
+		void routineCheckIn.setCheckedIn(task.value, checked)
+		return
+	}
+	void markAsDone(checked)
+}
+
+// A routine's state is today's check-in, so an old due date never marks it overdue.
 const isOverdue = computed(() => (
+	!isRoutine.value &&
 	!task.value.done &&
 	task.value.due_date !== null &&
 	new Date(task.value.due_date ?? 0).getTime() > 0 &&

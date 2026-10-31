@@ -105,7 +105,7 @@ func aiTaskSnapshot(raw []byte) (map[string]any, error) {
 		return nil, err
 	}
 	out := map[string]any{}
-	for _, k := range []string{"id", "project_id", "title", "description", "due_date", "start_date", "end_date", "priority", "done", "hex_color", "percent_done", "is_favorite", "repeat_after", "repeat_mode", "cover_image_attachment_id", "updated"} {
+	for _, k := range []string{"id", "project_id", "title", "description", "due_date", "start_date", "end_date", "priority", "done", "hex_color", "percent_done", "is_favorite", "repeat_after", "repeat_mode", "cover_image_attachment_id", "updated", "routine"} {
 		out[k] = task[k]
 	}
 	// Reminder row IDs may change when a reminder list is replaced; compare its actual trigger times.
@@ -134,27 +134,11 @@ func (e *aiExecution) prepare(ctx context.Context, name string, raw json.RawMess
 	if !tcyai.IsWriteTool(name) {
 		return op, nil
 	}
+	if name == "update_project_announcement" {
+		return e.prepareAnnouncement(ctx, raw)
+	}
 	if isAIProjectMutation(name) {
-		var a struct {
-			ID int64 `json:"id"`
-		}
-		if err := json.Unmarshal(raw, &a); err != nil {
-			return op, err
-		}
-		if err := e.scope(a.ID); err != nil {
-			return op, err
-		}
-		data, err := e.read(ctx, "get_project", map[string]any{"id": a.ID})
-		if err != nil {
-			return op, err
-		}
-		project, err := aiProjectSnapshot([]byte(data))
-		if err != nil {
-			return op, err
-		}
-		op.ProjectIDs = []int64{a.ID}
-		op.Before, op.Version, err = aiSnapshotVersion([]map[string]any{project})
-		return op, err
+		return e.prepareProject(ctx, raw, op)
 	}
 	if name == "create_project" || name == "create_label" {
 		if len(e.input.WriteProjectIDs) > 0 {
@@ -259,6 +243,12 @@ func (e *aiExecution) execute(ctx context.Context, name string, raw json.RawMess
 	op := tcyai.CurrentOperation(ctx)
 	if op != nil && op.Version != "" && preview.Version != op.Version {
 		return "", tcyai.ToolFailure("STATE_CONFLICT", "The task changed after preparation. Read the current task and prepare a fresh operation.")
+	}
+	if name == "configure_task_routine" || name == "check_in_task_routine" {
+		return e.mutateRoutine(ctx, name, raw, preview)
+	}
+	if name == "update_project_announcement" {
+		return e.mutateAnnouncement(ctx, raw)
 	}
 	if isAIProjectMutation(name) {
 		return e.mutateProject(ctx, name, raw, preview)
@@ -484,4 +474,28 @@ func (e *aiExecution) mutateProject(ctx context.Context, name string, raw json.R
 		op.Verified = true
 	}
 	return marshalAI(project)
+}
+
+func (e *aiExecution) prepareProject(ctx context.Context, raw json.RawMessage, op tcyai.Operation) (tcyai.Operation, error) {
+	var a struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &a); err != nil {
+		return op, err
+	}
+	if err := e.scope(a.ID); err != nil {
+		return op, err
+	}
+	data, err := e.read(ctx, "get_project", map[string]any{"id": a.ID})
+	if err != nil {
+		return op, err
+	}
+	project, err := aiProjectSnapshot([]byte(data))
+	if err != nil {
+		return op, err
+	}
+	op.ProjectIDs = []int64{a.ID}
+	op.Before, op.Version, err = aiSnapshotVersion([]map[string]any{project})
+	return op, err
+
 }

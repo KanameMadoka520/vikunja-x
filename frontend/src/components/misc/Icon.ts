@@ -113,6 +113,8 @@ import {
 	faShieldHalved,
 	faSliders,
 	faUserGear,
+	faBullhorn,
+	faPause,
 } from '@fortawesome/free-solid-svg-icons'
 import {
 	faBellSlash,
@@ -255,6 +257,8 @@ library.add(faCalendarPlus)
 library.add(faFlagCheckered)
 library.add(faCalendarCheck)
 library.add(faCircleCheck)
+library.add(faBullhorn)
+library.add(faPause)
 library.add(faCircleRegular)
 library.add(faFaceLaugh)
 library.add(faExclamation)

@@ -386,6 +386,8 @@ import {
 	saveCollapsedBucketState,
 } from '@/helpers/saveCollapsedBucketState'
 import {calculateItemPosition} from '@/helpers/calculateItemPosition'
+import {isRoutineTask} from '@/helpers/taskRoutine'
+import {error, translatedError} from '@/message'
 
 import {getSavedFilterIdFromProjectId, isSavedFilterProject} from '@/client/queries/projects'
 import {savedFilterQuery} from '@/client/queries/savedFilters'
@@ -667,6 +669,11 @@ async function updateTaskPosition(e: SortableEvent & {originalEvent?: MouseEvent
 		const task = bucket.tasks[index]
 		const before = bucket.tasks[index - 1]
 		const after = bucket.tasks[index + 1]
+		// The done bucket would mark the task done; a routine is checked in per day instead. endDrag puts the card back.
+		if (bucket.id !== sourceBucket.value && isDoneBucket(bucket) && isRoutineTask(task)) {
+			error(translatedError('task.routine.doneBucketBlocked'))
+			return
+		}
 		if (bucket.id !== sourceBucket.value) {
 			const result = await moveMutation.mutateAsync({project, view, bucket: bucket.id, task})
 			if (result.bucket_id !== undefined && result.bucket_id !== bucket.id) return

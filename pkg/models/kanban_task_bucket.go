@@ -196,6 +196,10 @@ func updateTaskBucket(s *xorm.Session, a web.Auth, b *TaskBucket) (err error) {
 			return
 		}
 
+		if err = validateTaskRoutineState(s, task); err != nil {
+			return err
+		}
+
 		err = task.updateReminders(s, task)
 		if err != nil {
 			return

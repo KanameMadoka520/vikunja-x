@@ -123,6 +123,11 @@
 							/>
 						</nav>
 						<ChecklistSummary :task="task" />
+						<RoutineStatusChip
+							v-if="isRoutine"
+							:task="task"
+							class="task-header__routine"
+						/>
 					</div>
 
 					<div
@@ -132,7 +137,34 @@
 						:aria-label="$t('task.detail.quickActions')"
 					>
 						<template v-if="canWrite">
+							<!-- An enabled routine is checked in for today; its done flag never moves. -->
+							<template v-if="isRoutine">
+								<XButton
+									v-if="canEditRoutine"
+									v-shortcut="SHORTCUTS.taskDetail.done"
+									:class="{'is-pending': routineState !== 'done'}"
+									class="button--routine-check-in"
+									:icon="routineButtonIcon"
+									variant="secondary"
+									:shadow="false"
+									:loading="routineCheckingIn"
+									:aria-disabled="routineState === 'paused' || routineCheckingIn || undefined"
+									:aria-describedby="routineState === 'paused' ? routinePausedNoteId : undefined"
+									@click="toggleRoutineCheckIn"
+								>
+									{{ routineState === 'done' ? $t('task.routine.detail.undoCheckIn') : $t('task.routine.detail.checkIn') }}
+								</XButton>
+								<span
+									v-if="canEditRoutine && routineState === 'paused'"
+									:id="routinePausedNoteId"
+									class="task-primary-actions__note"
+								>
+									<Icon icon="pause" />
+									{{ $t('task.routine.pausedNoCheckIn') }}
+								</span>
+							</template>
 							<XButton
+								v-else
 								v-shortcut="SHORTCUTS.taskDetail.done"
 								:class="{'is-pending': !task.done}"
 								class="button--mark-done"
@@ -476,7 +508,7 @@
 											class="detail-title__saving"
 										/>
 										<BaseButton
-											v-if="canWrite"
+											v-if="canWrite && !isRoutine"
 											class="remove detail-title__action"
 											:aria-label="$t('task.detail.removeRepeat')"
 											@click="removeRepeatAfter"
@@ -487,9 +519,15 @@
 									<RepeatAfter
 										:ref="e => setFieldRef('repeatAfter', e)"
 										:model-value="task"
-										:disabled="!canWrite"
+										:disabled="!canWrite || isRoutine"
 										@update:modelValue="saveRepeat"
 									/>
+									<p
+										v-if="isRoutine"
+										class="detail-field-note"
+									>
+										{{ $t('task.routine.detail.repeatBlockedField') }}
+									</p>
 								</div>
 							</CustomTransition>
 						</div>
@@ -514,6 +552,20 @@
 							/>
 						</div>
 					</div>
+
+					<TaskRoutinePanel
+						v-if="showRoutinePanel"
+						:key="task.id"
+						ref="routinePanel"
+						:task="task"
+						:can-edit="canEditRoutine"
+						:reopen-pending="isFieldPending('done')"
+						:remove-repeat-pending="isFieldPending('repeatAfter')"
+						@reopen="reopenForRoutine"
+						@removeRepeat="removeRepeatForRoutine"
+						@close="routinePanelTaskId = undefined"
+						@taskStale="taskQuery.refetch()"
+					/>
 
 					<div class="details content description">
 						<Description
@@ -752,9 +804,29 @@
 							<XButton
 								variant="tertiary"
 								icon="history"
-								@click="setFieldActive('repeatAfter')"
+								:aria-disabled="isRoutine || undefined"
+								:aria-describedby="isRoutine ? `${actionRailId}-repeat-blocked` : undefined"
+								@click="openRepeat"
 							>
 								{{ $t('task.detail.actions.repeatAfter') }}
+							</XButton>
+							<p
+								v-if="isRoutine"
+								:id="`${actionRailId}-repeat-blocked`"
+								class="action-note"
+							>
+								{{ $t('task.routine.detail.repeatBlocked') }}
+							</p>
+							<XButton
+								v-if="canEditRoutine || hasRoutineRecord"
+								variant="tertiary"
+								class="task-routine-action"
+								:icon="['far', 'sun']"
+								@click="openRoutinePanel"
+							>
+								{{ isRoutine || !canEditRoutine
+									? $t('task.routine.detail.settingsAction')
+									: $t('task.routine.detail.enableAction') }}
 							</XButton>
 						</div>
 
@@ -832,6 +904,7 @@ import {useRouter, useRoute, type RouteLocation, type RouteLocationRaw, onBefore
 import {useI18n} from 'vue-i18n'
 import {unrefElement, useDebounceFn, useElementSize, useIntersectionObserver, useMutationObserver} from '@vueuse/core'
 import {klona} from 'klona/lite'
+import type {IconProp} from '@fortawesome/fontawesome-svg-core'
 
 import {useTask} from '@/composables/useTask'
 import {getHexColor} from '@/helpers/task'
@@ -871,6 +944,8 @@ import CustomTransition from '@/components/misc/CustomTransition.vue'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
 import BucketSelect from '@/components/tasks/partials/BucketSelect.vue'
 import Reactions from '@/components/input/Reactions.vue'
+import RoutineStatusChip from '@/components/tasks/partials/RoutineStatusChip.vue'
+import TaskRoutinePanel from '@/components/tasks/partials/routine/TaskRoutinePanel.vue'
 
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 import {scrollIntoView, smoothScrollBehavior} from '@/helpers/scrollIntoView'
@@ -903,6 +978,9 @@ import {useConfigStore} from '@/stores/config'
 import {useTitle} from '@/composables/useTitle'
 import {useTaskDetailShortcuts} from '@/composables/useTaskDetailShortcuts'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
+import {useGlobalNow} from '@/composables/useGlobalNow'
+import {useRoutineCheckIn} from '@/composables/useRoutineCheckIn'
+import {routineOf, routineStatus} from '@/helpers/taskRoutine'
 
 import {error, success} from '@/message'
 import type {Action as MessageAction} from '@/message'
@@ -1110,6 +1188,72 @@ function leaveDeletedTask() {
 const canWrite = computed(() => (
 	(taskQuery.task.value?.max_permission ?? 0) > PERMISSIONS.READ
 ))
+
+// Daily routine: while enabled, today's check-in replaces Done and ordinary repeating is off. Neither the
+// done flag nor the repeat settings are ever changed for it; the user clears them explicitly first.
+const {now} = useGlobalNow()
+const routineCheckIn = useRoutineCheckIn()
+const taskRoutine = computed(() => routineOf(task.value))
+const isRoutine = computed(() => taskRoutine.value?.enabled === true)
+// A routine that was turned off keeps its configuration and history.
+const hasRoutineRecord = computed(() => (taskRoutine.value?.revision ?? 0) > 0)
+const routineState = computed(() => routineStatus(taskRoutine.value, now.value))
+const routineCheckingIn = computed(() => routineCheckIn.isPending(task.value.id))
+const routinePausedNoteId = useId()
+
+// The API refuses routine writes in an archived project (or below an archived parent).
+const isProjectArchived = computed(() => {
+	const current = project.value
+	return current ? projectList.getAncestors(current).some(p => p.is_archived) : false
+})
+const canEditRoutine = computed(() => canWrite.value && !isProjectArchived.value)
+
+const routineButtonIcon = computed<IconProp>(() => {
+	switch (routineState.value) {
+		case 'done': return 'circle-check'
+		case 'paused': return 'pause'
+		default: return ['far', 'sun']
+	}
+})
+
+function toggleRoutineCheckIn() {
+	if (!canEditRoutine.value || routineCheckingIn.value || routineState.value === 'paused') return
+	void routineCheckIn.setCheckedIn(task.value, routineState.value !== 'done')
+}
+
+const routinePanel = useTemplateRef<InstanceType<typeof TaskRoutinePanel>>('routinePanel')
+// Set from the actions rail on a task without a routine yet; tied to that task so the next one starts closed.
+const routinePanelTaskId = ref<number>()
+const showRoutinePanel = computed(() => isRoutine.value
+	|| hasRoutineRecord.value
+	|| (canEditRoutine.value && routinePanelTaskId.value === task.value.id))
+
+async function openRoutinePanel() {
+	routinePanelTaskId.value = task.value.id
+	await nextTick()
+	const panel = routinePanel.value
+	if (!panel) return
+	if (canEditRoutine.value) panel.openSetup()
+	const el: unknown = panel.$el
+	if (!(el instanceof HTMLElement)) return
+	el.focus({preventScroll: true})
+	scrollIntoView(el)
+}
+
+function openRepeat() {
+	if (isRoutine.value) return
+	setFieldActive('repeatAfter')
+}
+
+function reopenForRoutine() {
+	if (isFieldPending('done') || !task.value.done) return
+	return setTaskDone(task.value.id, false)
+}
+
+function removeRepeatForRoutine() {
+	if (isFieldPending('repeatAfter')) return
+	return removeRepeatAfter()
+}
 
 const color = computed(() => getHexColor(task.value.hex_color))
 
@@ -1533,7 +1677,7 @@ function saveReminders() {
 }
 
 function saveRepeat(value: ITask | undefined) {
-	if (!value) return
+	if (!value || isRoutine.value) return
 	task.value.repeat_after = value.repeat_after ?? 0
 	task.value.repeat_mode = value.repeat_mode ?? TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
 	return saveField('repeatAfter', {
@@ -1923,7 +2067,8 @@ function setRelatedTasksActive() {
 	}
 }
 
-.task-primary-actions .button--mark-done {
+.task-primary-actions .button--mark-done,
+.task-primary-actions .button--routine-check-in {
 	--done-accent: color-mix(in srgb, var(--success) 70%, var(--text-primary));
 
 	:deep(.icon) {
@@ -1942,6 +2087,32 @@ function setRelatedTasksActive() {
 	@media screen and (max-width: $tablet) {
 		flex: 1 0 auto;
 	}
+}
+
+// Paused: the check-in stays visible but inert, and this note next to it says why.
+.task-primary-actions__note {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	.icon,
+	svg {
+		inline-size: .75rem;
+		color: var(--text-tertiary);
+	}
+
+	@media screen and (max-width: $tablet) {
+		flex-basis: 100%;
+		order: 1;
+	}
+}
+
+.detail-field-note {
+	margin: var(--space-2) 0 0;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
 }
 
 // Content and properties rail
@@ -2255,6 +2426,14 @@ function setRelatedTasksActive() {
 	border-block-start: 1px solid var(--border-subtle);
 }
 
+.action-note {
+	margin: 0;
+	padding: 0 var(--space-2) var(--space-1);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	line-height: var(--leading-normal);
+}
+
 .action-buttons .created {
 	margin: 0;
 	padding: var(--space-2) var(--space-2) var(--space-1);
@@ -2281,6 +2460,7 @@ function setRelatedTasksActive() {
 
 	.action-heading,
 	.action-group--danger,
+	.action-note,
 	.created {
 		grid-column: 1 / -1;
 	}

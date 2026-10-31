@@ -212,6 +212,8 @@ import {setLinkInEditor} from '@/components/input/editor/setLinkInEditor'
 
 const props = defineProps<{
 	editor: Editor,
+allowImages?: boolean,
+allowTaskLists?: boolean,
 }>()
 
 const emit = defineEmits(['imageUploadClicked'])
@@ -231,7 +233,7 @@ interface ToolbarAction {
 	run: (event: MouseEvent) => void
 }
 
-const actions: ToolbarAction[] = [
+const allActions: ToolbarAction[] = [
 	...([1, 2, 3] as const).map((level): ToolbarAction => ({
 		label: `input.editor.heading${level}`,
 		icon: ['fas', 'header'],
@@ -340,6 +342,10 @@ const actions: ToolbarAction[] = [
 		run: toggleTableMode,
 	},
 ]
+const actions = allActions.filter(action =>
+	(props.allowImages !== false || action.label !== 'input.editor.image') &&
+ (props.allowTaskLists !== false || action.label !== 'input.editor.taskList'))
+
 
 // Overflowing buttons wrap onto clipped rows but keep their slot, so hiding them
 // can't change how many fit.

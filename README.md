@@ -9,9 +9,15 @@
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.29`
+- 版本：`v2.7.1-tcymc.30`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
 
+
+## 项目公告与每日打卡（tcymc.30）
+
+项目可在四种视图顶部显示独立公告，支持折叠、编辑和清除；访问范围沿用项目权限，保存冲突会保护未保存草稿。日常工作可将现有任务设置为每日打卡：同一张任务卡跨天复用，今天完成或撤销、暂停和停用分别处理，并按月查看真实打卡记录及累计、连续天数。
+
+日期遵循任务设置的时区，跨日自动刷新；不会每天生成新任务，也不会用 `done` 冒充当天打卡。普通重复任务原有逻辑保留，启用日常前需明确移除普通重复。复制仅保留配置，不复制打卡历史。阿罗娜可按需发现公告与日常工具，写入继续受当前权限、范围和审核规则控制。详见 [规则、接口与数据说明](docs/project-announcements-routines.md)。
 
 ## 品牌更新（tcymc.29）
 

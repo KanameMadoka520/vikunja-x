@@ -46,3 +46,36 @@ describe('project completion review', () => {
 		})
 	})
 })
+
+describe('routine check-in review', () => {
+	it('compares the requested check-in with today\'s recorded state under a routine label', () => {
+		const wrapper = shallowMount(AgentReviewCard, {
+			props: {
+				busy: false,
+				turn: {
+					id: 'turn-2',
+					result: {
+						pause: 'review',
+						pending: {
+							id: 'operation-2',
+							tool: 'check_in_task_routine',
+							before: '[{"id":12,"title":"Water the plants","done":false,"routine":{"enabled":true,"completed_today":false,"date":"2026-11-01"}}]',
+							arguments: '{"id":12,"date":"2026-11-01","completed":true}',
+						},
+					},
+				},
+			},
+			global: {
+				stubs: {
+					Icon: true,
+					XButton: {template: '<button><slot /></button>'},
+				},
+			},
+		})
+		const rows = wrapper.findAll('tbody tr').map(row => row.findAll('td').map(cell => cell.text()))
+		expect(rows).toEqual([
+			['#12 Water the plants', 'agent.fields.date', '2026-11-01', '2026-11-01'],
+			['#12 Water the plants', 'agent.fields.routine_completed', 'false', 'true'],
+		])
+	})
+})

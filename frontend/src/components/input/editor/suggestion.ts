@@ -10,7 +10,7 @@ import {createSuggestionPopup, type SuggestionPopup} from './suggestionPopup'
 type TranslateFunction = (key: string) => string
 
 
-export default function suggestionSetup(t: TranslateFunction) {
+export default function suggestionSetup(t: TranslateFunction, options: {allowImages?: boolean, allowTaskLists?: boolean} = {}) {
 	return {
 		items: ({query}: { query: string }) => {
 			return [
@@ -160,7 +160,9 @@ export default function suggestionSetup(t: TranslateFunction) {
 							.run()
 					},
 				},
-			].filter(item => item.title.toLowerCase().startsWith(query.toLowerCase()))
+			].filter(item => (options.allowImages !== false || item.title !== t('input.editor.image'))
+&& (options.allowTaskLists !== false || item.title !== t('input.editor.taskList'))
+&& item.title.toLowerCase().startsWith(query.toLowerCase()))
 		},
 
 		render: () => {

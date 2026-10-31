@@ -173,3 +173,27 @@ func TestTCYAIProjectTimelineContract(t *testing.T) {
 	assert.Contains(t, result, `"excluded_tasks":2`)
 	assert.Contains(t, result, `"overdue_since":"2026-10-30"`)
 }
+
+func TestTCYAIRoutineTools(t *testing.T) {
+	read := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "read"})
+	write := NewAgentState(context.Background(), Connection{}, RunInput{Mode: "write"})
+	for _, name := range []string{"get_project_announcement", "get_task_routine", "get_task_routine_history"} {
+		result, err := read.discover(json.RawMessage(`{"query":"` + name + `"}`))
+		require.NoError(t, err)
+		require.Contains(t, result, `"name":"`+name+`"`)
+	}
+	for _, name := range []string{"update_project_announcement", "configure_task_routine", "check_in_task_routine"} {
+		result, err := read.discover(json.RawMessage(`{"query":"` + name + `"}`))
+		require.NoError(t, err)
+		require.NotContains(t, result, `"name":"`+name+`"`)
+		result, err = write.discover(json.RawMessage(`{"query":"` + name + `"}`))
+		require.NoError(t, err)
+		require.Contains(t, result, `"name":"`+name+`"`)
+	}
+	require.True(t, NeedsReview("update_project_announcement", RunInput{Mode: "write", Approval: "auto"}))
+	_, err := ValidateTool("check_in_task_routine", json.RawMessage(`{"id":1,"date":"yesterday","completed":true}`), RunInput{Mode: "write"})
+	require.Error(t, err)
+	result := compactToolResult("list_tasks", json.RawMessage(`{}`), `{"items":[{"id":1,"title":"Daily","done":false,"routine":{"enabled":true,"completed_today":true,"date":"2026-11-01"}}]}`)
+	require.Contains(t, result, `"routine"`)
+	require.Contains(t, result, `"completed_today":true`)
+}

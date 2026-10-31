@@ -19,6 +19,7 @@ package models
 import (
 	"bytes"
 	"io"
+	"time"
 
 	"code.vikunja.io/api/pkg/files"
 	"code.vikunja.io/api/pkg/log"
@@ -95,6 +96,21 @@ func (pd *ProjectDuplicate) Create(s *xorm.Session, doer web.Auth) (err error) {
 		if IsErrProjectIdentifierIsNotUnique(err) {
 			pd.Project.Identifier = ""
 		} else {
+			return err
+		}
+	}
+
+	// Copy the visible notice, not its source revision or editing history.
+	announcement := &ProjectAnnouncement{ProjectID: pd.ProjectID}
+	if err = announcement.ReadOne(s, doer); err != nil {
+		return err
+	}
+	if announcement.Title != "" || announcement.Content != "" {
+		announcement.ProjectID = pd.Project.ID
+		announcement.Revision = 1
+		announcement.Updated = time.Now()
+		announcement.UpdatedByID = doer.GetID()
+		if _, err = s.Insert(announcement); err != nil {
 			return err
 		}
 	}
@@ -371,6 +387,9 @@ func duplicateTasks(s *xorm.Session, doer web.Auth, ld *ProjectDuplicate) (newTa
 	}
 	for i, t := range tasks {
 		newTaskIDs[oldTaskIDs[i]] = t.ID
+		if err = duplicateTaskRoutine(s, oldTaskIDs[i], t.ID); err != nil {
+			return nil, err
+		}
 	}
 
 	log.Debugf("Duplicated all tasks from project %d into %d", ld.ProjectID, ld.Project.ID)

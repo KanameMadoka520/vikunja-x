@@ -2585,6 +2585,42 @@ export type ProjectCompletionRequest = {
     completed?: boolean;
 };
 
+export type ProjectAnnouncement = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * Rich text; an empty title and content remove the visible announcement.
+     */
+    content?: string;
+    readonly project_id?: number;
+    /**
+     * Read the current revision before writing. Stale writes fail with 409; successful writes increment it.
+     */
+    revision?: number;
+    title?: string;
+    readonly updated?: string;
+    readonly updated_by_id?: number;
+};
+
+export type ProjectAnnouncementBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content?: string;
+    /**
+     * Current permission: 0 read, 1 write, 2 admin.
+     */
+    readonly max_permission?: number;
+    readonly project_id?: number;
+    revision?: number;
+    title?: string;
+    readonly updated?: string;
+    readonly updated_by_id?: number;
+};
+
 export type ProjectDuplicate = {
     /**
      * A URL to the JSON Schema for this object.
@@ -3840,6 +3876,7 @@ export type Task = {
      * How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date.
      */
     repeat_mode?: number;
+    readonly routine?: TaskRoutine;
     start_date?: string;
     /**
      * The requesting user's subscription to this task. Read-only here; use the subscription endpoints to change it. Only present when reading a single task.
@@ -3857,6 +3894,21 @@ export type Task = {
      * When this task was last updated. Set by the server; ignored on write.
      */
     readonly updated?: string;
+};
+
+export type TaskRoutineCheckInRequest = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    /**
+     * True checks in; false undoes today's check-in.
+     */
+    completed: boolean;
+    /**
+     * The current date returned by task.routine; do not compute it in the browser's timezone.
+     */
+    date: string;
 };
 
 export type TaskAssginee = {
@@ -4185,6 +4237,7 @@ export type TaskReadOneBody = {
      * How the task repeats when marked done: 0 = after repeat_after seconds, 1 = monthly (ignores repeat_after), 2 = from the current date rather than the last set date.
      */
     repeat_mode?: number;
+    readonly routine?: TaskRoutine;
     start_date?: string;
     /**
      * The requesting user's subscription to this task. Read-only here; use the subscription endpoints to change it. Only present when reading a single task.
@@ -4235,6 +4288,60 @@ export type TaskReminder = {
     relative_period?: number;
     relative_to?: string;
     reminder?: string;
+};
+
+export type TaskRoutine = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    readonly completed_at?: string;
+    readonly completed_by_id?: number;
+    readonly completed_today?: boolean;
+    readonly created?: string;
+    /**
+     * Current local YYYY-MM-DD in the routine timezone.
+     */
+    readonly date?: string;
+    enabled?: boolean;
+    /**
+     * Next local midnight, including DST transitions.
+     */
+    readonly next_reset_at?: string;
+    paused?: boolean;
+    /**
+     * Expected configuration revision; stale updates fail with 409.
+     */
+    revision?: number;
+    readonly task_id?: number;
+    /**
+     * IANA timezone defining the shared task's calendar day. Historical dates are not rewritten when this changes.
+     */
+    timezone?: string;
+    readonly updated?: string;
+};
+
+export type TaskRoutineCheckin = {
+    readonly completed_at?: string;
+    readonly completed_by_id?: number;
+    readonly date?: string;
+    readonly id?: number;
+    readonly task_id?: number;
+    readonly timezone?: string;
+};
+
+export type TaskRoutineHistory = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    current_streak?: number;
+    items?: Array<TaskRoutineCheckin> | null;
+    longest_streak?: number;
+    month?: number;
+    timezone?: string;
+    total_checkins?: number;
+    year?: number;
 };
 
 export type TaskRule = {
@@ -6523,6 +6630,24 @@ export type ProjectCompletionRequestWritable = {
     completed?: boolean;
 };
 
+export type ProjectAnnouncementWritable = {
+    /**
+     * Rich text; an empty title and content remove the visible announcement.
+     */
+    content?: string;
+    /**
+     * Read the current revision before writing. Stale writes fail with 409; successful writes increment it.
+     */
+    revision?: number;
+    title?: string;
+};
+
+export type ProjectAnnouncementBodyWritable = {
+    content?: string;
+    revision?: number;
+    title?: string;
+};
+
 export type ProjectDuplicateWritable = {
     /**
      * Whether to copy the project's user, team and link shares to the duplicate. Defaults to false.
@@ -7149,6 +7274,17 @@ export type TaskWritable = {
     title?: string;
 };
 
+export type TaskRoutineCheckInRequestWritable = {
+    /**
+     * True checks in; false undoes today's check-in.
+     */
+    completed: boolean;
+    /**
+     * The current date returned by task.routine; do not compute it in the browser's timezone.
+     */
+    date: string;
+};
+
 export type TaskAssgineeWritable = {
     /**
      * The id of the user to assign to the task. The user must have access to the task's project.
@@ -7259,6 +7395,29 @@ export type TaskRelationWritable = {
      * The kind of relation, describing the direction from the base task to the other task (e.g. subtask, blocking, related). The inverse relation is created automatically.
      */
     relation_kind?: 'subtask' | 'parenttask' | 'related' | 'duplicateof' | 'duplicates' | 'blocking' | 'blocked' | 'precedes' | 'follows' | 'copiedfrom' | 'copiedto';
+};
+
+export type TaskRoutineWritable = {
+    enabled?: boolean;
+    paused?: boolean;
+    /**
+     * Expected configuration revision; stale updates fail with 409.
+     */
+    revision?: number;
+    /**
+     * IANA timezone defining the shared task's calendar day. Historical dates are not rewritten when this changes.
+     */
+    timezone?: string;
+};
+
+export type TaskRoutineHistoryWritable = {
+    current_streak?: number;
+    items?: Array<unknown> | null;
+    longest_streak?: number;
+    month?: number;
+    timezone?: string;
+    total_checkins?: number;
+    year?: number;
 };
 
 export type TcyAiCleanupRequestWritable = {
@@ -11052,6 +11211,109 @@ export type ProjectsDuplicateResponses = {
 
 export type ProjectsDuplicateResponse = ProjectsDuplicateResponses[keyof ProjectsDuplicateResponses];
 
+export type ProjectAnnouncementReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Succeeds if the server's resource matches one of the passed values.
+         */
+        'If-Match'?: Array<string> | null;
+        /**
+         * Succeeds if the server's resource matches none of the passed values. On writes, the special value * may be used to match any existing value.
+         */
+        'If-None-Match'?: Array<string> | null;
+        /**
+         * Succeeds if the server's resource date is more recent than the passed date.
+         */
+        'If-Modified-Since'?: string;
+        /**
+         * Succeeds if the server's resource date is older or the same as the passed date.
+         */
+        'If-Unmodified-Since'?: string;
+    };
+    path: {
+        project: number;
+    };
+    query?: {
+        format?: 'html' | 'markdown';
+    };
+    url: '/projects/{project}/announcement';
+};
+
+export type ProjectAnnouncementReadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type ProjectAnnouncementReadError = ProjectAnnouncementReadErrors[keyof ProjectAnnouncementReadErrors];
+
+export type ProjectAnnouncementReadResponses = {
+    /**
+     * OK
+     */
+    200: ProjectAnnouncementBody;
+};
+
+export type ProjectAnnouncementReadResponse = ProjectAnnouncementReadResponses[keyof ProjectAnnouncementReadResponses];
+
+export type PatchProjectAnnouncementReadData = {
+    body: Array<JsonPatchOp> | null;
+    path: {
+        project: number;
+    };
+    query?: never;
+    url: '/projects/{project}/announcement';
+};
+
+export type PatchProjectAnnouncementReadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type PatchProjectAnnouncementReadError = PatchProjectAnnouncementReadErrors[keyof PatchProjectAnnouncementReadErrors];
+
+export type PatchProjectAnnouncementReadResponses = {
+    /**
+     * OK
+     */
+    200: ProjectAnnouncement;
+};
+
+export type PatchProjectAnnouncementReadResponse = PatchProjectAnnouncementReadResponses[keyof PatchProjectAnnouncementReadResponses];
+
+export type ProjectAnnouncementUpdateData = {
+    body: ProjectAnnouncementBodyWritable;
+    path: {
+        project: number;
+    };
+    query?: {
+        format?: 'html' | 'markdown';
+    };
+    url: '/projects/{project}/announcement';
+};
+
+export type ProjectAnnouncementUpdateErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type ProjectAnnouncementUpdateError = ProjectAnnouncementUpdateErrors[keyof ProjectAnnouncementUpdateErrors];
+
+export type ProjectAnnouncementUpdateResponses = {
+    /**
+     * OK
+     */
+    200: ProjectAnnouncement;
+};
+
+export type ProjectAnnouncementUpdateResponse = ProjectAnnouncementUpdateResponses[keyof ProjectAnnouncementUpdateResponses];
+
 export type ProjectsBackgroundDeleteData = {
     body?: never;
     path: {
@@ -13944,6 +14206,144 @@ export type TasksRelationsDeleteResponses = {
 };
 
 export type TasksRelationsDeleteResponse = TasksRelationsDeleteResponses[keyof TasksRelationsDeleteResponses];
+
+export type TaskRoutineReadData = {
+    body?: never;
+    path: {
+        task: number;
+    };
+    query?: never;
+    url: '/tasks/{task}/routine';
+};
+
+export type TaskRoutineReadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TaskRoutineReadError = TaskRoutineReadErrors[keyof TaskRoutineReadErrors];
+
+export type TaskRoutineReadResponses = {
+    /**
+     * OK
+     */
+    200: TaskRoutine;
+};
+
+export type TaskRoutineReadResponse = TaskRoutineReadResponses[keyof TaskRoutineReadResponses];
+
+export type PatchTaskRoutineReadData = {
+    body: Array<JsonPatchOp> | null;
+    path: {
+        task: number;
+    };
+    query?: never;
+    url: '/tasks/{task}/routine';
+};
+
+export type PatchTaskRoutineReadErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type PatchTaskRoutineReadError = PatchTaskRoutineReadErrors[keyof PatchTaskRoutineReadErrors];
+
+export type PatchTaskRoutineReadResponses = {
+    /**
+     * OK
+     */
+    200: Task;
+};
+
+export type PatchTaskRoutineReadResponse = PatchTaskRoutineReadResponses[keyof PatchTaskRoutineReadResponses];
+
+export type TaskRoutineUpdateData = {
+    body: TaskRoutineWritable;
+    path: {
+        task: number;
+    };
+    query?: never;
+    url: '/tasks/{task}/routine';
+};
+
+export type TaskRoutineUpdateErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TaskRoutineUpdateError = TaskRoutineUpdateErrors[keyof TaskRoutineUpdateErrors];
+
+export type TaskRoutineUpdateResponses = {
+    /**
+     * OK
+     */
+    200: Task;
+};
+
+export type TaskRoutineUpdateResponse = TaskRoutineUpdateResponses[keyof TaskRoutineUpdateResponses];
+
+export type TaskRoutineCheckInData = {
+    body: TaskRoutineCheckInRequestWritable;
+    path: {
+        task: number;
+    };
+    query?: never;
+    url: '/tasks/{task}/routine/check-in';
+};
+
+export type TaskRoutineCheckInErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TaskRoutineCheckInError = TaskRoutineCheckInErrors[keyof TaskRoutineCheckInErrors];
+
+export type TaskRoutineCheckInResponses = {
+    /**
+     * OK
+     */
+    200: Task;
+};
+
+export type TaskRoutineCheckInResponse = TaskRoutineCheckInResponses[keyof TaskRoutineCheckInResponses];
+
+export type TaskRoutineHistoryData = {
+    body?: never;
+    path: {
+        task: number;
+    };
+    query: {
+        year: number;
+        month: number;
+    };
+    url: '/tasks/{task}/routine/history';
+};
+
+export type TaskRoutineHistoryErrors = {
+    /**
+     * Error
+     */
+    default: VikunjaErrorModel;
+};
+
+export type TaskRoutineHistoryError = TaskRoutineHistoryErrors[keyof TaskRoutineHistoryErrors];
+
+export type TaskRoutineHistoryResponses = {
+    /**
+     * OK
+     */
+    200: TaskRoutineHistory;
+};
+
+export type TaskRoutineHistoryResponse = TaskRoutineHistoryResponses[keyof TaskRoutineHistoryResponses];
 
 export type TeamsListData = {
     body?: never;

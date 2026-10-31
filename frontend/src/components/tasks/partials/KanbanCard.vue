@@ -5,6 +5,7 @@
 		:class="{
 			'is-loading': showLoading,
 			'draggable': !loadingInternal,
+			'is-routine': isRoutine,
 			'has-light-text': !colorIsDark(color),
 			'has-custom-background-color': color ?? undefined,
 		}"
@@ -38,6 +39,11 @@
 						{{ task.position }}
 					</span>
 				</span>
+				<RoutineStatusChip
+					v-if="isRoutine"
+					:task="task"
+					class="kanban-card__routine"
+				/>
 				<span
 					v-if="new Date(task.due_date ?? 0).getTime() > 0"
 					v-tooltip="formatDateLong(task.due_date)"
@@ -142,6 +148,7 @@ import Labels from '@/components/tasks/partials/Labels.vue'
 import ChecklistSummary from './ChecklistSummary.vue'
 import CommentCount from './CommentCount.vue'
 import TaskHierarchySummary from './TaskHierarchySummary.vue'
+import RoutineStatusChip from './RoutineStatusChip.vue'
 
 import {getHexColor, getTaskIdentifier} from '@/helpers/task'
 import type {Task as ITask} from '@/client/generated'
@@ -159,6 +166,8 @@ import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import {useProjects} from '@/composables/useProjects'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
+import {useRoutineCheckIn} from '@/composables/useRoutineCheckIn'
+import {routineOf, routineStatus} from '@/helpers/taskRoutine'
 
 const props = defineProps<{
 	task: TaskResponse,
@@ -191,14 +200,31 @@ const projectTitle = computed(() => {
 const showTaskPosition = computed(() => window.DEBUG_TASK_POSITION)
 
 const {now} = useGlobalNow()
+// A routine's state is today's check-in, so an old due date never marks it overdue.
 const isOverdue = computed(() => (
+	!isRoutine.value &&
 	!props.task.done &&
 	props.task.due_date !== null &&
 	new Date(props.task.due_date ?? 0).getTime() > 0 &&
 	new Date(props.task.due_date ?? 0).getTime() <= now.value.getTime()
 ))
 
+const routineCheckIn = useRoutineCheckIn()
+const isRoutine = computed(() => routineOf(props.task)?.enabled === true)
+
 async function toggleTaskDone(task: TaskResponse) {
+	// Ctrl/Cmd-click on a routine checks it in for today (or undoes that); its done flag never changes.
+	if (isRoutine.value) {
+		const checkedIn = routineStatus(routineOf(task), now.value) === 'done'
+		loadingInternal.value = true
+		try {
+			await routineCheckIn.setCheckedIn(task, !checkedIn)
+		} finally {
+			loadingInternal.value = false
+		}
+		return
+	}
+
 	const isRecurringTask = task.repeat_after > 0 || task.repeat_mode === TASK_REPEAT_MODES.REPEAT_MODE_MONTH
 	const wasBeingMarkedDone = !task.done
 	
@@ -526,10 +552,16 @@ onBeforeUnmount(() => {
 
 .kanban-card__meta {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-2);
 	min-block-size: 1.25rem;
+}
+
+// Sits next to the identifier; the due date keeps the end of the row.
+.kanban-card__routine {
+	margin-inline-end: auto;
 }
 
 .kanban-card__done {

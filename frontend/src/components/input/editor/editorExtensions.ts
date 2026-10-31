@@ -69,6 +69,8 @@ function parseAttachmentUrl(url: unknown): AttachmentRef | null {
 }
 
 export interface EditorExtensionDeps {
+allowImages?: boolean
+allowTaskLists?: boolean
 	t: (key: string) => string
 	isEditing: Ref<boolean>
 	isEditEnabled: () => boolean
@@ -411,11 +413,13 @@ export function createEditorExtensions(deps: EditorExtensionDeps): Extensions {
 		}),
 
 		Commands.configure({
-			suggestion: suggestionSetup(t),
+			suggestion: suggestionSetup(t, {allowImages: deps.allowImages, allowTaskLists: deps.allowTaskLists}),
 		}),
 
 		EmojiExtension,
 
 		PasteHandler,
-	]
+	].filter(extension =>
+		(deps.allowImages !== false || extension.name !== 'image') &&
+  (deps.allowTaskLists !== false || !['taskList', 'taskItem'].includes(extension.name)))
 }
