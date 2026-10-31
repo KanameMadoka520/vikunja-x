@@ -81,6 +81,8 @@ const showLoading = useDelayedLoading(() => props.loading)
 	// Button text must stay white regardless of theme, so we use a fixed value
 	// instead of var(--white) which changes in dark mode.
 	--button-text-color: #ffffff;
+	--button-background: var(--primary);
+	--button-background-hover: hsl(var(--primary-h), var(--primary-s), calc(var(--primary-l) - 7%));
 
 	// Base structure (replaces Bulma's .button)
 	display: inline-flex;
@@ -91,57 +93,57 @@ const showLoading = useDelayedLoading(() => props.loading)
 	text-align: center;
 	white-space: var(--button-white-space);
 
-	// Custom styles
-	transition: transform .2s cubic-bezier(.2,.8,.3,1.25), box-shadow .2s ease, background-color .18s ease, color .18s ease;
-	border: 0;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard),
+		box-shadow var(--motion-fast) var(--ease-standard),
+		transform var(--motion-fast) var(--ease-standard);
+	border: 1px solid transparent;
 	text-transform: none;
-	font-size: 0.85rem;
-	font-weight: bold;
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+	letter-spacing: .005em;
 	block-size: auto;
-	min-block-size: $button-height;
-	box-shadow: var(--shadow-sm);
-	line-height: 1;
-	padding-inline: .5rem;
-	gap: .25rem;
+	min-block-size: var(--control-height);
+	box-shadow: var(--elevation-1);
+	line-height: 1.2;
+	padding-block: .25rem;
+	padding-inline: .7rem;
+	gap: .375rem;
 
-    &.is-icon-only {
-        gap: 0;
-        min-inline-size: $button-height;
-    }
-    > svg {
-        display: block;
-        flex-shrink: 0;
-    }
+	&.is-icon-only {
+		gap: 0;
+		min-inline-size: var(--control-height);
+		padding-inline: .4rem;
+	}
+
+	> svg {
+		display: block;
+		flex-shrink: 0;
+	}
 
 	// Default/Primary variant colors
-	background-color: var(--primary);
+	background-color: var(--button-background);
 	color: var(--button-text-color);
-	border-radius: max(#{$radius}, .65rem);
+	border-radius: $radius;
 
- &:active:not([disabled], [aria-disabled="true"]) { transform: scale(.96);
-}
- @media (prefers-reduced-motion: reduce) {transition: none;}
+	&:active:not([disabled], [aria-disabled="true"]) {
+		transform: scale(.97);
+	}
+
 	[dir="rtl"] & {
 		flex-direction: row-reverse;
 	}
 
 	&:hover {
-		box-shadow: var(--shadow-md);
-		background-color: var(--primary-dark, color-mix(in srgb, var(--primary) 85%, black));
+		background-color: var(--button-background-hover);
 	}
 
-	&:focus,
+	// Mouse clicks keep focus without a ring; keyboard focus always shows one.
 	&:focus-visible {
-		outline: 2px solid var(--primary);
+		outline: 2px solid var(--focus-ring-color);
 		outline-offset: 2px;
-	}
-
-	&.is-active,
-	&.is-focused,
-	&:active,
-	&:focus,
-	&:focus:not(:active) {
-		box-shadow: var(--shadow-xs) !important;
 	}
 
 	&[disabled],
@@ -157,32 +159,36 @@ const showLoading = useDelayedLoading(() => props.loading)
 
 	// Primary variant (default, explicit)
 	&.is-primary {
-		background-color: var(--primary);
+		background-color: var(--button-background);
 		color: var(--button-text-color);
 
 		&:hover {
-			background-color: var(--primary-dark, color-mix(in srgb, var(--primary) 85%, black));
+			background-color: var(--button-background-hover);
 		}
 	}
 
-	// Secondary/Outlined variant
+	// Secondary/Outlined variant: surface with a hairline border
 	&.is-outlined {
-		background-color: var(--scheme-main);
-		color: var(--grey-900);
+		background-color: var(--surface);
+		border-color: var(--border-default);
+		color: var(--text-primary);
 
 		&:hover {
-			color: var(--grey-600);
+			background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+			border-color: var(--border-strong);
+			color: var(--text-primary);
 		}
 	}
 
 	// Tertiary/Text variant
 	&.is-text {
 		background-color: transparent;
-		color: var(--text);
+		color: var(--text-secondary);
 		box-shadow: none;
 
 		&:hover {
-			background-color: var(--grey-100);
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
 			box-shadow: none;
 		}
 	}
@@ -192,41 +198,37 @@ const showLoading = useDelayedLoading(() => props.loading)
 		color: inherit;
 	}
 
-	// Danger modifier - solid filled button (default and primary variant)
+	// Danger modifier - solid filled button (default and primary variant).
+	// --danger itself is too light for white text, so the fill is a deeper red.
 	&.is-danger {
-		background-color: var(--danger);
+		--button-background: hsl(var(--danger-h), 72%, 47%);
+		--button-background-hover: hsl(var(--danger-h), 72%, 41%);
+		background-color: var(--button-background);
 		border-color: transparent;
 		color: var(--button-text-color);
 
-		&:hover {
-			background-color: var(--danger-dark);
-			border-color: transparent;
-		}
-
-		&:focus,
-		&:focus-visible {
-			outline-color: var(--danger);
-			&:not(:active) {
-				box-shadow: 0 0 0 0.125em hsla(var(--danger-h), var(--danger-s), var(--danger-l), 0.25);
-			}
-		}
-
+		&:hover,
 		&:active {
-			background-color: var(--danger-dark);
+			background-color: var(--button-background-hover);
 			border-color: transparent;
+		}
+
+		&:focus-visible {
+			outline-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .7);
 		}
 	}
 
 	// Danger + outlined/secondary variant
 	&.is-danger.is-outlined {
-		background-color: transparent;
-		border: 1px solid var(--danger);
-		color: var(--danger);
+		background-color: var(--surface);
+		border: 1px solid hsla(var(--danger-h), var(--danger-s), var(--danger-l), .55);
+		color: var(--danger-text);
 
 		&:hover,
-		&:focus {
-			background-color: var(--danger);
-			border-color: var(--danger);
+		&:focus-visible {
+			background-image: none;
+			background-color: var(--button-background);
+			border-color: var(--button-background);
 			color: var(--button-text-color);
 		}
 	}
@@ -234,16 +236,16 @@ const showLoading = useDelayedLoading(() => props.loading)
 	// Danger + text/tertiary variant
 	&.is-danger.is-text {
 		background-color: transparent;
-		color: var(--danger);
+		color: var(--danger-text);
 
 		&:hover {
-			background-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), 0.1);
+			background-color: var(--tint-danger);
 		}
 	}
 
 	// Danger loading spinner - white on solid, danger-colored on outlined/text
 	&.is-danger.is-loading::after {
-		border-color: transparent transparent var(--white) var(--white);
+		border-color: transparent transparent var(--button-text-color) var(--button-text-color);
 	}
 
 	&.is-danger.is-outlined.is-loading::after,
@@ -281,6 +283,12 @@ const showLoading = useDelayedLoading(() => props.loading)
 		border-inline-end-color: transparent;
 		border-block-start-color: transparent;
 	}
+
+	&.is-small {
+		min-block-size: var(--control-height-sm);
+		font-size: var(--text-sm);
+		padding-inline: .5rem;
+	}
 }
 
 @keyframes spin-around {
@@ -290,10 +298,6 @@ const showLoading = useDelayedLoading(() => props.loading)
 	to {
 		transform: rotate(360deg);
 	}
-}
-
-.is-small {
-	border-radius: $radius;
 }
 
 .underline-none {

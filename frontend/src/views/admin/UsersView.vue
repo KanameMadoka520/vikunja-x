@@ -1,310 +1,336 @@
 <template>
-	<Card>
-		<div class="admin-users">
-			<div class="admin-users__toolbar">
-				<FormInput
-					v-model="searchTerm"
-					type="text"
-					:placeholder="$t('admin.searchUsersPlaceholder')"
-					@input="onSearch"
-				/>
+	<div class="settings-page">
+		<PageHeader :title="$t('admin.labels.users')">
+			<template #actions>
 				<XButton
 					variant="primary"
+					icon="plus"
 					@click="openCreate"
 				>
 					{{ $t('admin.users.addUser') }}
 				</XButton>
-			</div>
-
-			<p v-if="loading">
-				{{ $t('misc.loading') }}
-			</p>
-			<template v-else>
-				<table class="table has-actions is-striped is-hoverable is-fullwidth">
-					<thead>
-						<tr>
-							<th>{{ $t('misc.id') }}</th>
-							<th>{{ $t('user.auth.username') }}</th>
-							<th>{{ $t('user.auth.email') }}</th>
-							<th>{{ $t('admin.users.issuer') }}</th>
-							<th>{{ $t('admin.users.status') }}</th>
-							<th>{{ $t('task.attributes.created') }}</th>
-							<th />
-						</tr>
-					</thead>
-					<tbody>
-						<tr
-							v-for="u in users"
-							:key="u.id"
-						>
-							<td>{{ u.id }}</td>
-							<td>{{ u.username }}</td>
-							<td>{{ u.email }}</td>
-							<td>{{ u.auth_provider || $t('admin.users.issuerLocal') }}</td>
-							<td>{{ statusLabel(u.status) }}</td>
-							<td>
-								<TimeDisplay :date="u.created" />
-							</td>
-							<td class="actions">
-								<XButton
-									variant="secondary"
-									@click="openDetails(u)"
-								>
-									{{ $t('admin.users.details') }}
-								</XButton>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				<PaginationEmit
-					v-if="totalPages > 1"
-					:total-pages="totalPages"
-					:current-page="currentPage"
-					@pageChanged="goToPage"
-				/>
 			</template>
-
-			<Modal
-				v-if="detailTarget && !pendingDelete"
-				variant="hint-modal"
-				@close="closeDetail"
-			>
-				<Card
-					class="has-no-shadow"
-					:title="$t('admin.users.detailsTitle', {username: detailTarget.username})"
-				>
-					<dl class="admin-users__meta">
-						<dt>{{ $t('misc.id') }}</dt>
-						<dd>{{ detailTarget.id }}</dd>
-						<dt>{{ $t('user.auth.email') }}</dt>
-						<dd>{{ detailTarget.email }}</dd>
-						<dt>{{ $t('admin.users.issuer') }}</dt>
-						<dd>
-							{{ detailTarget.auth_provider || $t('admin.users.issuerLocal') }}
-						</dd>
-						<template v-if="detailTarget.issuer?.startsWith('http')">
-							<dt>{{ $t('admin.users.issuerUrl') }}</dt>
-							<dd class="admin-users__issuer-url-value">
-								{{ detailTarget.issuer }}
-							</dd>
-						</template>
-						<template v-if="detailTarget.subject">
-							<dt>{{ $t('admin.users.subject') }}</dt>
-							<dd class="admin-users__subject">
-								{{ detailTarget.subject }}
-							</dd>
-						</template>
-						<dt>{{ $t('task.attributes.created') }}</dt>
-						<dd>
-							<TimeDisplay :date="detailTarget.created" />
-						</dd>
-						<dt>{{ $t('task.attributes.updated') }}</dt>
-						<dd>
-							<TimeDisplay :date="detailTarget.updated" />
-						</dd>
-					</dl>
-
-					<FormCheckbox
-						v-model="editable.is_admin"
-						:label="$t('admin.users.isAdminLabel')"
+		</PageHeader>
+		<Card>
+			<div class="admin-users">
+				<div class="admin-users__toolbar">
+					<FormInput
+						v-model="searchTerm"
+						type="search"
+						:placeholder="$t('admin.searchUsersPlaceholder')"
+						:aria-label="$t('admin.searchUsersPlaceholder')"
+						@input="onSearch"
 					/>
+				</div>
 
-					<FormField :label="$t('admin.users.status')">
-						<template #default="{id}">
-							<FormSelect
-								:id="id"
-								v-model.number="editable.status"
-								:options="statusOptions"
-							/>
-						</template>
-					</FormField>
+				<p
+					v-if="loading"
+					role="status"
+				>
+					{{ $t('misc.loading') }}
+				</p>
+				<template v-else>
+					<div class="has-horizontal-overflow">
+						<table class="table admin-table has-actions is-hoverable is-fullwidth">
+							<thead>
+								<tr>
+									<th>{{ $t('misc.id') }}</th>
+									<th>{{ $t('user.auth.username') }}</th>
+									<th>{{ $t('user.auth.email') }}</th>
+									<th>{{ $t('admin.users.issuer') }}</th>
+									<th>{{ $t('admin.users.status') }}</th>
+									<th>{{ $t('task.attributes.created') }}</th>
+									<th>
+										<span class="is-sr-only">{{ $t('misc.actions') }}</span>
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr
+									v-for="u in users"
+									:key="u.id"
+								>
+									<td :data-label="$t('misc.id')">
+										{{ u.id }}
+									</td>
+									<td :data-label="$t('user.auth.username')">
+										{{ u.username }}
+									</td>
+									<td :data-label="$t('user.auth.email')">
+										{{ u.email }}
+									</td>
+									<td :data-label="$t('admin.users.issuer')">
+										{{ u.auth_provider || $t('admin.users.issuerLocal') }}
+									</td>
+									<td :data-label="$t('admin.users.status')">
+										{{ statusLabel(u.status) }}
+									</td>
+									<td :data-label="$t('task.attributes.created')">
+										<TimeDisplay :date="u.created" />
+									</td>
+									<td class="actions">
+										<XButton
+											variant="secondary"
+											class="is-small"
+											@click="openDetails(u)"
+										>
+											{{ $t('admin.users.details') }}
+										</XButton>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<PaginationEmit
+						v-if="totalPages > 1"
+						:total-pages="totalPages"
+						:current-page="currentPage"
+						@pageChanged="goToPage"
+					/>
+				</template>
 
-					<template v-if="!detailTarget.auth_provider">
-						<FormField :label="$t('admin.users.newPasswordLabel')">
+				<Modal
+					v-if="detailTarget && !pendingDelete"
+					variant="hint-modal"
+					@close="closeDetail"
+				>
+					<Card
+						class="has-no-shadow"
+						:title="$t('admin.users.detailsTitle', {username: detailTarget.username})"
+					>
+						<dl class="admin-users__meta">
+							<dt>{{ $t('misc.id') }}</dt>
+							<dd>{{ detailTarget.id }}</dd>
+							<dt>{{ $t('user.auth.email') }}</dt>
+							<dd>{{ detailTarget.email }}</dd>
+							<dt>{{ $t('admin.users.issuer') }}</dt>
+							<dd>
+								{{ detailTarget.auth_provider || $t('admin.users.issuerLocal') }}
+							</dd>
+							<template v-if="detailTarget.issuer?.startsWith('http')">
+								<dt>{{ $t('admin.users.issuerUrl') }}</dt>
+								<dd class="admin-users__issuer-url-value">
+									{{ detailTarget.issuer }}
+								</dd>
+							</template>
+							<template v-if="detailTarget.subject">
+								<dt>{{ $t('admin.users.subject') }}</dt>
+								<dd class="admin-users__subject">
+									{{ detailTarget.subject }}
+								</dd>
+							</template>
+							<dt>{{ $t('task.attributes.created') }}</dt>
+							<dd>
+								<TimeDisplay :date="detailTarget.created" />
+							</dd>
+							<dt>{{ $t('task.attributes.updated') }}</dt>
+							<dd>
+								<TimeDisplay :date="detailTarget.updated" />
+							</dd>
+						</dl>
+
+						<FormCheckbox
+							v-model="editable.is_admin"
+							:label="$t('admin.users.isAdminLabel')"
+						/>
+
+						<FormField :label="$t('admin.users.status')">
 							<template #default="{id}">
-								<FormInput
+								<FormSelect
 									:id="id"
-									v-model="newPassword"
-									type="password"
-									autocomplete="new-password"
+									v-model.number="editable.status"
+									:options="statusOptions"
 								/>
 							</template>
 						</FormField>
-						<div class="admin-users__password-actions">
+
+						<template v-if="!detailTarget.auth_provider">
+							<FormField :label="$t('admin.users.newPasswordLabel')">
+								<template #default="{id}">
+									<FormInput
+										:id="id"
+										v-model="newPassword"
+										type="password"
+										autocomplete="new-password"
+									/>
+								</template>
+							</FormField>
+							<div class="admin-users__password-actions">
+								<XButton
+									variant="secondary"
+									:disabled="!newPassword || settingPassword"
+									:loading="settingPassword"
+									@click="setPassword"
+								>
+									{{ $t('admin.users.setPassword') }}
+								</XButton>
+								<XButton
+									variant="secondary"
+									:disabled="sendingResetEmail"
+									:loading="sendingResetEmail"
+									@click="sendResetEmail"
+								>
+									{{ $t('admin.users.sendResetEmail') }}
+								</XButton>
+							</div>
+						</template>
+
+						<template #footer>
 							<XButton
-								variant="secondary"
-								:disabled="!newPassword || settingPassword"
-								:loading="settingPassword"
-								@click="setPassword"
+								variant="tertiary"
+								@click="closeDetail"
 							>
-								{{ $t('admin.users.setPassword') }}
+								{{ $t('misc.cancel') }}
+							</XButton>
+							<XButton
+								v-if="detailTarget.id !== currentUserId"
+								variant="secondary"
+								:danger="true"
+								@click="pendingDelete = detailTarget"
+							>
+								{{ $t('misc.delete') }}
+							</XButton>
+							<XButton
+								variant="primary"
+								:disabled="!hasChanges || saving"
+								:loading="saving"
+								@click="saveChanges"
+							>
+								{{ $t('admin.users.saveButton') }}
+							</XButton>
+						</template>
+					</Card>
+				</Modal>
+
+				<Modal
+					v-if="createOpen"
+					variant="hint-modal"
+					@close="closeCreate"
+				>
+					<Card
+						class="has-no-shadow"
+						:title="$t('admin.users.createTitle')"
+					>
+						<FormField :label="$t('user.auth.username')">
+							<template #default="{id}">
+								<FormInput
+									:id="id"
+									v-model="createForm.username"
+									type="text"
+									required
+								/>
+							</template>
+						</FormField>
+						<FormField :label="$t('user.auth.email')">
+							<template #default="{id}">
+								<FormInput
+									:id="id"
+									v-model="createForm.email"
+									type="email"
+									required
+								/>
+							</template>
+						</FormField>
+						<FormField :label="$t('admin.users.nameLabel')">
+							<template #default="{id}">
+								<FormInput
+									:id="id"
+									v-model="createForm.name"
+									type="text"
+								/>
+							</template>
+						</FormField>
+						<FormField :label="$t('user.auth.password')">
+							<template #default="{id}">
+								<FormInput
+									:id="id"
+									v-model="createForm.password"
+									type="password"
+									autocomplete="new-password"
+									required
+								/>
+							</template>
+						</FormField>
+						<FormField :label="$t('user.settings.general.language')">
+							<template #default="{id}">
+								<FormInput
+									:id="id"
+									v-model="createForm.language"
+									type="text"
+								/>
+							</template>
+						</FormField>
+						<FormCheckbox
+							v-model="createForm.is_admin"
+							:label="$t('admin.users.isAdminLabel')"
+						/>
+						<FormCheckbox
+							v-model="createForm.skip_email_confirm"
+							:label="$t('admin.users.skipEmailConfirm')"
+						/>
+
+						<template #footer>
+							<XButton
+								variant="tertiary"
+								@click="closeCreate"
+							>
+								{{ $t('misc.cancel') }}
+							</XButton>
+							<XButton
+								variant="primary"
+								:disabled="creating || !createForm.username || !createForm.email || !createForm.password"
+								:loading="creating"
+								@click="submitCreate"
+							>
+								{{ $t('admin.users.createSubmit') }}
+							</XButton>
+						</template>
+					</Card>
+				</Modal>
+
+				<Modal
+					v-if="pendingDelete"
+					variant="hint-modal"
+					@close="cancelDelete"
+				>
+					<Card
+						class="has-no-shadow"
+						:title="$t('admin.users.confirmDeleteTitle')"
+					>
+						<p>{{ $t('admin.users.confirmDeleteIntro', {username: pendingDelete.username}) }}</p>
+						<p>{{ $t('admin.users.deleteModeScheduledHelp') }}</p>
+						<p>{{ $t('admin.users.deleteModeNowHelp') }}</p>
+
+						<template #footer>
+							<XButton
+								variant="tertiary"
+								@click="cancelDelete"
+							>
+								{{ $t('misc.cancel') }}
 							</XButton>
 							<XButton
 								variant="secondary"
-								:disabled="sendingResetEmail"
-								:loading="sendingResetEmail"
-								@click="sendResetEmail"
+								:loading="deleting && deleteMode === 'scheduled'"
+								:disabled="showDeleting"
+								@click="doDelete('scheduled')"
 							>
-								{{ $t('admin.users.sendResetEmail') }}
+								{{ $t('admin.users.deleteModeScheduled') }}
 							</XButton>
-						</div>
-					</template>
-
-					<template #footer>
-						<XButton
-							variant="tertiary"
-							@click="closeDetail"
-						>
-							{{ $t('misc.cancel') }}
-						</XButton>
-						<XButton
-							v-if="detailTarget.id !== currentUserId"
-							variant="secondary"
-							:danger="true"
-							@click="pendingDelete = detailTarget"
-						>
-							{{ $t('misc.delete') }}
-						</XButton>
-						<XButton
-							variant="primary"
-							:disabled="!hasChanges || saving"
-							:loading="saving"
-							@click="saveChanges"
-						>
-							{{ $t('admin.users.saveButton') }}
-						</XButton>
-					</template>
-				</Card>
-			</Modal>
-
-			<Modal
-				v-if="createOpen"
-				variant="hint-modal"
-				@close="closeCreate"
-			>
-				<Card
-					class="has-no-shadow"
-					:title="$t('admin.users.createTitle')"
-				>
-					<FormField :label="$t('user.auth.username')">
-						<template #default="{id}">
-							<FormInput
-								:id="id"
-								v-model="createForm.username"
-								type="text"
-								required
-							/>
+							<XButton
+								variant="primary"
+								:danger="true"
+								:loading="deleting && deleteMode === 'now'"
+								:disabled="showDeleting"
+								@click="doDelete('now')"
+							>
+								{{ $t('admin.users.deleteModeNow') }}
+							</XButton>
 						</template>
-					</FormField>
-					<FormField :label="$t('user.auth.email')">
-						<template #default="{id}">
-							<FormInput
-								:id="id"
-								v-model="createForm.email"
-								type="email"
-								required
-							/>
-						</template>
-					</FormField>
-					<FormField :label="$t('admin.users.nameLabel')">
-						<template #default="{id}">
-							<FormInput
-								:id="id"
-								v-model="createForm.name"
-								type="text"
-							/>
-						</template>
-					</FormField>
-					<FormField :label="$t('user.auth.password')">
-						<template #default="{id}">
-							<FormInput
-								:id="id"
-								v-model="createForm.password"
-								type="password"
-								autocomplete="new-password"
-								required
-							/>
-						</template>
-					</FormField>
-					<FormField :label="$t('user.settings.general.language')">
-						<template #default="{id}">
-							<FormInput
-								:id="id"
-								v-model="createForm.language"
-								type="text"
-							/>
-						</template>
-					</FormField>
-					<FormCheckbox
-						v-model="createForm.is_admin"
-						:label="$t('admin.users.isAdminLabel')"
-					/>
-					<FormCheckbox
-						v-model="createForm.skip_email_confirm"
-						:label="$t('admin.users.skipEmailConfirm')"
-					/>
-
-					<template #footer>
-						<XButton
-							variant="tertiary"
-							@click="closeCreate"
-						>
-							{{ $t('misc.cancel') }}
-						</XButton>
-						<XButton
-							variant="primary"
-							:disabled="creating || !createForm.username || !createForm.email || !createForm.password"
-							:loading="creating"
-							@click="submitCreate"
-						>
-							{{ $t('admin.users.createSubmit') }}
-						</XButton>
-					</template>
-				</Card>
-			</Modal>
-
-			<Modal
-				v-if="pendingDelete"
-				variant="hint-modal"
-				@close="cancelDelete"
-			>
-				<Card
-					class="has-no-shadow"
-					:title="$t('admin.users.confirmDeleteTitle')"
-				>
-					<p>{{ $t('admin.users.confirmDeleteIntro', {username: pendingDelete.username}) }}</p>
-					<p>{{ $t('admin.users.deleteModeScheduledHelp') }}</p>
-					<p>{{ $t('admin.users.deleteModeNowHelp') }}</p>
-
-					<template #footer>
-						<XButton
-							variant="tertiary"
-							@click="cancelDelete"
-						>
-							{{ $t('misc.cancel') }}
-						</XButton>
-						<XButton
-							variant="secondary"
-							:loading="deleting && deleteMode === 'scheduled'"
-							:disabled="showDeleting"
-							@click="doDelete('scheduled')"
-						>
-							{{ $t('admin.users.deleteModeScheduled') }}
-						</XButton>
-						<XButton
-							variant="primary"
-							:danger="true"
-							:loading="deleting && deleteMode === 'now'"
-							:disabled="showDeleting"
-							@click="doDelete('now')"
-						>
-							{{ $t('admin.users.deleteModeNow') }}
-						</XButton>
-					</template>
-				</Card>
-			</Modal>
-		</div>
-	</Card>
+					</Card>
+				</Modal>
+			</div>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -325,6 +351,7 @@ import {useI18n} from 'vue-i18n'
 import {useAuthStore} from '@/stores/auth'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import Card from '@/components/misc/Card.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import Modal from '@/components/misc/Modal.vue'
 import PaginationEmit from '@/components/misc/PaginationEmit.vue'
 import XButton from '@/components/input/Button.vue'
@@ -455,6 +482,8 @@ async function doDelete(mode: DeleteUserMode) {
 </script>
 
 <style lang="scss" scoped>
+@import './adminTable';
+
 .admin-users__toolbar {
 	display: flex;
 	gap: 0.5rem;
@@ -493,8 +522,8 @@ async function doDelete(mode: DeleteUserMode) {
 
 .admin-users__issuer-url-value,
 .admin-users__subject {
-	font-family: monospace;
-	font-size: 0.85rem;
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
 	word-break: break-all;
 }
 </style>

@@ -54,6 +54,7 @@ test.describe('Project View Kanban', () => {
 	let buckets
 
 	test.beforeEach(async ({authenticatedPage: page}) => {
+		void page // Authenticate before seeding the related projects.
 		const projects = await ProjectFactory.create(1)
 		await ProjectViewFactory.create(1, {
 			id: 4,
@@ -154,12 +155,29 @@ test.describe('Project View Kanban', () => {
 		const bucketDropdown = page.locator('.kanban .bucket .bucket-header .dropdown.options').first()
 		await bucketDropdown.locator('.dropdown-trigger').click()
 		await bucketDropdown.locator('.dropdown-menu .dropdown-item').filter({hasText: 'Limit: Not Set'}).click()
+		// Read the body inside a pass-through route: un-intercepted requests of the generated client report no body.
+		const sent: {limit?: unknown}[] = []
+		await page.route(`**/api/v2/projects/1/views/4/buckets/${buckets[0].id}`, async route => {
+			if (route.request().method() === 'PUT') sent.push(route.request().postDataJSON())
+			await route.fallback()
+		})
+		const saved = page.waitForResponse(response =>
+			response.request().method() === 'PUT'
+			&& response.url().endsWith(`/api/v2/projects/1/views/4/buckets/${buckets[0].id}`),
+		)
 		await bucketDropdown.locator('.dropdown-menu .field input.input').fill('3')
 		await bucketDropdown.locator('.dropdown-menu .field .control .button').click()
+
+		const response = await saved
+		expect(response.ok()).toBe(true)
+		expect(sent.map(body => body.limit)).toEqual([3])
+		expect((await response.json()).limit).toBe(3)
 
 		// Wait for the limit to be saved - the dropdown closes and limit is shown
 		await expect(page.locator('.global-notification')).toContainText('Success')
 		await expect(page.locator('.kanban .bucket .bucket-header span.limit').first()).toBeVisible()
+		await expect(page.locator('.kanban .bucket .bucket-header span.limit').first()).toContainText('/3')
+		await page.reload()
 		await expect(page.locator('.kanban .bucket .bucket-header span.limit').first()).toContainText('/3')
 	})
 
@@ -444,8 +462,8 @@ test.describe('Project View Kanban', () => {
 
 	test('Should respect filter query parameter from URL', async ({authenticatedPage: page}) => {
 		// Create buckets first
-		const projects = await ProjectFactory.create(1)
-		const views = await ProjectViewFactory.create(1, {
+		await ProjectFactory.create(1)
+		await ProjectViewFactory.create(1, {
 			id: 4,
 			project_id: 1,
 			view_kind: 3,
@@ -472,8 +490,8 @@ test.describe('Project View Kanban', () => {
 
 	test('Should respect search query parameter from URL', async ({authenticatedPage: page}) => {
 		// Create buckets first
-		const projects = await ProjectFactory.create(1)
-		const views = await ProjectViewFactory.create(1, {
+		await ProjectFactory.create(1)
+		await ProjectViewFactory.create(1, {
 			id: 4,
 			project_id: 1,
 			view_kind: 3,

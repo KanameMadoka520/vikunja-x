@@ -33,13 +33,13 @@ test.describe('Project View Table', () => {
 		await page.locator('.project-table .filter-container .card.columns-filter .card-content').getByText('Priority').click()
 
 		// Wait for Priority checkbox to be checked
-		await expect(page.getByRole('checkbox', {name: 'Checkbox Priority'})).toBeChecked()
+		await expect(page.getByRole('checkbox', {name: 'Priority', exact: true})).toBeChecked()
 
 		// Click Done checkbox to disable Done column (click on the text like Cypress does)
 		await page.locator('.project-table .filter-container .card.columns-filter .card-content').getByText('Done', {exact: true}).click()
 
 		// Wait for Done checkbox to be unchecked
-		await expect(page.getByRole('checkbox', {name: 'Checkbox Done', exact: true})).not.toBeChecked()
+		await expect(page.getByRole('checkbox', {name: 'Done', exact: true})).not.toBeChecked()
 
 		// Verify Priority column is now visible
 		await expect(page.locator('.project-table table.table th').filter({hasText: 'Priority'})).toBeVisible()

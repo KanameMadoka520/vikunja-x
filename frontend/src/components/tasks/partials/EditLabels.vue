@@ -153,18 +153,18 @@ async function createAndAddLabel(title: string) {
 
 <style lang="scss" scoped>
 .tag {
-	margin: .25rem !important;
+	margin: 2px !important;
 }
 
 .tag.search-result {
 	margin: 0 !important;
 }
 
-:deep(.input-wrapper) {
-	padding: .25rem !important;
+.multiselect :deep(.input-wrapper) {
+	padding: 2px;
 }
 
 :deep(input.input) {
-	padding: 0 .5rem;
+	padding: 0 var(--space-2);
 }
 </style>

@@ -88,19 +88,16 @@ const projects = computed(() => {
 .recent-project-link {
 	display: flex;
 	align-items: center;
-	gap: .625rem;
-	min-block-size: 2.5rem;
-	padding: .375rem .5rem;
-	border-radius: $radius-large;
-	color: var(--text);
+	gap: var(--space-3);
+	min-block-size: var(--control-height);
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-size: var(--text-md);
 
 	&:hover {
-		background: var(--grey-100);
-		color: var(--text-strong);
-	}
-
-	@media (pointer: coarse) {
-		min-block-size: 2.75rem;
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
 }
 
@@ -110,23 +107,23 @@ const projects = computed(() => {
 	justify-content: center;
 	flex-shrink: 0;
 	inline-size: 1rem;
-	color: var(--grey-400);
+	color: var(--text-tertiary);
 
 	:deep(.color-bubble) {
 		margin: 0;
 	}
 
 	svg {
-		inline-size: .8rem;
-		block-size: .8rem;
+		inline-size: .75rem;
+		block-size: .75rem;
 	}
 }
 
 .recent-project-dot {
 	inline-size: .5rem;
 	block-size: .5rem;
-	border-radius: 50%;
-	background: var(--grey-300);
+	border-radius: var(--radius-full);
+	background: var(--border-strong);
 }
 
 .recent-project-title {

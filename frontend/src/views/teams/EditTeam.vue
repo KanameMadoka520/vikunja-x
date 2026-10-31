@@ -1,8 +1,13 @@
 <template>
 	<div
-		class="loader-container is-max-width-desktop"
-		:class="{ 'is-loading': showTeamLoading }"
+		class="edit-team is-max-width-desktop"
+		:aria-busy="isFetching"
 	>
+		<LoadError
+			v-if="isError && !team"
+			:retry="() => refetch()"
+		/>
+
 		<EditTeamForm
 			v-if="team && userIsAdmin && !team.external_id"
 			:key="team.id"
@@ -10,17 +15,16 @@
 			:loading="teamLoading"
 			:members-loading="membersLoading"
 			@save="save"
-			@delete="showDeleteModal = true"
 		/>
 
 		<Card
-			class="is-fullwidth has-overflow"
+			class="is-fullwidth has-overflow team-members"
 			:title="$t('team.edit.members')"
 			:padding="false"
 		>
 			<form
 				v-if="userIsAdmin && !team?.external_id"
-				class="p-4"
+				class="team-members__add"
 				@submit.prevent="addUser"
 			>
 				<div class="field has-addons">
@@ -45,6 +49,7 @@
 					<div class="control">
 						<XButton
 							icon="plus"
+							:loading="addMemberMutation.isPending.value"
 							@click="addUser"
 						>
 							{{ $t('team.edit.addUser') }}
@@ -58,24 +63,58 @@
 					{{ $t('team.edit.mustSelectUser') }}
 				</p>
 			</form>
-			<div class="has-horizontal-overflow">
-				<table class="table has-actions is-striped is-hoverable is-fullwidth">
+			<div
+				v-if="!team && isPending"
+				class="team-members__skeleton"
+				role="status"
+			>
+				<span class="is-sr-only">{{ $t('misc.loading') }}</span>
+				<span
+					v-for="row in 3"
+					:key="row"
+					class="team-members__skeleton-row"
+					aria-hidden="true"
+				/>
+			</div>
+			<div
+				v-else
+				class="has-horizontal-overflow"
+			>
+				<table class="table has-actions is-hoverable is-fullwidth team-members__table">
+					<thead>
+						<tr>
+							<th scope="col">
+								{{ $t('misc.user') }}
+							</th>
+							<th scope="col">
+								{{ $t('team.edit.role') }}
+							</th>
+							<th
+								v-if="userIsAdmin"
+								scope="col"
+								class="actions"
+							>
+								<span class="is-sr-only">{{ $t('misc.actions') }}</span>
+							</th>
+						</tr>
+					</thead>
 					<tbody>
 						<tr
 							v-for="m in sortedMembers"
 							:key="m.id"
 						>
 							<td>
-								<User
-									:avatar-size="24"
-									:user="m"
-									class="m-0"
-								/>
-							</td>
-							<td>
-								<template v-if="m.id === userInfo?.id">
-									<b class="is-success">{{ $t('tcymc.you') }}</b>
-								</template>
+								<span class="team-member">
+									<User
+										:avatar-size="24"
+										:user="m"
+										class="m-0"
+									/>
+									<span
+										v-if="m.id === userInfo?.id"
+										class="team-member__you"
+									>{{ $t('tcymc.you') }}</span>
+								</span>
 							</td>
 							<td class="type">
 								<template v-if="m.admin">
@@ -95,22 +134,27 @@
 								v-if="userIsAdmin"
 								class="actions"
 							>
-								<XButton
-									v-if="m.id !== userInfo?.id"
-									:loading="membersLoading"
-									class="mie-2"
-									@click="() => toggleUserType(m)"
-								>
-									{{ m.admin ? $t('team.edit.makeMember') : $t('team.edit.makeAdmin') }}
-								</XButton>
-								<XButton
-									v-if="m.id !== userInfo?.id"
-									:loading="membersLoading"
-									danger
-									icon="trash-alt"
-									:aria-label="$t('team.edit.deleteUser.header')"
-									@click="() => {memberToDelete = m; showUserDeleteModal = true}"
-								/>
+								<template v-if="m.id !== userInfo?.id">
+									<XButton
+										variant="secondary"
+										class="is-small"
+										:shadow="false"
+										:loading="isTogglingMember(m)"
+										:disabled="isRemovingMember(m) || undefined"
+										@click="() => toggleUserType(m)"
+									>
+										{{ m.admin ? $t('team.edit.makeMember') : $t('team.edit.makeAdmin') }}
+									</XButton>
+									<XButton
+										variant="tertiary"
+										class="is-small team-member__remove"
+										:shadow="false"
+										:loading="isRemovingMember(m)"
+										icon="trash-alt"
+										:aria-label="$t('team.edit.deleteUser.header')"
+										@click="() => {memberToDelete = m; showUserDeleteModal = true}"
+									/>
+								</template>
 							</td>
 						</tr>
 					</tbody>
@@ -118,17 +162,44 @@
 			</div>
 		</Card>
 
-		<XButton
+		<section
 			v-if="team && !team.external_id"
-			class="is-fullwidth is-danger"
-			@click="showLeaveModal = true"
+			class="team-danger-zone"
+			aria-labelledby="team-danger-zone-heading"
 		>
-			{{ $t('team.edit.leave.title') }}
-		</XButton>
+			<h2
+				id="team-danger-zone-heading"
+				class="team-danger-zone__title"
+			>
+				{{ $t('team.edit.dangerZone') }}
+			</h2>
+			<div class="team-danger-zone__actions">
+				<XButton
+					variant="secondary"
+					icon="sign-out-alt"
+					:shadow="false"
+					class="team-danger-zone__leave"
+					@click="showLeaveModal = true"
+				>
+					{{ $t('team.edit.leave.title') }}
+				</XButton>
+				<XButton
+					v-if="userIsAdmin"
+					danger
+					icon="trash-alt"
+					:shadow="false"
+					:loading="deleteMutation.isPending.value"
+					@click="showDeleteModal = true"
+				>
+					{{ $t('team.edit.delete.header') }}
+				</XButton>
+			</div>
+		</section>
 
 		<!-- Leave team modal -->
 		<Modal
 			v-if="showLeaveModal"
+			danger
 			@close="showLeaveModal = false"
 			@submit="leave()"
 		>
@@ -151,6 +222,7 @@
 		<!-- Team delete modal -->
 		<Modal
 			:enabled="showDeleteModal"
+			danger
 			@close="showDeleteModal = false"
 			@submit="deleteTeam()"
 		>
@@ -170,6 +242,7 @@
 		<!-- User delete modal -->
 		<Modal
 			:enabled="showUserDeleteModal"
+			danger
 			@close="showUserDeleteModal = false"
 			@submit="deleteMember()"
 		>
@@ -196,11 +269,11 @@ import Multiselect from '@/components/input/Multiselect.vue'
 import User from '@/components/misc/User.vue'
 import ProjectAccessCleanupList from '@/components/sharing/ProjectAccessCleanupList.vue'
 import EditTeamForm from '@/components/teams/EditTeamForm.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 import {getDisplayName} from '@/helpers/user'
 import {useUpdateTeamMutation, useDeleteTeamMutation, useAddTeamMemberMutation, useRemoveTeamMemberMutation, useLeaveTeamMutation, useToggleTeamMemberAdminMutation} from '@/client/queries/teams'
 import {useTeam} from '@/composables/useTeams'
 import {useUserSearch} from '@/composables/useUserSearch'
-import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import {PERMISSIONS} from '@/constants/permissions'
 import {useTitle} from '@/composables/useTitle'
 import {useAuthStore} from '@/stores/auth'
@@ -211,7 +284,7 @@ const route = useRoute()
 const router = useRouter()
 const {t} = useI18n({useScope: 'global'})
 const teamId = computed(() => Number(route.params.id))
-const {data: team, isFetching} = useTeam(teamId)
+const {data: team, isFetching, isPending, isError, refetch} = useTeam(teamId)
 
 const userIsAdmin = computed(() => (team.value?.max_permission ?? PERMISSIONS.READ) === PERMISSIONS.ADMIN)
 const userInfo = computed(() => authStore.info)
@@ -222,8 +295,7 @@ const addMemberMutation = useAddTeamMemberMutation()
 const removeMemberMutation = useRemoveTeamMemberMutation()
 const leaveMutation = useLeaveTeamMutation()
 const toggleAdminMutation = useToggleTeamMemberAdminMutation()
-const teamLoading = computed(() => isFetching.value || updateMutation.isPending.value || deleteMutation.isPending.value)
-const showTeamLoading = useDelayedLoading(teamLoading)
+const teamLoading = computed(() => updateMutation.isPending.value || deleteMutation.isPending.value)
 const membersLoading = computed(() => addMemberMutation.isPending.value || removeMemberMutation.isPending.value || toggleAdminMutation.isPending.value)
 const userSearch = ref('')
 const {users: userResults, isFetching: usersLoading} = useUserSearch(userSearch)
@@ -273,6 +345,15 @@ async function addUser() {
 	userSearch.value = ''
 }
 
+// Only the row being changed shows a spinner.
+function isTogglingMember(member: TeamUser) {
+	return toggleAdminMutation.isPending.value && toggleAdminMutation.variables.value?.username === member.username
+}
+
+function isRemovingMember(member: TeamUser) {
+	return removeMemberMutation.isPending.value && removeMemberMutation.variables.value?.username === member.username
+}
+
 function toggleUserType(member: TeamUser) {
 	if (!member.username) return
 	toggleAdminMutation.mutate({teamId: teamId.value, username: member.username})
@@ -296,11 +377,108 @@ async function leave() {
 </script>
 
 <style lang="scss" scoped>
+.edit-team {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
 .card.is-fullwidth {
-	margin-block-end: 1rem;
+	margin-block-end: 0;
 
 	.content {
 		padding: 0;
 	}
+}
+
+.team-members__add {
+	padding: var(--space-4);
+	border-block-end: 1px solid var(--border-subtle);
+}
+
+.team-members__table {
+	th {
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+		font-weight: var(--weight-semibold);
+		white-space: nowrap;
+	}
+
+	td {
+		vertical-align: middle;
+	}
+
+	.type {
+		color: var(--text-secondary);
+		white-space: nowrap;
+	}
+
+	.actions {
+		text-align: end;
+		white-space: nowrap;
+	}
+}
+
+.team-member {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.team-member__you {
+	padding: .0625rem var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+}
+
+// Out-ranks the tertiary button's inherited colour.
+.team-members__table .button.team-member__remove {
+	margin-inline-start: var(--space-1);
+	color: var(--danger-text);
+}
+
+.team-members__skeleton {
+	display: grid;
+	gap: var(--space-2);
+	padding: var(--space-4);
+}
+
+.team-members__skeleton-row {
+	block-size: 1.5rem;
+	inline-size: 50%;
+	border-radius: var(--radius-xs);
+	background: var(--surface-active);
+}
+
+.team-danger-zone {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3) var(--space-4);
+	padding: var(--space-4);
+	border: 1px solid var(--border-default);
+	border-inline-start: 3px solid var(--danger);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.team-danger-zone__title {
+	margin: 0;
+	font-size: var(--text-lg);
+}
+
+.team-danger-zone__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.team-danger-zone__actions .button.team-danger-zone__leave {
+	color: var(--danger-text);
 }
 </style>

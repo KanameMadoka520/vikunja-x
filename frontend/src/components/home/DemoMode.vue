@@ -11,7 +11,8 @@ const enabled = computed(() => configStore.demo_mode_enabled && !hide.value)
 <template>
 	<div
 		v-if="enabled"
-		class="demo-mode-banner"
+		class="demo-mode-banner d-print-none"
+		role="status"
 	>
 		<p>
 			{{ $t('demo.title') }}
@@ -28,25 +29,43 @@ const enabled = computed(() => configStore.demo_mode_enabled && !hide.value)
 </template>
 
 <style scoped lang="scss">
+// A full-width warning strip that stops short of the bottom-end dock.
 .demo-mode-banner {
 	position: fixed;
 	inset-block-end: 0;
-	inset-inline: 0;
-	background: var(--danger);
-	z-index: 100;
-	padding: .5rem;
+	inset-inline: 0 var(--dock-reserve-inline);
+	z-index: var(--layer-floating);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-block-size: var(--nav-row-height);
+	padding: var(--space-1) var(--space-2) calc(var(--space-1) + env(safe-area-inset-bottom, 0px)) var(--space-4);
+	border-start-end-radius: var(--radius-md);
+	// Deep red with white text keeps 4.5:1 in both colour schemes.
+	background: hsl(var(--danger-h), var(--danger-s), 38%);
+	color: var(--text-on-accent);
+	font-size: var(--text-sm);
 	text-align: center;
-	
-	&, strong {
-		color: hsl(220, 13%, 91%) !important; // --grey-200 in light mode, hardcoded because the color should not change
+
+	strong {
+		color: inherit;
 	}
 }
 
 .hide-button {
-	padding: .25rem .5rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	inline-size: var(--nav-row-height);
+	block-size: var(--nav-row-height);
+	border-radius: $radius;
+	color: inherit;
 	cursor: pointer;
-	position: absolute;
-	inset-inline-end: .5rem;
-	inset-block-start: .25rem;
+
+	&:hover {
+		background: hsla(0, 0%, 100%, .14);
+	}
 }
 </style>

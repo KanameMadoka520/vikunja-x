@@ -9,6 +9,7 @@
 		class="gantt-container"
 		role="application"
 		:aria-label="$t('project.gantt.chartLabel')"
+		:style="{'--gantt-row-height': `${ROW_HEIGHT}px`}"
 	>
 		<div class="gantt-chart-wrapper">
 			<GanttTimelineHeader
@@ -19,7 +20,7 @@
 			<GanttVerticalGridLines
 				:timeline-data="timelineData"
 				:total-width="totalWidth"
-				:height="ganttRows.length * 40"
+				:height="totalHeight"
 				:day-width-pixels="dayWidthPixels"
 			/>
 
@@ -115,6 +116,7 @@ import GanttRelationArrows from '@/components/gantt/GanttRelationArrows.vue'
 import Loading from '@/components/misc/Loading.vue'
 
 import {MILLISECONDS_A_DAY} from '@/constants/date'
+import {GANTT_ROW_HEIGHT as ROW_HEIGHT} from '@/components/gantt/ganttGeometry'
 import {getNaturalDayCount, roundToNaturalDayBoundary} from '@/helpers/time/roundToNaturalDayBoundary'
 
 const props = defineProps<{
@@ -311,14 +313,8 @@ function updateDayWidthPixels() {
 	const node = ganttContainer.value
 	if (!node) return
 
-	const rect = node.getBoundingClientRect()
-	const styles = window.getComputedStyle(node)
-
-	const marginLeft = parseFloat(styles.marginLeft) || 0
-	const marginRight = parseFloat(styles.marginRight) || 0
-
-	// max width without overflow
-	const maxWidth = rect.width - marginLeft - marginRight
+	// clientWidth leaves out the vertical scrollbar the container gets once its rows scroll
+	const maxWidth = node.clientWidth
 
 	const dayCount = Math.ceil(
 		(dateToDate.value.valueOf() - dateFromDate.value.valueOf()) / MILLISECONDS_A_DAY,
@@ -346,6 +342,34 @@ watch(ganttContainer, el => {
 }, {flush: 'post', immediate: true})
 
 onMounted(() => window.addEventListener('resize', updateDayWidthPixels))
+
+// Open each range with today in view, a few days in from the start edge. Only once per range, so a
+// background refetch or a resize keeps wherever the user scrolled to.
+const TODAY_LEAD_DAYS = 3
+let scrolledRangeKey = ''
+
+watch(
+	[ganttContainer, dayWidthPixels, dateFromDate, dateToDate],
+	([el, dayWidth, from, to]) => {
+		if (!el || dayWidth <= 0) {
+			return
+		}
+		const key = `${from.valueOf()}-${to.valueOf()}`
+		if (key === scrolledRangeKey) {
+			return
+		}
+		scrolledRangeKey = key
+		if (getComputedStyle(el).direction === 'rtl') {
+			return
+		}
+		const todayIndex = Math.floor((dayjs().startOf('day').valueOf() - from.valueOf()) / MILLISECONDS_A_DAY)
+		if (todayIndex < 0 || todayIndex >= timelineData.value.length) {
+			return
+		}
+		el.scrollLeft = Math.max(0, (todayIndex - TODAY_LEAD_DAYS) * dayWidth)
+	},
+	{flush: 'post'},
+)
 
 onBeforeUnmount(() => {
 	resizeObserver?.disconnect()
@@ -415,8 +439,6 @@ watch(
 )
 
 // Compute bar positions for arrow rendering
-const ROW_HEIGHT = 40
-
 const barPositions = computed(() => {
 	const positions = new Map<number, GanttBarPosition>()
 	const ds = dragState.value
@@ -814,9 +836,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+// Scrolls on both axes inside the card, so the timeline header can stick while the rows scroll.
 .gantt-container {
-	overflow-x: auto;
+	overflow: auto;
 	min-inline-size: 100%;
+	max-block-size: max(18rem, calc(100dvh - var(--header-height) - 12rem));
+	overscroll-behavior-inline: contain;
 }
 
 .gantt-chart-wrapper {
@@ -831,11 +856,11 @@ onUnmounted(() => {
 
 .gantt-group-band {
 	position: absolute;
-	background: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.06);
-	border: 1px solid hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.12);
-	border-radius: 6px;
-	pointer-events: none;
 	z-index: 1;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	background: var(--tint-info);
+	pointer-events: none;
 }
 
 .gantt-rows {
@@ -845,7 +870,7 @@ onUnmounted(() => {
 
 .gantt-row-content {
 	position: relative;
-	min-block-size: 40px;
+	min-block-size: var(--gantt-row-height);
 	inline-size: 100%;
 }
 </style>

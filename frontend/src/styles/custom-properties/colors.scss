@@ -153,7 +153,6 @@
   --input-shadow: inset 0 0.0625em 0.125em rgba(var(--scheme-invert-rgb, 10.2, 10.2, 10.2), 0.05);
   --input-placeholder-color: #6e6e6e;
   --input-hover-color: var(--text-strong, #363636);
-  --input-hover-border-color: var(--border-hover, #b5b5b5);
   --input-focus-color: var(--text-strong, #363636);
   --input-focus-border-color: var(--link, #485fc7);
   --input-focus-box-shadow-color: var(--input-focus-box-shadow-color-hsla, rgba(72, 95, 199, 0.25));
@@ -202,7 +201,10 @@
   --grey-light: var(--grey-300);
   --grey-lighter: var(--grey-200);
   --grey-lightest: var(--grey-100);
-  --input-border-color: var(--grey-200);
+  // Inputs need a visible boundary; the hairline --border-* tokens are for decoration only.
+  // Control boundaries need 3:1 against the surface (WCAG 1.4.11): .8 gives 3.3:1 on white.
+  --input-border-color: hsla(var(--grey-500-hsl), .8);
+  --input-hover-border-color: var(--grey-500);
 
   --white-h: 0deg;
   --white-s: 0%;
@@ -333,6 +335,12 @@
 
       // Bright values already pass contrast on dark backgrounds; skip the light-theme darkening
       --danger-text: var(--danger);
+
+      // Page sits below cards (--white = grey-50), so surfaces read as raised, not sunken.
+      --site-background: hsl(222, 32%, 7.5%);
+      // The lighter dark-mode grey reaches 3.3:1 on dark surfaces at a lower alpha.
+      --input-border-color: hsla(var(--grey-500-hsl), .62);
+      --input-hover-border-color: hsla(var(--grey-500-hsl), .85);
 
       --scheme-main-bis: var(--grey-100);
       --scheme-main-ter: var(--grey-100);

@@ -66,7 +66,8 @@
 		"scope": "统计最后一次模型响应：{model}。不包含工具执行、联网搜索和之前几次模型请求的耗时。Token 不等于字数。",
 		"streamHelp": "计算方法：（上游报告的输出 token − 1）÷ 从首个文字或思考片段到本次模型响应结束的秒数。输出 token 是否包含思考，以服务商统计为准。这是客户端观测速度，不是模型硬件基准。",
 		"visibleHelp": "模型没有流式返回思考内容，因此先减去上游单独报告的思考 token，再用（正文输出 token − 1）÷ 从正文首个片段到响应结束的秒数。",
-		"requestHelp": "这是非流式响应：输出 token ÷ 本次模型请求总秒数，包含等待、提示词处理及思考时间，与流式生成速度的口径不同。"
+		"requestHelp": "这是非流式响应：输出 token ÷ 本次模型请求总秒数，包含等待、提示词处理及思考时间，与流式生成速度的口径不同。",
+		"rate": "{rate} Token/秒"
 	},
 	"modelSettings": {
 		"tabs": "模型设置分页",
@@ -77,7 +78,21 @@
 		"saveRoles": "保存功能分配",
 		"saved": "已保存",
 		"saveConnectionFirst": "请先单独保存连接，再将它分配给功能。其他连接未保存的修改会保留在草稿中。",
-		"removeConfirm": "确定删除此已保存连接吗？使用它的功能将停用，其他连接不受影响。"
+		"removeConfirm": "确定删除此已保存连接吗？使用它的功能将停用，其他连接不受影响。",
+		"chipContext": "上下文 {tokens}",
+		"chipOutput": "输出 {tokens}",
+		"chipNonStreaming": "非流式",
+		"usedBy": "用于：{features}",
+		"keyPending": "新密钥未保存",
+		"keyStored": "密钥已存储",
+		"keyMissing": "未设置密钥",
+		"statusDraft": "尚未保存",
+		"statusEdited": "有未保存的修改",
+		"statusTested": "测试通过",
+		"statusTestFailed": "测试失败",
+		"statusSaved": "已保存，未测试",
+		"edit": "编辑",
+		"collapse": "收起"
 	},
 	"modelPicker": {
 		"browse": "展开模型列表",
@@ -178,7 +193,8 @@
   "uploadFailed": "附件上传未完成；已上传的文件仍保留在草稿中。请查看上传状态并重试。",
   "imageModelRequired": "当前模型未声明支持图像。请切换到支持图像的模型，或在模型设置中确认输入能力。",
   "fileInputHint": "图片会随消息发送给模型；纯文本提供标注预览，其他文件仅保存供下载与导出。",
-  "defaultPrompt": "请查看这条消息附带的文件，并帮助我理解其中的内容。"
+  "defaultPrompt": "请查看这条消息附带的文件，并帮助我理解其中的内容。",
+  "dropToAttach": "松开即可添加附件"
 },
   "screenshot": {
     "short": "截图脱敏",
@@ -258,7 +274,7 @@
       "lastInput": "最近一次服务商报告的输入"
   },
 	"404": {
-		"title": "未找到数据",
+		"title": "页面不存在",
 		"text": "您请求的页面不存在。"
 	},
 	"home": {
@@ -367,7 +383,12 @@
 			"registrationConfirmEmail": "账户创建成功！请到邮箱点击确认邮件中的链接，然后登录。",
 			"inviteInvalid": "此邀请链接无效或已过期。",
 			"inviteLoadFailed": "无法加载此邀请，请重试。",
-			"inviteTeams": "你将加入：{teams}"
+			"inviteTeams": "你将加入：{teams}",
+			"or": "或",
+			"hero": {
+			  "register": "在同一处从容规划你的工作。",
+			  "reset": "帮你重新回到账户。"
+			}
 		},
 		"settings": {
 			"title": "设置",
@@ -428,7 +449,8 @@
 					"12h": "12 小时制（上午/下午）",
 					"24h": "24 小时制（HH:mm）"
 				},
-				"externalUserNameChange": "你的名称由登录服务（{provider}）管理，请前往该服务修改。"
+				"externalUserNameChange": "你的名称由登录服务（{provider}）管理，请前往该服务修改。",
+				"description": "姓名、项目与任务默认值、语言、时间和外观。"
 			},
 			"sections": {
 				"personalInformation": "个人信息",
@@ -451,7 +473,9 @@
 				"disable": "禁用两步验证",
 				"disableSuccess": "两步验证已禁用。",
 				"confirmNotice": "启用双重验证后，所有设备上的登录会话都会退出，你需要重新登录。",
-				"confirmSuccess": "双重验证已启用！"
+				"confirmSuccess": "双重验证已启用！",
+				"description": "登录时需要输入验证器应用生成的验证码。",
+				"qrAlt": "用于验证器应用的二维码"
 			},
 			"caldav": {
 				"title": "CalDAV",
@@ -466,7 +490,12 @@
 				"wontSeeItAgain": "请妥善保存，此令牌之后不会再次显示。",
 				"mustUseToken": "通过第三方客户端使用 CalDAV 前，需要先创建 CalDAV 令牌，并将其填入客户端的密码栏。",
 				"usernameIs": "你的 CalDAV 用户名是：{0}",
-				"apiTokenHint": "也可以使用具有 CalDAV 权限的 API 令牌，在 {link} 中创建。"
+				"apiTokenHint": "也可以使用具有 CalDAV 权限的 API 令牌，在 {link} 中创建。",
+				"description": "将任务同步到日历和提醒事项应用。",
+				"delete": {
+				  "header": "删除此 CalDAV 令牌",
+				  "text": "使用此令牌的客户端将停止同步，此操作无法撤销。"
+				}
 			},
 			"avatar": {
 				"title": "头像",
@@ -478,7 +507,9 @@
 				"statusUpdateSuccess": "头像状态更新成功！",
 				"setSuccess": "头像设置成功！",
 				"ldap": "您的头像是从您的组织目录服务(LDAP)自动同步的。您可以询问您的IT团队如何更改它。",
-				"openid": "您的头像是从您的登陆提供方({provider})自动同步的。您可以在那里修改。"
+				"openid": "您的头像是从您的登陆提供方({provider})自动同步的。您可以在那里修改。",
+				"description": "选择其他人看到的头像样式。",
+				"provider": "头像来源"
 			},
 			"quickAddMagic": {
 				"title": "快速添加 Magic 模式",
@@ -563,7 +594,8 @@
 				"howTo": "你可以使用支持 Atom 的阅读器订阅 Vikunja 通知，订阅地址如下：",
 				"usernameIs": "你的订阅用户名是：{0}",
 				"apiTokenHint": "请使用具有 {scope} 权限的 API 令牌进行身份验证，在 {link} 中创建。",
-				"tokenTitle": "Atom 订阅"
+				"tokenTitle": "Atom 订阅",
+				"description": "在任意订阅阅读器中查看你的通知。"
 			},
 			"backgroundBrightness": {
 				"title": "背景亮度"
@@ -631,7 +663,29 @@
 				}
 			},
 			"currentEmail": "当前收件邮箱",
-			"currentEmailHelp": "账号邮件发送到此地址。更换邮箱需完成确认后才生效；提醒邮件可在这里设置："
+			"currentEmailHelp": "账号邮件发送到此地址。更换邮箱需完成确认后才生效；提醒邮件可在这里设置：",
+			"groups": {
+			  "account": "账户",
+			  "security": "安全",
+			  "notifications": "通知",
+			  "ai": "AI 与语音",
+			  "integrations": "集成",
+			  "data": "数据",
+			  "site": "站点管理",
+			  "links": "更多"
+			},
+			"scope": {
+			  "siteBadge": "全站",
+			  "aiAccount": "仅对你的账户生效。密钥只保存在服务器，不会再次显示。",
+			  "siteMail": "全站设置：修改会影响本站所有用户的邮件发送。",
+			  "publicPage": "发布后，任何拿到链接的人都能看到。"
+			},
+			"saveBar": {
+			  "clean": "所有更改均已保存。",
+			  "discard": "放弃更改"
+			},
+			"emailDescription": "更改用于登录和接收通知的邮箱地址。",
+			"passwordDescription": "请使用足够长、且未在其他地方使用过的密码。"
 		},
 		"deletion": {
 			"title": "删除您的 Vikunja 帐户",
@@ -742,7 +796,6 @@
 			"share": "共享",
 			"links": {
 				"title": "共享链接",
-				"what": "什么是共享链接？",
 				"explanation": "共享链接使您能够轻松地与其他未注册账户的访客共享一个列表。",
 				"create": "创建共享链接",
 				"name": "共享链接名称 (可选)",
@@ -820,23 +873,15 @@
 			"chartLabel": "项目甘特图",
 			"scheduledDates": "预定日期",
 			"estimatedDates": "估计日期",
-			"taskBarsForRow": "第 {rowId} 行的任务时间条",
-			"taskBarLabel": "任务：{task}。从 {startDate} 到 {endDate}。{dateType}。点击编辑，拖动调整时间。",
-			"resizeStartDate": "调整任务 {task} 的开始日期",
-			"resizeEndDate": "调整任务 {task} 的结束日期",
-			"timelineHeader": "显示月份和日期的时间轴表头",
-			"monthsRow": "月份行",
-			"daysRow": "日期行",
-			"monthLabel": "月份：{month}",
-			"dayLabel": "日期：{date}，{weekday}",
-			"dayLabelToday": "今天：{date}，{weekday}",
+			"taskBarLabel": "任务：{task}。从 {startDate} 到 {endDate}。{dateType}。双击或按 Enter 打开；拖动或用方向键调整时间。",
 			"taskAriaLabel": "任务：{task}",
 			"taskAriaLabelById": "任务 {id}",
 			"partialDatesStart": "仅设置开始日期（结束时间未定）",
 			"partialDatesEnd": "仅设置结束日期（开始时间未定）",
 			"expandGroup": "展开分组：{task}",
 			"collapseGroup": "折叠分组：{task}",
-			"toggleRelationArrows": "显示或隐藏关联箭头"
+			"toggleRelationArrows": "显示或隐藏关联箭头",
+			"taskBarsFor": "“{task}”的时间条"
 		},
 		"table": {
 			"title": "表格",
@@ -846,28 +891,35 @@
 		"kanban": {
 			"title": "看板",
 			"limit": "限制: {limit}",
-			"doneBucket": "已完成的桶数",
-			"doneBucketHint": "移入此存储桶的所有任务将自动标记为已完成。",
-			"doneBucketHintExtended": "所有移入已完成存储桶的任务都将自动标记为已完成。 从其他位置标记为已完成的任务也将被移动。",
-			"doneBucketSavedSuccess": "已完成存储桶已保存成功。",
-			"defaultBucket": "默认桶",
-			"defaultBucketHint": "当创建任务时没有指定一个桶，它们将被添加到此桶中。",
-			"defaultBucketSavedSuccess": "默认存储桶已成功保存。",
-			"deleteLast": "无法删除最后一个存储桶。",
+			"doneBucket": "完成分组",
+			"doneBucketHint": "移入此分组的任务会自动标记为已完成。",
+			"doneBucketHintExtended": "移入完成分组的任务会自动标记为已完成；在其他地方标记为已完成的任务也会移到这里。",
+			"doneBucketSavedSuccess": "完成分组已保存。",
+			"defaultBucket": "默认分组",
+			"defaultBucketHint": "新建任务时如果没有指定分组，就会放进这个分组。",
+			"defaultBucketSavedSuccess": "默认分组已保存。",
+			"deleteLast": "不能删除最后一个分组。",
 			"addTaskPlaceholder": "输入新任务标题…",
 			"addTask": "添加任务",
 			"addAnotherTask": "添加另一个任务",
-			"addBucket": "创建一个新的存储桶。",
-			"addBucketPlaceholder": "输入新的存储桶标题…",
-			"deleteHeaderBucket": "删除存储桶",
-			"deleteBucketText1": "您确定要删除此存储桶吗？",
-			"deleteBucketText2": "这不会删除任何任务，而是将其移动到默认存储桶中。",
-			"deleteBucketSuccess": "存储桶已删除。",
-			"bucketTitleSavedSuccess": "存储桶标题已保存。",
-			"bucketLimitSavedSuccess": "存储桶限制已保存。",
-			"collapse": "折叠此存储桶",
+			"addBucket": "新建分组",
+			"addBucketPlaceholder": "输入新分组的名称…",
+			"deleteHeaderBucket": "删除分组",
+			"deleteBucketText1": "确定要删除这个分组吗？",
+			"deleteBucketText2": "其中的任务不会被删除，而是移到默认分组。",
+			"deleteBucketSuccess": "分组已删除。",
+			"bucketTitleSavedSuccess": "分组名称已保存。",
+			"bucketLimitSavedSuccess": "分组任务上限已保存。",
+			"collapse": "折叠此分组",
 			"bucketLimitReached": "您已经达到数量上限，请删除任务或者提高上限然后再添加任务。",
-			"bucketOptions": "分组选项"
+			"bucketOptions": "分组选项",
+			"expand": "展开此分组",
+			"expandBucket": "展开“{title}”",
+			"rename": "重命名",
+			"limitFull": "已达上限",
+			"limitLabel": "此分组的任务上限",
+			"limitReachedShort": "已达上限：移出任务或提高上限后才能继续添加。",
+			"refreshFailed": "其他地方的修改已保存，但此看板未能刷新，重新加载前可能显示旧内容。"
 		},
 		"pseudo": {
 			"favorites": {
@@ -897,9 +949,9 @@
 			"title": "标题",
 			"actions": "操作",
 			"kind": "类别",
-			"bucketConfigMode": "桶配置模式",
-			"bucketConfig": "桶配置",
-			"bucketConfigManual": "手册",
+			"bucketConfigMode": "分组配置方式",
+			"bucketConfig": "分组配置",
+			"bucketConfigManual": "手动",
 			"filter": "过滤器",
 			"create": "创建视图",
 			"createSuccess": "视图创建成功。",
@@ -909,7 +961,12 @@
 			"deleteSuccess": "视图删除成功。",
 			"onlyAdminsCanEdit": "只有项目管理员才能编辑视图。",
 			"updateSuccess": "视图更新成功。",
-			"edit": "编辑此视图"
+			"edit": "编辑此视图",
+			"switcherLabel": "项目视图",
+			"moveUp": "上移“{view}”",
+			"moveDown": "下移“{view}”",
+			"dragHandle": "拖动以调整顺序",
+			"removeBucketConfig": "移除分组“{title}”"
 		},
 		"myOpenTasksFilterTitle": "我的未完成任务",
 		"favoriteDescription": "此项目汇总了所有标记为收藏的任务。"
@@ -994,7 +1051,8 @@
 				}
 			},
 			"label": "筛选表达式"
-		}
+		},
+		"applied": "（已启用）"
 	},
 	"migrate": {
 		"title": "从其他服务导入",
@@ -1078,7 +1136,10 @@
 			"titlePlaceholder": "标签名",
 			"description": "描述信息",
 			"color": "标签颜色"
-		}
+		},
+		"listDescription": "打开标签可查看带有它的待办任务。你创建的标签可以编辑；你有权访问的任务上的所有标签都可以使用。",
+		"editNamed": "编辑标签“{label}”",
+		"notEditable": "由他人创建"
 	},
 	"sharing": {
 		"authenticating": "验证中……",
@@ -1088,7 +1149,8 @@
 		"accessDenied": "访问被拒绝。请检查您的权限并重试。",
 		"serverError": "服务器开小差了，请稍后再试",
 		"projectLoadError": "加载项目信息失败。",
-		"retry": "重试"
+		"retry": "重试",
+		"sharedProject": "共享的项目"
 	},
 	"navigation": {
 		"overview": "概览",
@@ -1105,7 +1167,9 @@
 			"daily": "日常工作",
 			"records": "记录与回顾",
 			"organize": "整理"
-		}
+		},
+		"resizeSidebar": "调整侧栏宽度",
+		"search": "搜索"
 	},
 	"misc": {
 		"loading": "载入中...",
@@ -1153,7 +1217,10 @@
 		"sortBy": "排序方式",
 		"dateRange": "日期范围",
 		"notSet": "未设置",
-		"user": "用户"
+		"user": "用户",
+		"loadError": "加载失败，请重试。",
+		"retry": "重试",
+		"gotoPage": "前往第 {page} 页"
 	},
 	"input": {
 		"resetColor": "重置颜色",
@@ -1363,7 +1430,7 @@
 			"belongsToProject": "该任务属于项目'{project}'",
 			"back": "返回到项目",
 			"due": "截止至 {at}",
-			"organization": "机构",
+			"organization": "整理",
 			"management": "管理",
 			"dateAndTime": "日期与时间",
 			"delete": {
@@ -1405,7 +1472,13 @@
 			"closeTaskDetail": "关闭任务详情",
 			"title": "任务详情",
 			"markAsDone": "将“{task}”标记为完成",
-			"scrollToBottom": "滚动到底部"
+			"scrollToBottom": "滚动到底部",
+			"copyLink": "复制任务链接",
+			"quickActions": "任务快捷操作",
+			"actionsLabel": "任务属性与操作",
+			"moreActions": "更多操作",
+			"deletedNotice": "此任务已被删除。",
+			"deletedGoBack": "返回上一页"
 		},
 		"attributes": {
 			"assignees": "受理人",
@@ -1483,7 +1556,8 @@
 			"sortOldestFirst": "最早在前",
 			"reply": "回复",
 			"jumpToOriginal": "跳到原评论",
-			"deletedComment": "已删除的评论"
+			"deletedComment": "已删除的评论",
+			"sortLabel": "排序：{order}"
 		},
 		"mention": {
 			"noUsersFound": "未找到用户"
@@ -1563,7 +1637,8 @@
 			"dateAndTime": "日期与时间",
 			"periodUnit": "时间单位",
 			"periodDirection": "提前或延后",
-			"periodRelativeTo": "相对于"
+			"periodRelativeTo": "相对于",
+			"periodAmount": "数量"
 		},
 		"repeat": {
 			"everyDay": "每天",
@@ -1571,8 +1646,8 @@
 			"every30d": "每 30 天",
 			"mode": "重复模式",
 			"monthly": "每月",
-			"fromCurrentDate": "添加完成日期",
-			"each": "每个",
+			"fromCurrentDate": "从完成日期起算",
+			"each": "每",
 			"specifyAmount": "指定数量…",
 			"hours": "小时",
 			"days": "天",
@@ -1649,7 +1724,9 @@
 				"text2": "您将无法访问该团队拥有的所有项目。 如果你改变主意，你需要一个团队管理员来再次添加你。",
 				"success": "您已经成功离开了团队。",
 				"cleanupText": "你失去项目访问权限时，以下内容也会被删除："
-			}
+			},
+			"role": "角色",
+			"dangerZone": "退出或删除"
 		},
 		"attributes": {
 			"name": "团队名称",
@@ -1767,7 +1844,8 @@
 		"subscribeFeed": "通过 Atom 订阅通知",
 		"clearAll": "清空通知",
 		"clearAllSuccess": "已清空全部通知。",
-		"loadMore": "加载更早的通知"
+		"loadMore": "加载更早的通知",
+		"unreadCount": "{count} 条未读"
 	},
 	"quickActions": {
 		"commands": "命令",
@@ -1923,8 +2001,8 @@
 	"about": {
 		"title": "关于",
 		"version": "版本：{version}",
-		"frontendVersion": "前端版本: {version}",
-		"apiVersion": "API 版本: {version}",
+		"frontendVersion": "前端版本：{version}",
+		"apiVersion": "API 版本：{version}",
 		"proActive": "Pro 已启用"
 	},
 	"time": {
@@ -2114,8 +2192,11 @@
 			"page_not_published_or_temporarily_unavailable": "页面未发布或暂时不可用",
 			"page_title": "页面标题",
 			"preview_public_page": "预览公开效果",
-			"add_model_connection": "＋ 添加模型连接",
-			"welcome_to_my_schedule_here_are_the_plans": "# 欢迎了解我的近况\n\n这里展示适合公开的安排。\n\n## 近期日程\n\n{'{'}{'{'}schedule{'}'}{'}'}\n\n## 可以联系我的时间\n\n{'{'}{'{'}availability{'}'}{'}'}\n\n## 进行中的项目\n\n{'{'}{'{'}projects{'}'}{'}'}"
+			"add_model_connection": "添加模型连接",
+			"welcome_to_my_schedule_here_are_the_plans": "# 欢迎了解我的近况\n\n这里展示适合公开的安排。\n\n## 近期日程\n\n{'{'}{'{'}schedule{'}'}{'}'}\n\n## 可以联系我的时间\n\n{'{'}{'{'}availability{'}'}{'}'}\n\n## 进行中的项目\n\n{'{'}{'{'}projects{'}'}{'}'}",
+			"content_format": "内容格式",
+			"available_weekdays": "可联系的星期",
+			"preview_to_enable_publishing": "预览当前草稿后即可发布。"
 		},
 		"projectID": "项目 #{id}",
 		"stopRecording": "停止录音 · {seconds} 秒",
@@ -2129,7 +2210,6 @@
 		"currentVersion": "当前页面版本：{version}",
 		"apiKey": "API 密钥",
 		"pagination": "分页导航",
-		"mainNavigation": "主导航",
 		"noResult": "没有找到匹配项",
 		"bot": "机器人",
 		"reset": "重置",
@@ -2227,7 +2307,8 @@
 			"licenseLastCheckFailed": "上次检查失败",
 			"licenseFeatures": "功能",
 			"licenseInstance": "实例 ID",
-			"licenseManage": "管理"
+			"licenseManage": "管理",
+			"description": "查看这个 Vikunja 实例的使用情况和许可证状态。"
 		},
 		"searchUsersPlaceholder": "搜索用户名或邮箱…",
 		"users": {
@@ -2577,11 +2658,13 @@
 			"assign_task": "添加负责人",
 			"unassign_task": "移除负责人",
 			"relate_tasks": "关联任务",
-			"unrelate_tasks": "移除任务关系"
+			"unrelate_tasks": "移除任务关系",
+			"list_project_timeline": "查看项目时间线"
 		},
 		"fromTask": "交给 AI 助手处理此任务",
 		"currentTask": "当前任务上下文：",
-		"overallLimit": "已到达累计 200 轮或 1000 次操作上限。请停止本轮并检查已完成记录，再开始新的请求。"
+		"overallLimit": "已到达累计 200 轮或 1000 次操作上限。请停止本轮并检查已完成记录，再开始新的请求。",
+		"destructiveWarning": "此操作会永久删除目标，无法撤销。"
 	},
   "flow": {
     "audioConverting": "正在本机转换音频…",
@@ -2715,7 +2798,13 @@
 			"drive_confirm": "请核对使用位置并完成确认。",
 			"drive_purge_retry": "已标记彻底删除，但存储清理失败。文件仍显示在回收站，请重试彻底删除。"
 		},
-		"retryPurge": "重试彻底删除"
+		"retryPurge": "重试彻底删除",
+		"layout": "显示方式",
+		"grid": "网格",
+		"size": "大小",
+		"type": "类型",
+		"uploadedOn": "上传于",
+		"trashedOn": "移入回收站"
 	},
 	"assistantUI": {
     "applied": "已应用到下一条消息。正在执行或暂停待审核的请求仍使用原配置。",
@@ -2790,7 +2879,9 @@
 				"name": "批量整理",
 				"description": "适合跨项目或多步骤整理。每次修改先审核，预算更宽裕。24 轮 / 80 次操作 / 300 秒。"
 			}
-		}
+		},
+		"messages": "消息记录",
+		"tokenCount": "{count} Token"
 	},
   "settingsDraft": {
     "unsaved": "有尚未保存的修改。",
@@ -2840,7 +2931,8 @@
   "uncached": "非缓存读取输入",
   "explanation": "按服务商报告的输入 token 加权；非缓存读取部分可能含缓存写入，不等于新消息字数或实际费用。",
   "partial": "仅统计 {reported}/{total} 次有缓存数据的请求，未报告的请求不算作零命中。",
-  "unreported": "服务商未报告缓存数据，暂不能计算命中率。"
+  "unreported": "服务商未报告缓存数据，暂不能计算命中率。",
+  "tokens": "{value} Token"
 },
   "chatHistory": {
     "options": "“{title}”的更多操作",
@@ -2864,11 +2956,13 @@
     "archiveHint": "暂时不用的会话可以归档，让列表更清爽，之后随时能在这里恢复。",
     "archivedNotice": "此会话已归档，消息记录仍然保留。",
     "title": "会话标题",
-    "deleteHint": "将永久删除此会话及未被其他会话引用的对话附件，无法恢复。阿罗娜已经修改的任务、项目，以及其他会话仍在使用的文件都会保留。"
+    "deleteHint": "将永久删除此会话及未被其他会话引用的对话附件，无法恢复。阿罗娜已经修改的任务、项目，以及其他会话仍在使用的文件都会保留。",
+    "previousPage": "上一页",
+    "nextPage": "下一页"
   },
   "projectHistory": {
-    "title": "项目年度回顾",
-    "subtitle": "把完成与归档的项目，放回时间里。",
+    "title": "项目时间线",
+    "subtitle": "按项目汇总任务的排期：已经过了多少（截至完成或今天），工作实际完成了多少。",
     "year": "年份",
     "previousYear": "上一年",
     "nextYear": "下一年",
@@ -2939,7 +3033,8 @@
     "loadError": "项目暂时没加载出来。",
     "emptyTitle": "还没有项目",
     "emptyText": "项目用来收拢相关的任务，比如“家务”或“毕业论文”。先建一个就可以开始了。",
-    "overlapHint": "有 {count} 个项目既已完成又已归档，所以两边都会计入。"
+    "overlapHint": "有 {count} 个项目既已完成又已归档，所以两边都会计入。",
+    "description": "搜索项目、按状态筛选，点开即可开始工作。"
   },
   "workspace": {
     "title": "工作台",
@@ -2971,7 +3066,106 @@
       "heading": "规划与回顾",
       "aronaHint": "说一句话，就能安排、拆分或整理任务",
       "upcomingHint": "接下来几天要到期的任务",
-      "historyHint": "按日期查看完成或归档的项目"
-    }
+      "historyHint": "按项目查看排期、截止日期与进度"
+    },
+    "refreshError": "任务没能刷新，下面的列表可能不是最新的。",
+    "groupOnPage": "本页 {count} 项"
+  },
+  "projectTimeline": {
+    "tabs": {
+      "label": "项目记录视图",
+      "timeline": "时间线",
+      "lifecycle": "状态记录"
+    },
+    "status": {
+      "label": "项目状态",
+      "all": "全部",
+      "active": "进行中",
+      "completed": "已完成",
+      "archived": "已归档"
+    },
+    "stats": {
+      "label": "全年概况",
+      "projects": "有排期的项目",
+      "scheduledDays": "排期天数",
+      "elapsedDays": "计为已经过（截至完成或今天）",
+      "tasksDone": "有排期的任务已完成",
+      "overdue": "逾期的排期任务",
+      "daysValue": "{n} 天",
+      "doneValue": "{done}/{total}"
+    },
+    "missing": {
+      "excluded": "{n} 个任务未显示在时间线上：需要同时有开始日期和结束（或截止）日期。",
+      "invalid": "{n} 个任务已排除：结束（或截止）日期早于开始日期，或日期超出 1970–9998 年。",
+      "scope": "按当前筛选条件统计所有年份。"
+    },
+    "occupancy": {
+      "heading": "{year} 年排期分布",
+      "monthHeading": "{month}排期分布",
+      "wholeYear": "全年",
+      "showMonth": "放大查看{month}",
+      "previousMonth": "上个月",
+      "nextMonth": "下个月",
+      "help": "方向键在日期间移动，Page Up / Page Down 按月跳转，回车选择日期。"
+    },
+    "day": {
+      "label": "{date}：{details}",
+      "separator": "，",
+      "none": "无排期",
+      "projects": "{n} 个项目有排期",
+      "elapsed": "已经过",
+      "planned": "尚未到来",
+      "deadlines": "{n} 个截止日期",
+      "today": "今天",
+      "unelapsed": "有排期，但未计为已经过（尚未开始，或在计划结束前已完成）"
+    },
+    "legend": {
+      "elapsed": "已经过",
+      "planned": "尚未到来",
+      "deadline": "截止日期",
+      "overdue": "最早逾期的截止日期",
+      "today": "今天",
+      "progress": "进度 = 所选年份内该项目有排期任务的当前平均进度（已完成任务按 100% 计），不是时间进度",
+      "note": "颜色深浅表示当天有排期的项目数量，只代表日历覆盖，不代表实际工时。",
+      "unelapsed": "有排期，未计为已经过"
+    },
+    "lanes": {
+      "heading": "{year} 年有排期的项目",
+      "dayHeading": "{date} 有排期的项目",
+      "clearDay": "查看所有日期",
+      "count": "{n} 个项目",
+      "progress": "平均进度 {percent}%",
+      "progressName": "{title} 的当前平均进度",
+      "tasks": "{year} 年有排期的任务已完成 {done}/{total}",
+      "overdue": "{n} 个逾期",
+      "nextDeadline": "下个截止 {date}",
+      "overdueSince": "自 {date} 起逾期",
+      "lastDeadline": "最后截止 {date}",
+      "range": "{start} 至 {end}",
+      "days": "{year} 年计为已经过 {elapsed}/{scheduled} 个排期日",
+      "spanTitle": "排期 {range}",
+      "outside": "{month}没有排期",
+      "focus": "只看 {title}",
+      "legendDeadline": "下一个或最后的截止日期"
+    },
+    "empty": {
+      "year": "{year} 年没有排期的工作。",
+      "otherYears": "有排期的任务分布在 {first} 至 {last} 年。",
+      "goTo": "前往 {year} 年",
+      "none": "还没有排期的任务。",
+      "noneHelp": "为任务设置开始日期和结束（或截止）日期后，所属项目会以时间段显示在这里。",
+      "day": "这一天没有项目排期。",
+      "filters": "{year} 年没有符合筛选条件的项目。",
+      "clearFilters": "清除筛选",
+      "otherYear": "有排期的任务都在 {year} 年。"
+    },
+    "loadError": "时间线加载失败。",
+    "loading": "正在加载时间线…",
+    "pagination": "时间线分页",
+    "pageOf": "第 {page}/{total} 页",
+    "explanation": "这些数据如何计算？",
+    "explanationSpans": "任务需要有开始日期和结束日期（没有结束日期时使用截止日期）才会计入。项目在这些日期上显示为时间段，中间有空档的任务保持分开。子项目的任务只计入子项目本身，不并入上级项目。",
+    "explanationElapsed": "“计为已经过”统计到今天（或任务标记完成的那天）为止的排期日；提前完成后剩余的排期日不计入。不代表实际工作时长。",
+    "explanationProgress": "进度是本年度内该项目有排期任务的当前平均完成度（已完成的任务按 100% 计），不是历史进度记录。"
   }
 }

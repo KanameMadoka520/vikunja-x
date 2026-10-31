@@ -50,7 +50,7 @@
 
 			<div
 				v-if="hintText !== '' && !isNewTaskCommand"
-				class="help has-text-grey-light p-2"
+				class="help quick-actions-hint"
 			>
 				{{ hintText }}
 			</div>
@@ -761,11 +761,11 @@ onBeforeUnmount(() => {
 .quick-actions {
 	// global Bulma .card styles are gone (ported into Card.vue, scoped),
 	// so this bare .card div needs its own card visuals
-	background-color: var(--white);
-	border-radius: $radius;
-	border: 1px solid var(--card-border-color);
-	box-shadow: var(--shadow-sm);
-	color: var(--text);
+	background-color: var(--surface-raised);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border-default);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
 	overflow: hidden;
 	justify-content: flex-start !important;
 
@@ -780,84 +780,131 @@ onBeforeUnmount(() => {
 .action-input {
 	display: flex;
 	align-items: center;
+	gap: var(--space-2);
+	padding-inline: var(--space-2);
+	border-block-end: 1px solid var(--border-subtle);
 
 	.input {
+		block-size: 3rem;
 		border: 0;
-		font-size: 1.5rem;
+		box-shadow: none;
+		background: transparent;
+		color: var(--text-primary);
+		font-size: var(--text-lg);
 
-		@media screen and (max-width: $tablet) {
-			padding-inline-end: .25rem;
+		@media screen and (max-width: $tablet - 1px) {
+			padding-inline-end: var(--space-1);
 		}
 	}
 
 	&.has-active-cmd .input {
-		padding-inline-start: .5rem;
+		padding-inline-start: var(--space-1);
 	}
 
 	.close {
-		padding: 0 1rem 0 .5rem;
-		font-size: 1.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		inline-size: var(--target-min);
+		block-size: var(--target-min);
+		border-radius: $radius;
+		color: var(--text-secondary);
+		font-size: var(--text-lg);
 
-		@media screen and (min-width: $tablet + 1) {
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		@media screen and (min-width: $tablet) {
 			display: none;
 		}
 	}
 }
 
 .active-cmd {
-	font-size: 1.25rem;
-	margin-inline-start: .5rem;
-	background-color: var(--grey-100);
-	color: var(--grey-800);
+	flex-shrink: 0;
+	margin-inline-start: var(--space-2);
+	border-radius: var(--radius-full);
+	background-color: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-medium);
+}
+
+.quick-actions-hint {
+	padding: var(--space-2) var(--space-4);
+	border-block-end: 1px solid var(--border-subtle);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	line-height: var(--leading-normal);
 }
 
 .results {
-	text-align: start;
 	inline-size: 100%;
-	color: var(--grey-800);
+	padding-block: var(--space-1);
+	color: var(--text-primary);
+	text-align: start;
+}
+
+.result + .result {
+	margin-block-start: var(--space-1);
 }
 
 .result-title {
-	background: var(--grey-100);
-	padding: .5rem;
 	display: block;
-	font-size: .75rem;
+	padding: var(--space-2) var(--space-4) var(--space-1);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+}
+
+.result-items {
+	padding-inline: var(--space-1);
 }
 
 .result-item-button {
-	font-size: .9rem;
+	display: block;
 	inline-size: 100%;
-	background: transparent;
-	color: var(--grey-800);
-	text-align: start;
-	box-shadow: none;
-	border-radius: 0;
-	text-transform: none;
-	font-family: $family-sans-serif;
-	font-weight: normal;
-	padding: .5rem .75rem;
+	min-block-size: var(--nav-row-height);
+	padding: var(--space-2) var(--space-3);
 	border: none;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-primary);
+	font-family: $family-sans-serif;
+	font-size: var(--text-md);
+	font-weight: normal;
+	text-align: start;
+	text-transform: none;
 	cursor: pointer;
 
-	&:focus,
 	&:hover {
-		background: var(--grey-100);
+		background-color: var(--surface-hover);
+	}
+
+	// Arrow keys move focus through the rows, so the focused row reads as the selection.
+	&:focus,
+	&:active {
+		background-color: var(--surface-selected);
 		box-shadow: none !important;
 	}
 
-	&:active {
-		background: var(--grey-100);
+	&:focus-visible {
+		outline-offset: -2px;
 	}
 
 	.saved-filter-icon {
-		font-size: .75rem;
 		inline-size: .75rem;
-		margin-inline-end: .25rem;
-		color: var(--grey-400)
+		margin-inline-end: var(--space-1);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 
 	&:has(.saved-filter-icon) {
-		display: inline-flex;
+		display: flex;
 		align-items: center;
 	}
 }

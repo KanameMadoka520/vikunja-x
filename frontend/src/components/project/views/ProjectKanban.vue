@@ -20,11 +20,13 @@
 		<template #default>
 			<div class="kanban-view">
 				<div
+					ref="boardRef"
 					:class="{ 'is-loading': showInitialLoading, 'is-dragging': drag || dragBucket }"
 					class="kanban kanban-bucket-container loader-container"
+					:style="boardOffset === null ? undefined : {'--kanban-offset': `${boardOffset}px`}"
 				>
 					<BucketDraggable
-						v-bind="DRAG_OPTIONS"
+						v-bind="dragOptions"
 						:model-value="buckets"
 						group="buckets"
 						:disabled="!canWrite || newTaskInputFocused"
@@ -38,27 +40,45 @@
 						<template #item="{element: bucket, index: bucketIndex }">
 							<li
 								class="bucket"
-								:class="{'is-collapsed': collapsedBuckets[bucket.id]}"
+								:class="{
+									'is-collapsed': collapsedBuckets[bucket.id],
+									'is-done-bucket': isDoneBucket(bucket),
+								}"
 								:data-bucket-id="bucket.id"
 							>
 								<div
 									class="bucket-header"
 									@click="() => unCollapseBucket(bucket)"
 								>
+									<BaseButton
+										v-if="collapsedBuckets[bucket.id]"
+										class="bucket-expand"
+										:aria-expanded="false"
+										:aria-label="$t('project.kanban.expandBucket', {title: bucket.title})"
+										@click.stop="() => unCollapseBucket(bucket)"
+									>
+										<Icon
+											icon="angle-right"
+											class="bucket-expand__icon"
+										/>
+									</BaseButton>
 									<span
-										v-if="bucket.id !== 0 && view?.done_bucket_id === bucket.id"
+										v-if="isDoneBucket(bucket)"
 										v-tooltip="$t('project.kanban.doneBucketHint')"
-										class="icon is-small has-text-success mie-2"
-										@click.stop="() => collapseBucket(bucket)"
+										class="bucket-done-cue"
+										role="img"
+										:aria-label="$t('project.kanban.doneBucket')"
 									>
 										<Icon icon="check-double" />
 									</span>
 									<h2
+										:key="`title-${titleResetKey}`"
+										:ref="(el) => setBucketTitleRef(bucket.id, el as HTMLElement | null)"
 										class="title input"
 										:contenteditable="(bucketTitleEditable && canWrite && !collapsedBuckets[bucket.id]) ? true : undefined"
 										:spellcheck="false"
 										@keydown.enter.prevent.stop="!$event.isComposing && ($event.target as HTMLElement).blur()"
-										@keydown.esc.prevent.stop="!$event.isComposing && ($event.target as HTMLElement).blur()"
+										@keydown.esc.prevent.stop="cancelBucketTitleEdit"
 										@blur="saveBucketTitle(bucket.id, ($event.target as HTMLElement).textContent as string)"
 										@click="focusBucketTitle"
 									>
@@ -66,91 +86,118 @@
 									</h2>
 									<span
 										v-if="bucket.limit > 0 || alwaysShowBucketTaskCount"
-										:class="{'is-max': bucket.limit > 0 && bucket.count >= bucket.limit}"
+										:class="{'is-max': isBucketFull(bucket)}"
 										class="limit"
 									>
+										<Icon
+											v-if="isBucketFull(bucket)"
+											icon="exclamation-circle"
+											class="limit__icon"
+										/>
 										{{ bucket.limit > 0 ? `${bucket.count}/${bucket.limit}` : bucket.count }}
+										<span
+											v-if="isBucketFull(bucket)"
+											class="is-sr-only"
+										>{{ $t('project.kanban.limitFull') }}</span>
 									</span>
 									<Dropdown
-										v-if="canWrite && !collapsedBuckets[bucket.id]"
+										v-if="canWrite"
 										class="is-right options"
 										trigger-icon="ellipsis-v"
 										:trigger-label="$t('project.kanban.bucketOptions')"
+										@click.stop
 										@close="() => showSetLimitInput = false"
 									>
-										<div
-											v-if="showSetLimitInput"
-											class="field has-addons"
-										>
-											<div class="control">
-												<input
-													ref="bucketLimitInputRef"
-													v-focus.always
-													:value="bucket.limit"
-													class="input"
-													type="number"
-													min="0"
-													@keyup.esc="() => showSetLimitInput = false"
-													@keyup.enter="() => {setBucketLimit(bucket.id, true); showSetLimitInput = false}"
-													@input="setBucketLimit(bucket.id)"
-												>
+										<template #default="{close}">
+											<div
+												v-if="showSetLimitInput"
+												class="field has-addons"
+											>
+												<div class="control">
+													<input
+														v-focus.always
+														:value="bucket.limit"
+														class="input"
+														type="number"
+														min="0"
+														:aria-label="$t('project.kanban.limitLabel')"
+														@keyup.esc="() => showSetLimitInput = false"
+														@keyup.enter="() => {setBucketLimit(bucket.id, true); showSetLimitInput = false}"
+														@input="event => updateLimitDraft(bucket.id, (event.target as HTMLInputElement).value)"
+													>
+												</div>
+												<div class="control">
+													<XButton
+														v-cy="'setBucketLimit'"
+														:aria-label="$t('misc.save')"
+														:disabled="bucket.limit < 0"
+														:icon="['far', 'save']"
+														:shadow="false"
+														@click="() => {setBucketLimit(bucket.id, true); showSetLimitInput = false}"
+													/>
+												</div>
 											</div>
-											<div class="control">
-												<XButton
-													v-cy="'setBucketLimit'"
-													:aria-label="$t('misc.save')"
-													:disabled="bucket.limit < 0"
-													:icon="['far', 'save']"
-													:shadow="false"
-													@click="() => {setBucketLimit(bucket.id, true); showSetLimitInput = false}"
-												/>
-											</div>
-										</div>
-										<DropdownItem
-											v-else
-											@click.stop="showSetLimitInput = true"
-										>
-											{{
-												$t('project.kanban.limit', {limit: bucket.limit > 0 ? bucket.limit : $t('misc.notSet')})
-											}}
-										</DropdownItem>
-										<DropdownItem
-											v-tooltip="$t('project.kanban.doneBucketHintExtended')"
-											:icon-class="{'has-text-success': bucket.id === view?.done_bucket_id}"
-											icon="check-double"
-											@click.stop="toggleDoneBucket(bucket)"
-										>
-											{{ $t('project.kanban.doneBucket') }}
-										</DropdownItem>
-										<DropdownItem
-											v-tooltip="$t('project.kanban.defaultBucketHint')"
-											:icon-class="{'has-text-primary': bucket.id === view?.default_bucket_id}"
-											icon="th"
-											@click.stop="toggleDefaultBucket(bucket)"
-										>
-											{{ $t('project.kanban.defaultBucket') }}
-										</DropdownItem>
-										<DropdownItem
-											icon="angles-up"
-											@click.stop="() => collapseBucket(bucket)"
-										>
-											{{ $t('project.kanban.collapse') }}
-										</DropdownItem>
-										<DropdownItem
-											v-tooltip="buckets.length <= 1 ? $t('project.kanban.deleteLast') : ''"
-											class="has-text-danger"
-											:class="{'is-disabled': buckets.length <= 1}"
-											icon-class="has-text-danger"
-											icon="trash-alt"
-											@click.stop="() => deleteBucketModal(bucket.id)"
-										>
-											{{ $t('misc.delete') }}
-										</DropdownItem>
+											<DropdownItem
+												v-else
+												@click.stop="showSetLimitInput = true"
+											>
+												{{
+													$t('project.kanban.limit', {limit: bucket.limit > 0 ? bucket.limit : $t('misc.notSet')})
+												}}
+											</DropdownItem>
+											<DropdownItem
+												v-if="!collapsedBuckets[bucket.id]"
+												icon="pen"
+												@click.stop="() => startRenameBucket(bucket.id, close)"
+											>
+												{{ $t('project.kanban.rename') }}
+											</DropdownItem>
+											<DropdownItem
+												v-tooltip="$t('project.kanban.doneBucketHintExtended')"
+												:icon-class="{'has-text-success': bucket.id === view?.done_bucket_id}"
+												icon="check-double"
+												@click.stop="toggleDoneBucket(bucket)"
+											>
+												{{ $t('project.kanban.doneBucket') }}
+											</DropdownItem>
+											<DropdownItem
+												v-tooltip="$t('project.kanban.defaultBucketHint')"
+												:icon-class="{'has-text-primary': bucket.id === view?.default_bucket_id}"
+												icon="th"
+												@click.stop="toggleDefaultBucket(bucket)"
+											>
+												{{ $t('project.kanban.defaultBucket') }}
+											</DropdownItem>
+											<DropdownItem
+												v-if="collapsedBuckets[bucket.id]"
+												icon="angle-right"
+												@click.stop="() => {unCollapseBucket(bucket); close()}"
+											>
+												{{ $t('project.kanban.expand') }}
+											</DropdownItem>
+											<DropdownItem
+												v-else
+												icon="angles-up"
+												@click.stop="() => {collapseBucket(bucket); close()}"
+											>
+												{{ $t('project.kanban.collapse') }}
+											</DropdownItem>
+											<DropdownItem
+												v-tooltip="buckets.length <= 1 ? $t('project.kanban.deleteLast') : ''"
+												class="has-text-danger"
+												:class="{'is-disabled': buckets.length <= 1}"
+												icon-class="has-text-danger"
+												icon="trash-alt"
+												@click.stop="() => deleteBucketModal(bucket.id)"
+											>
+												{{ $t('misc.delete') }}
+											</DropdownItem>
+										</template>
 									</Dropdown>
 								</div>
 
 								<TaskDraggable
-									v-bind="DRAG_OPTIONS"
+									v-bind="dragOptions"
 									:handle="taskDragHandle"
 									:delay="isTouchDevice ? 300 : 1000"
 									:model-value="bucket.tasks"
@@ -183,6 +230,7 @@
 														class="input"
 														:disabled="initialLoading || taskLoading || undefined"
 														:placeholder="$t('project.kanban.addTaskPlaceholder')"
+														:aria-label="$t('project.kanban.addTask')"
 														type="text"
 														@focusout="toggleShowNewTaskInput(bucket.id)"
 														@focusin="() => newTaskInputFocused = true"
@@ -197,20 +245,26 @@
 													{{ $t('project.create.addTitleRequired') }}
 												</p>
 											</div>
-											<XButton
-												v-else
-												v-tooltip="bucket.limit > 0 && bucket.count >= bucket.limit ? $t('project.kanban.bucketLimitReached') : ''"
-												class="is-fullwidth has-text-centered"
-												:shadow="false"
-												icon="plus"
-												variant="secondary"
-												:disabled="bucket.limit > 0 && bucket.count >= bucket.limit"
-												@click="toggleShowNewTaskInput(bucket.id)"
-											>
-												{{
-													bucket.tasks.length === 0 ? $t('project.kanban.addTask') : $t('project.kanban.addAnotherTask')
-												}}
-											</XButton>
+											<template v-else>
+												<XButton
+													class="is-fullwidth"
+													:shadow="false"
+													icon="plus"
+													variant="secondary"
+													:disabled="isBucketFull(bucket)"
+													@click="toggleShowNewTaskInput(bucket.id)"
+												>
+													{{
+														bucket.tasks.length === 0 ? $t('project.kanban.addTask') : $t('project.kanban.addAnotherTask')
+													}}
+												</XButton>
+												<p
+													v-if="isBucketFull(bucket)"
+													class="bucket-limit-note"
+												>
+													{{ $t('project.kanban.limitReachedShort') }}
+												</p>
+											</template>
 										</li>
 									</template>
 
@@ -251,6 +305,7 @@
 							:disabled="showInitialLoading || undefined"
 							class="input"
 							:placeholder="$t('project.kanban.addBucketPlaceholder')"
+							:aria-label="$t('project.kanban.addBucket')"
 							type="text"
 							@blur="() => showNewBucketInput = false"
 							@keyup.enter="createNewBucket"
@@ -259,7 +314,7 @@
 						<XButton
 							v-else
 							:shadow="false"
-							class="is-transparent is-fullwidth has-text-centered"
+							class="is-transparent is-fullwidth"
 							variant="secondary"
 							icon="plus"
 							@click="() => showNewBucketInput = true"
@@ -270,6 +325,7 @@
 				</div>
 
 				<Modal
+					danger
 					:enabled="showBucketDeleteModal"
 					@close="showBucketDeleteModal = false"
 					@submit="deleteBucket()"
@@ -301,7 +357,8 @@ import {
 	useUpdateBucketMutation,
 	useLoadBucketPageMutation,
 } from '@/client/queries/kanbanMutations'
-import {computed, nextTick, ref, watch, toRef} from 'vue'
+import {computed, nextTick, onActivated, onBeforeUnmount, ref, watch, toRef} from 'vue'
+import {useEventListener, useMediaQuery, useResizeObserver} from '@vueuse/core'
 import {useQuery, useQueryClient} from '@tanstack/vue-query'
 import {useRouter} from 'vue-router'
 import {useRouteQuery} from '@vueuse/router'
@@ -317,6 +374,7 @@ import {useTaskDragState} from '@/composables/useTaskDragState'
 import {useAuthStore} from '@/stores/auth'
 
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
 import FilterPopup from '@/components/project/partials/FilterPopup.vue'
 import KanbanCard from '@/components/tasks/partials/KanbanCard.vue'
 import Dropdown from '@/components/misc/Dropdown.vue'
@@ -347,14 +405,15 @@ const TaskDraggable = draggableFor<TaskResponse>()
 
 const projectId = toRef(props, 'projectId')
 
-const DRAG_OPTIONS = {
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+const dragOptions = computed(() => ({
 	// sortable options
-	animation: 150,
+	animation: reducedMotion.value ? 0 : 150,
 	ghostClass: 'ghost',
 	dragClass: 'task-dragging',
 	delayOnTouchOnly: true,
 	delay: 1000,
-} as const
+} as const))
 
 const MIN_SCROLL_HEIGHT_PERCENT = 0.25
 
@@ -375,7 +434,6 @@ const moveMutation = useMoveTaskMutation()
 const savedFilter = useQuery(computed(() => savedFilterQuery(getSavedFilterIdFromProjectId(projectId.value)))).data
 
 const taskContainerRefs = ref<{ [id: number]: HTMLElement }>({})
-const bucketLimitInputRef = ref<HTMLInputElement | null>(null)
 
 const drag = ref(false)
 const dragBucket = ref(false)
@@ -395,6 +453,36 @@ const newTaskInputFocused = ref(false)
 
 const showSetLimitInput = ref(false)
 const collapsedBuckets = ref<CollapsedBuckets>({})
+
+const bucketTitleRefs = new Map<number, HTMLElement>()
+const titleResetKey = ref(0)
+let skipNextTitleSave = false
+
+// The board fills the viewport below whatever sits above it (toolbar, banners), so buckets scroll on their own.
+const boardRef = ref<HTMLElement | null>(null)
+const boardOffset = ref<number | null>(null)
+
+function measureBoard() {
+	const el = boardRef.value
+	// A cached (keep-alive) board is detached and would measure as if it were at the top of the page.
+	if (!el || !el.isConnected) {
+		return
+	}
+	const top = el.getBoundingClientRect().top + window.scrollY
+	const main = el.closest('main')
+	const bottomPadding = main ? parseFloat(getComputedStyle(main).paddingBlockEnd) || 0 : 0
+	boardOffset.value = Math.max(0, Math.round(top + bottomPadding))
+}
+
+useResizeObserver(
+	computed(() => [
+		boardRef.value?.closest<HTMLElement>('.project-kanban') ?? null,
+		boardRef.value?.closest<HTMLElement>('main') ?? null,
+	]),
+	() => requestAnimationFrame(measureBoard),
+)
+useEventListener(window, 'resize', measureBoard, {passive: true})
+onActivated(() => nextTick(measureBoard))
 
 // URL-synchronized filter parameters
 const filter = useRouteQuery('filter')
@@ -684,8 +772,43 @@ async function focusBucketTitle(e: Event) {
 	target.focus()
 }
 
+function setBucketTitleRef(bucketId: number, el: HTMLElement | null) {
+	if (el) {
+		bucketTitleRefs.set(bucketId, el)
+	} else {
+		bucketTitleRefs.delete(bucketId)
+	}
+}
+
+async function startRenameBucket(bucketId: number, closeMenu: () => void) {
+	closeMenu()
+	bucketTitleEditable.value = true
+	await nextTick()
+	const title = bucketTitleRefs.get(bucketId)
+	if (!title) {
+		return
+	}
+	title.focus()
+	window.getSelection()?.selectAllChildren(title)
+}
+
+// Escape restores the saved title: skip the save the blur would trigger, then re-render the heading.
+function cancelBucketTitleEdit(event: KeyboardEvent) {
+	if (event.isComposing) {
+		return
+	}
+	skipNextTitleSave = true
+	;(event.target as HTMLElement).blur()
+	titleResetKey.value++
+}
+
 async function saveBucketTitle(bucketId: number, bucketTitle: string) {
-	
+	if (skipNextTitleSave) {
+		skipNextTitleSave = false
+		bucketTitleEditable.value = false
+		return
+	}
+
 	const bucket = getBucketById(bucketId)
 	if (bucket?.title === bucketTitle) {
 		bucketTitleEditable.value = false
@@ -697,6 +820,14 @@ async function saveBucketTitle(bucketId: number, bucketTitle: string) {
 		title: bucketTitle,
 	}, saveBucketTitleMutation)
 	bucketTitleEditable.value = false
+}
+
+function isDoneBucket(bucket: BucketResponse) {
+	return bucket.id !== 0 && view.value?.done_bucket_id === bucket.id
+}
+
+function isBucketFull(bucket: BucketResponse) {
+	return bucket.limit > 0 && bucket.count >= bucket.limit
 }
 
 function updateBuckets(value: BucketResponse[]) {
@@ -762,20 +893,45 @@ async function saveBucketLimit(bucketId: number, limit: number) {
 }
 
 const setBucketLimitCancel = ref<ReturnType<typeof setTimeout> | null>(null)
+// What was typed into the open limit input. A template ref inside the bucket loop would hold an
+// array of inputs, and reading `.value` off it sent NaN, which the API stored as no limit.
+const limitDraft = ref<{bucket: number, value: string}>()
+
+function cancelBucketLimit() {
+	if (setBucketLimitCancel.value !== null) clearTimeout(setBucketLimitCancel.value)
+	setBucketLimitCancel.value = null
+}
+
+function updateLimitDraft(bucketId: number, value: string) {
+	limitDraft.value = {bucket: bucketId, value}
+	void setBucketLimit(bucketId)
+}
 
 async function setBucketLimit(bucketId: number, now: boolean = false) {
-	const limit = parseInt(bucketLimitInputRef.value?.value || '')
-
-	if (setBucketLimitCancel.value !== null) {
-		clearTimeout(setBucketLimitCancel.value)
-	}
+	cancelBucketLimit()
+	if (limitDraft.value?.bucket !== bucketId) return
+	const text = limitDraft.value.value.trim()
+	// Empty clears the limit; anything else has to be a whole number of at least zero.
+	const limit = text === '' ? 0 : Number(text)
+	if (!Number.isSafeInteger(limit) || limit < 0) return
 
 	if (now) {
+		limitDraft.value = undefined
 		return saveBucketLimit(bucketId, limit)
 	}
 
-	setBucketLimitCancel.value = setTimeout(saveBucketLimit, 2500, bucketId, limit)
+	setBucketLimitCancel.value = setTimeout(() => {
+		setBucketLimitCancel.value = null
+		void saveBucketLimit(bucketId, limit).catch(() => { /* The mutation reports failed autosaves. */ })
+	}, 2500)
 }
+
+// A pending limit belongs to the board it was typed on, never to the next one.
+watch(() => [props.projectId, props.viewId], () => {
+	cancelBucketLimit()
+	limitDraft.value = undefined
+})
+onBeforeUnmount(cancelBucketLimit)
 
 function shouldAcceptDrop(bucket: BucketResponse) {
 	return (
@@ -855,41 +1011,40 @@ function unCollapseBucket(bucket: BucketResponse) {
 
 <style lang="scss" scoped>
 .control.is-loading {
-  &::after {
-    inset-block-start: 30%;
-    inset-inline-end: 50%;
-    transform: translate(-50%, 0);
+	&::after {
+		inset-block-start: 30%;
+		inset-inline-end: 50%;
+		transform: translate(-50%, 0);
 
-	--loader-border-color: var(--grey-500);
-  }
+		--loader-border-color: var(--grey-500);
+	}
 }
 </style>
 
-
 <style lang="scss">
-$ease-out: all .3s cubic-bezier(0.23, 1, 0.32, 1);
-$bucket-width: 300px;
-$bucket-header-height: 60px;
-$bucket-right-margin: 1rem;
-$crazy-height-calculation: '100vh - 4.5rem - 1.5rem - 1rem - 1.5rem - 11px';
-$crazy-height-calculation-tasks: '#{$crazy-height-calculation} - 1rem - 2.5rem - 2rem - #{$button-height} - 1rem';
-$filter-container-height: '1rem - #{$switch-view-height}';
-
 .kanban {
-	overflow-x: auto;
-	overflow-y: hidden;
-	block-size: calc(#{$crazy-height-calculation});
-	margin: 0 -1.5rem;
-	padding: 0 1.5rem;
+	--kanban-bucket-width: 18rem;
+	--kanban-collapsed-width: 2.75rem;
+	--kanban-gap: var(--space-3);
 
-	&:focus, .bucket .tasks:focus {
+	gap: var(--kanban-gap);
+	overflow: auto hidden;
+	block-size: calc(100vh - var(--kanban-offset, 13rem));
+	block-size: calc(100dvh - var(--kanban-offset, 13rem));
+	min-block-size: 16rem;
+	padding-block-end: var(--space-2);
+
+	&:focus,
+	.bucket .tasks:focus {
 		box-shadow: none;
 	}
 
+	// Phones show one lane at a time with the next one peeking; the board scrolls, never the page.
 	@media screen and (max-width: $tablet) {
-		block-size: calc(#{$crazy-height-calculation} - #{$filter-container-height} + 9px);
+		--kanban-bucket-width: min(85vw, 20rem);
+		--kanban-gap: var(--space-2);
+
 		scroll-snap-type: x mandatory;
-		margin: 0 -0.5rem;
 
 		// Snapping undoes sortable's small auto-scroll steps, so the board never scrolls while dragging.
 		&.is-dragging {
@@ -899,6 +1054,8 @@ $filter-container-height: '1rem - #{$switch-view-height}';
 
 	&-bucket-container {
 		display: flex;
+		align-items: stretch;
+		gap: var(--kanban-gap);
 		list-style: none;
 	}
 
@@ -913,48 +1070,53 @@ $filter-container-height: '1rem - #{$switch-view-height}';
 			content: '';
 			position: absolute;
 			display: block;
-			inset-block-start: 0.25rem;
-			inset-inline-end: 0.5rem;
-			inset-block-end: 0.25rem;
-			inset-inline-start: 0.5rem;
-			border: 3px dashed var(--grey-300);
+			inset-block: var(--space-1);
+			inset-inline: var(--space-2);
+			border: 1px dashed var(--border-strong);
 			border-radius: $radius;
+			background: var(--surface-hover);
 		}
 	}
 
 	.bucket {
-		border-radius: $radius;
 		position: relative;
-
-		margin: 0 $bucket-right-margin 0 0;
-		max-block-size: calc(100% - 1rem); // 1rem spacing to the bottom
-		min-block-size: 20px;
-		inline-size: $bucket-width;
 		display: flex;
+		flex: 0 0 var(--kanban-bucket-width);
 		flex-direction: column;
-		overflow: hidden; // Make sure the edges are always rounded
+		inline-size: var(--kanban-bucket-width);
+		min-block-size: 0;
+		max-block-size: 100%;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
+		overflow: hidden; // keeps the rounded corners on the scrolling task list
 
 		@media screen and (max-width: $tablet) {
-			scroll-snap-align: center;
+			scroll-snap-align: start;
+		}
+
+		// Done lanes carry a success rule on top plus the check icon in the header.
+		&.is-done-bucket {
+			border-block-start: 2px solid var(--success);
 		}
 
 		.tasks {
+			flex: 1 1 auto;
+			min-block-size: 0;
 			overflow: hidden auto;
-			block-size: 100%;
 			list-style: none;
 		}
 
 		.task-item {
-			background-color: var(--grey-100);
-			padding: .25rem .5rem;
 			position: relative;
+			padding: var(--space-1) var(--space-2);
 
 			&:first-of-type {
-				padding-block-start: .5rem;
+				padding-block-start: var(--space-1);
 			}
 
 			&:last-of-type {
-				padding-block-end: .5rem;
+				padding-block-end: var(--space-2);
 			}
 
 			.handle {
@@ -968,75 +1130,188 @@ $filter-container-height: '1rem - #{$switch-view-height}';
 			}
 		}
 
-		.no-move {
-			transition: transform 0s;
-		}
-
-		h2 {
-			font-size: 1rem;
-			margin: 0;
-			font-weight: 600 !important;
-		}
-
 		&.new-bucket {
-			// Because of reasons, this button ignores the margin we gave it to the right.
-			// To make it still look like it has some, we modify the container to have a padding of 1rem,
-			// which is the same as the margin it should have. Then we make the container itself bigger
-			// to hide the fact we just made the button smaller.
-			min-inline-size: calc(#{$bucket-width} + 1rem);
+			align-self: flex-start;
+			border-style: dashed;
+			border-color: var(--border-default);
 			background: transparent;
 
-			.button {
-				background: var(--grey-100);
+			.input {
+				border: 0;
+				background: var(--surface);
+			}
+
+			.button.is-outlined {
 				inline-size: 100%;
+				border-color: transparent;
+				background: transparent;
+				color: var(--text-secondary);
+				justify-content: flex-start;
+
+				&:hover {
+					border-color: transparent;
+					background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+					color: var(--text-primary);
+				}
 			}
 		}
 
+		// A narrow lane with the title written vertically; logical sizes keep it in place in RTL.
 		&.is-collapsed {
+			flex-basis: var(--kanban-collapsed-width);
+			inline-size: var(--kanban-collapsed-width);
 			align-self: flex-start;
-			transform: rotate(90deg) translateY(-100%);
-			transform-origin: top left;
-			// Using negative margins instead of translateY here to make all other buckets fill the empty space
-			margin-inline-end: calc((#{$bucket-width} - #{$bucket-header-height} - #{$bucket-right-margin}) * -1);
 			cursor: pointer;
 
-			.tasks, .bucket-footer {
+			.bucket-header {
+				flex-direction: column;
+				justify-content: flex-start;
+				gap: var(--space-2);
+				min-block-size: 0;
+				padding: var(--space-1) 0 var(--space-2);
+			}
+
+			// Logical sizes follow the heading's own writing mode: its inline axis is vertical here.
+			.title.input {
+				flex: 0 1 auto;
+				inline-size: auto;
+				block-size: auto;
+				max-inline-size: 14rem;
+				padding: var(--space-2) var(--space-1);
+				writing-mode: vertical-rl;
+				white-space: nowrap;
+			}
+
+			.tasks,
+			.bucket-footer {
 				display: none;
 			}
 		}
 	}
 
 	.bucket-header {
-		background-color: var(--grey-100);
 		display: flex;
+		flex: 0 0 auto;
 		align-items: center;
-		justify-content: space-between;
-		padding: .5rem;
-		block-size: $bucket-header-height;
+		gap: var(--space-1);
+		min-block-size: 2.75rem;
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
 
-		.icon.has-text-success {
+		// Block, not Bulma's inline-flex .input, so a long title can end in an ellipsis.
+		.title.input {
+			display: block;
+			flex: 1 1 auto;
+			min-inline-size: 0;
+			block-size: auto;
+			margin: 0;
+			padding: var(--space-1) var(--space-2);
+			overflow: hidden;
+			border-color: transparent;
+			border-radius: var(--radius-sm);
+			background: transparent;
+			box-shadow: none;
+			color: var(--text-primary);
+			font-size: var(--text-md);
+			font-weight: var(--weight-semibold);
+			line-height: var(--leading-tight);
+			text-overflow: ellipsis;
+			white-space: nowrap;
 			cursor: pointer;
+
+			&[contenteditable] {
+				cursor: text;
+				white-space: normal;
+			}
+
+			&[contenteditable]:hover {
+				background: var(--surface-hover);
+			}
+
+			&[contenteditable]:focus {
+				background: var(--surface);
+				border-color: var(--input-border-color);
+				white-space: normal;
+				@include focus-ring;
+				outline-offset: 0;
+			}
 		}
 
 		.limit {
-			padding: 0 .5rem;
-			font-weight: bold;
+			display: inline-flex;
+			flex-shrink: 0;
+			align-items: center;
+			gap: var(--space-1);
+			padding: 0 var(--space-2);
+			border: 1px solid var(--border-subtle);
+			border-radius: var(--radius-full);
+			background: var(--surface);
+			color: var(--text-secondary);
+			font-size: var(--text-xs);
+			font-variant-numeric: tabular-nums;
+			font-weight: var(--weight-semibold);
+			line-height: 1.5rem;
 
 			&.is-max {
+				border-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .45);
+				background: var(--tint-danger);
 				color: var(--danger-text);
 			}
 		}
 
-		.title.input {
-			block-size: auto;
-			padding: .4rem .5rem;
-			display: inline-block;
-			cursor: pointer;
+		.limit__icon {
+			font-size: var(--text-2xs);
+		}
+
+		.options {
+			flex-shrink: 0;
+		}
+
+		.dropdown-trigger {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-inline-size: var(--control-height-sm);
+			min-block-size: var(--control-height-sm);
+			padding: 0;
+			border-radius: var(--radius-sm);
+			color: var(--text-secondary);
+
+			&:hover {
+				background: var(--surface-hover);
+				color: var(--text-primary);
+			}
 		}
 	}
 
-	:deep(.dropdown-trigger) {
-		padding: .5rem;
+	.bucket-done-cue {
+		display: inline-flex;
+		flex-shrink: 0;
+		color: var(--success);
+		font-size: var(--text-sm);
+	}
+
+	.bucket-expand {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--control-height-sm);
+		min-block-size: var(--control-height-sm);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+
+		&:hover {
+			background: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		&:focus-visible {
+			@include focus-ring;
+			outline-offset: 0;
+		}
+	}
+
+	[dir='rtl'] & .bucket-expand__icon {
+		transform: scaleX(-1);
 	}
 
 	.bucket-footer {
@@ -1044,33 +1319,42 @@ $filter-container-height: '1rem - #{$switch-view-height}';
 		inset-block-end: 0;
 		z-index: 2;
 		block-size: min-content;
-		padding: .5rem;
-		background-color: var(--grey-100);
-		border-end-start-radius: $radius;
-		border-end-end-radius: $radius;
-		transform: none;
+		padding: var(--space-1) var(--space-2) var(--space-2);
+		background-color: var(--surface-sunken);
 		// At fractional device pixel ratios the scroll clip ends below the sticky footer, showing a sliver of tasks
-		box-shadow: 0 1px 0 var(--grey-100);
+		box-shadow: 0 1px 0 var(--surface-sunken);
 
-		.button {
+		// Outranks XButton's scoped secondary styles: a quiet row action, not a bordered button.
+		.button.is-outlined {
+			border-color: transparent;
 			background-color: transparent;
+			color: var(--text-secondary);
+			justify-content: flex-start;
 
 			&:hover {
-				background-color: var(--white);
+				border-color: transparent;
+				background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+				color: var(--text-primary);
 			}
 		}
 	}
+
+	.bucket-limit-note {
+		margin-block-start: var(--space-1);
+		padding-inline: var(--space-2);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
+		line-height: var(--leading-normal);
+	}
 }
 
-// FIXME: This does not seem to work
-.task-dragging {
-	transform: rotateZ(3deg);
-	transition: transform 0.18s ease;
+.kanban .bucket .bucket-footer .button,
+.kanban .bucket.new-bucket .button {
+	box-shadow: none;
 }
 
 .move-card-move {
-	transform: rotateZ(3deg);
-	transition: transform $transition-duration;
+	transition: transform var(--motion-base) var(--ease-standard);
 }
 
 .move-card-leave-from,

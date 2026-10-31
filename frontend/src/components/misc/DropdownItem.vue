@@ -33,10 +33,12 @@ defineProps<DropDownItemProps>()
 
 <style scoped lang="scss">
 .dropdown-item {
-	color: var(--text);
-	font-size: 0.875rem;
-	line-height: 1.5;
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	line-height: 1.4;
 	padding: $item-padding;
+	min-block-size: 2rem;
+	border-radius: var(--radius-sm);
 	position: relative;
 	text-align: inherit;
 	white-space: nowrap;
@@ -46,22 +48,28 @@ defineProps<DropDownItemProps>()
 	justify-content: left !important;
 
 	&.is-active {
-		background-color: var(--link);
-		color: var(--link-invert);
+		background-color: var(--surface-selected-strong);
+		color: var(--accent-text);
 	}
 
-	&:hover:not(.is-disabled) {
-		background-color: var(--grey-100);
+	&:hover:not(.is-disabled),
+	&:focus-visible {
+		background-color: var(--surface-hover);
 	}
 
 	&.is-disabled {
 		cursor: not-allowed;
+		opacity: .55;
+	}
+
+	@media (pointer: coarse) {
+		min-block-size: var(--target-min);
 	}
 }
 
 .icon {
 	padding-inline-end: .5rem;
-	color: var(--grey-300);
+	color: var(--text-tertiary);
 }
 
 .has-text-danger .icon {

@@ -43,7 +43,7 @@ test.describe('Task recurrence', () => {
 		const completed = page.waitForResponse(r =>
 			new URL(r.url()).pathname.endsWith(`/tasks/${task.id}`) && r.request().method() === 'PATCH',
 		)
-		await page.locator('.task-view .action-buttons .button').filter({hasText: 'Mark task done!'}).click()
+		await page.locator('.task-view .task-primary-actions .button--mark-done').filter({hasText: 'Mark task done!'}).click()
 		await completed
 
 		// Fetch fresh state from the API to verify the backend regenerated the task.

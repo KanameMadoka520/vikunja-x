@@ -5,9 +5,10 @@
 			'has-light-text': Boolean(background),
 			'has-background': Boolean(blurHashUrl || background),
 			'has-status': hasStatus,
+			'has-color': Boolean(project.hex_color),
 		}"
 		:style="{
-			'border-inline-start': project.hex_color ? `0.25rem solid ${project.hex_color}` : undefined,
+			'--project-color': project.hex_color || undefined,
 			'background-image': blurHashUrl ? `url(${blurHashUrl})` : undefined,
 		}"
 	>
@@ -123,28 +124,29 @@ const parentPath = computed(() => {
 
 <style lang="scss" scoped>
 .project-card {
-	--project-card-padding: 1rem;
-	--project-card-action-size: 2rem;
-	--project-title-lines: 3;
-	background: var(--white);
-	padding: var(--project-card-padding);
-	border-radius: $radius;
-	box-shadow: var(--shadow-sm);
-	transition: box-shadow $transition;
-	position: relative;
-	min-inline-size: 0;
+	--project-card-padding: var(--space-3);
+	--project-card-action-size: var(--control-height-sm);
+	--project-title-lines: 2;
 
+	position: relative;
 	display: flex;
 	flex-direction: column;
-	gap: .5rem;
+	gap: var(--space-2);
+	min-inline-size: 0;
+	padding: var(--project-card-padding);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
 
-	&:hover {
-		box-shadow: var(--shadow-md);
+	// No overflow clipping here: the settings menu opens out of the card.
+	&.has-color {
+		border-inline-start: 4px solid var(--project-color);
 	}
 
-	&:active,
-	&:focus {
-		box-shadow: var(--shadow-xs) !important;
+	&:hover {
+		border-color: var(--border-default);
+		box-shadow: var(--elevation-2);
 	}
 
 	> * {
@@ -152,19 +154,9 @@ const parentPath = computed(() => {
 		position: relative;
 	}
 
-	&.has-status {
-		--project-title-lines: 2;
-	}
-
-	// Always-visible touch actions would collide with a third title line.
+	// Always-visible touch actions need a full-size target.
 	@media (pointer: coarse) {
-		--project-card-action-size: 2.75rem;
-		--project-title-lines: 2;
-	}
-
-	@media screen and (width <= 30rem) {
-		--project-card-padding: .75rem;
-		--project-title-lines: 2;
+		--project-card-action-size: var(--target-min);
 	}
 }
 
@@ -175,90 +167,95 @@ const parentPath = computed(() => {
 	background-position: center;
 }
 
+.project-background,
+.project-button {
+	position: absolute;
+	inset: 0;
+}
+
 // Clip here instead of on the card so the settings dropdown can overflow it.
 .project-background {
 	border-radius: inherit;
 }
 
-.project-background,
-.project-button {
+// Photos get a bottom scrim so the title keeps its contrast in both colour schemes.
+.has-background .project-background::after {
+	content: '';
 	position: absolute;
-	inset-block-start: 0;
-	inset-inline-end: 0;
-	inset-block-end: 0;
-	inset-inline-start: 0;
+	inset: 0;
+	border-radius: inherit;
+	background: linear-gradient(to top, var(--scrim), transparent 75%);
 }
 
 .project-card-status {
 	align-self: flex-start;
 	max-inline-size: calc(100% - 2 * var(--project-card-action-size));
-	border-radius: 999px;
+	border-radius: var(--radius-full);
 }
 
 // The tinted badges are translucent and would be unreadable on a photo.
 .has-background .project-card-status {
-	background: var(--white);
+	background: var(--surface);
 }
 
 .project-card-text {
 	display: flex;
 	flex-direction: column;
-	gap: .125rem;
+	gap: 2px;
 	min-block-size: 0;
 	margin-block-start: auto;
+	pointer-events: none;
 }
 
 .project-parent {
 	margin: 0;
 	overflow: hidden;
-	color: var(--text-muted);
-	font-size: .75rem;
-	line-height: 1.4;
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	line-height: var(--leading-tight);
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
 
 .project-title {
-	font-family: $vikunja-font;
-	font-weight: 400;
-	font-size: 1.5rem;
-	line-height: 1.25;
-	color: var(--text);
+	display: -webkit-box;
 	min-block-size: 0;
 	margin-block-end: 0;
 	overflow: hidden;
+	color: var(--text-primary);
+	font-family: $vikunja-font;
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
 	text-overflow: ellipsis;
 	word-break: break-word;
-
-	display: -webkit-box;
 	-webkit-line-clamp: var(--project-title-lines);
 	-webkit-box-orient: vertical;
-
-	@media screen and (width <= 30rem) {
-		font-size: 1.25rem;
-	}
 }
 
-.has-light-text .project-title {
-	color: var(--grey-100);
-}
-
+// Fixed white, not var(--white): that turns near-black in dark mode and the photo stays as bright as it is.
 .has-background .project-title,
 .has-background .project-parent {
-	text-shadow:
-		0 0 10px var(--black),
-		1px 1px 5px var(--grey-700),
-		-1px -1px 5px var(--grey-700);
-	color: var(--white);
+	color: var(--text-on-accent);
+	text-shadow: 0 1px 3px hsla(220, 30%, 6%, .6);
+}
+
+.project-button {
+	border-radius: inherit;
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: -2px;
+	}
 }
 
 .project-actions {
 	position: absolute;
-	// Centre the action icons on the first badge row instead of the hit area's corner.
-	inset-block-start: max(.25rem, calc(var(--project-card-padding) + .75rem - var(--project-card-action-size) / 2));
-	inset-inline-end: max(.25rem, calc(var(--project-card-padding) + .5rem - var(--project-card-action-size) / 2));
+	inset-block-start: var(--space-2);
+	inset-inline-end: var(--space-2);
 	display: flex;
 	align-items: center;
+	gap: 2px;
 }
 
 .favorite,
@@ -268,14 +265,27 @@ const parentPath = computed(() => {
 	justify-content: center;
 	min-inline-size: var(--project-card-action-size);
 	min-block-size: var(--project-card-action-size);
-	border-radius: $radius;
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+
+	&:hover {
+		background: var(--surface-hover);
+	}
+}
+
+.has-background .favorite,
+.has-background .settings-dropdown :deep(.dropdown-trigger) {
+	background: var(--surface);
+	color: var(--text-primary);
 }
 
 .favorite,
 .settings-dropdown {
-	transition: opacity $transition, color $transition;
+	transition: opacity var(--motion-fast) var(--ease-standard);
 	opacity: 1;
+}
 
+.favorite {
 	&:hover {
 		color: var(--warning);
 	}
@@ -305,8 +315,7 @@ const parentPath = computed(() => {
 
 .background-fade-in {
 	opacity: 0;
-	transition: opacity $transition;
-	transition-delay: $transition-duration * 2; // To fake an appearing background
+	transition: opacity var(--motion-slow) var(--ease-standard) var(--motion-base);
 
 	&.is-visible {
 		opacity: 1;
@@ -314,16 +323,7 @@ const parentPath = computed(() => {
 }
 
 .saved-filter-icon {
-	color: var(--text-muted);
+	color: var(--text-tertiary);
 	font-size: .75em;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.project-card,
-	.favorite,
-	.settings-dropdown,
-	.background-fade-in {
-		transition: none;
-	}
 }
 </style>

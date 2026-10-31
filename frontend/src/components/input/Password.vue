@@ -60,8 +60,8 @@ const emit = defineEmits<{
 const {t} = useI18n()
 const passwordFieldType = ref('password')
 const password = ref('')
-// eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const isValid = ref<true | string>(props.validateInitially === true ? true : '')
+// Valid until the first validation runs, so the field does not announce an error before any input.
+const isValid = ref<true | string>(true)
 const validateAfterFirst = ref(false)
 const errorId = computed(() => isValid.value !== true ? 'password-error' : undefined)
 
@@ -84,16 +84,30 @@ function handleInput(e: Event) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .password-field {
 	position: relative;
+
+	.input {
+		padding-inline-end: 2.75rem;
+	}
 }
 
 .password-field-type-toggle {
 	position: absolute;
-	color: var(--grey-400);
 	inset-block-start: 50%;
-	inset-inline-end: 1rem;
+	inset-inline-end: var(--space-1);
+	display: grid;
+	place-items: center;
+	min-inline-size: 2rem;
+	min-block-size: 2rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
 	transform: translateY(-50%);
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
 }
 </style>

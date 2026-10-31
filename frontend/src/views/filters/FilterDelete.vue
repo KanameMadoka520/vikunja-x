@@ -1,5 +1,6 @@
 <template>
 	<Modal
+		danger
 		@close="goBack()"
 		@submit="remove()"
 	>

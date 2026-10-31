@@ -32,12 +32,12 @@
 				@foundApi="loginWithServer"
 			/>
 			<div class="has-text-centered mbs-2">
-				<a
-					role="button"
+				<XButton
+					variant="tertiary"
 					@click="showCustomServerInput = false"
 				>
 					{{ $t('misc.cancel') }}
-				</a>
+				</XButton>
 			</div>
 		</template>
 		<template v-else>

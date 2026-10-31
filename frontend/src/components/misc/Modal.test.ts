@@ -2,6 +2,7 @@ import {describe, it, expect, beforeEach, afterEach, vi, type MockInstance} from
 import {mount, flushPromises} from '@vue/test-utils'
 import {nextTick} from 'vue'
 import Modal from './Modal.vue'
+import XButton from '@/components/input/Button.vue'
 
 const globalMocks = {
 	global: {
@@ -122,7 +123,7 @@ describe('Modal.vue — open race condition (#2590)', () => {
 		expect(document.querySelector('dialog.modal-dialog')?.hasAttribute('open')).toBe(true)
 
 		await wrapper.setProps({enabled: false})
-		// Wait past the 150ms closeTimer (real timers — fake timers interact
+		// Wait past the 140ms closeTimer (real timers — fake timers interact
 		// badly with Vue's scheduler).
 		await new Promise(resolve => setTimeout(resolve, 200))
 		await flushPromises()
@@ -164,7 +165,7 @@ describe('Modal.vue — open race condition (#2590)', () => {
 
 	it('clears data-closing when re-opened mid-close transition', async () => {
 		// Regression guard: if the user toggles enabled back to true while the
-		// 150ms close transition is still in flight, the <dialog> is still
+		// 140ms close transition is still in flight, the <dialog> is still
 		// mounted and [open], so the dialogRef watcher does not re-fire. Make
 		// sure openDialog() clears the leftover data-closing flag itself;
 		// otherwise the dialog stays stuck at opacity 0.
@@ -185,7 +186,7 @@ describe('Modal.vue — open race condition (#2590)', () => {
 		await nextTick()
 		expect(dialog.dataset.closing).toBe('')
 
-		// Re-open well before the 150ms close timer fires.
+		// Re-open well before the 140ms close timer fires.
 		await wrapper.setProps({enabled: true})
 		await nextTick()
 
@@ -349,5 +350,85 @@ describe('Modal.vue — nested body scroll lock', () => {
 
 		outer.unmount()
 		expect(document.body.style.overflow).toBe('')
+	})
+})
+
+describe('Modal.vue — confirm layout', () => {
+	const confirmMocks = {
+		global: {
+			mocks: {
+				$t: (key: string) => key,
+			},
+			components: {
+				XButton,
+			},
+			stubs: {
+				Icon: true,
+			},
+		},
+	}
+
+	it('renders the header/text fallback as a compact confirm card with a neutral cancel', async () => {
+		const wrapper = mount(Modal, {
+			...confirmMocks,
+			attachTo: document.body,
+			props: {enabled: true},
+			slots: {
+				header: '<span>Delete this task</span>',
+				text: '<p>Really?</p>',
+			},
+		})
+		await flushPromises()
+		await nextTick()
+
+		const dialog = document.querySelector('dialog.modal-dialog') as HTMLDialogElement
+		expect(dialog.classList.contains('is-confirm')).toBe(true)
+		expect(dialog.querySelector('.modal-container > .close')).not.toBeNull()
+
+		const buttons = dialog.querySelectorAll('.modal-content .actions .button')
+		expect(buttons).toHaveLength(2)
+		expect(buttons[0].textContent).toContain('misc.cancel')
+		expect(buttons[0].classList.contains('is-outlined')).toBe(true)
+		expect(buttons[0].classList.contains('has-text-danger')).toBe(false)
+		expect(buttons[1].textContent).toContain('misc.doit')
+		expect(buttons[1].classList.contains('is-danger')).toBe(false)
+
+		wrapper.unmount()
+	})
+
+	it('marks the confirm action as destructive when danger is set', async () => {
+		const wrapper = mount(Modal, {
+			...confirmMocks,
+			attachTo: document.body,
+			props: {
+				enabled: true,
+				danger: true,
+			},
+			slots: {header: '<span>Delete this task</span>'},
+		})
+		await flushPromises()
+		await nextTick()
+
+		const primary = document.querySelectorAll('dialog .modal-content .actions .button')[1]
+		expect(primary.classList.contains('is-danger')).toBe(true)
+
+		wrapper.unmount()
+	})
+
+	it('keeps the full layout for custom content', async () => {
+		const wrapper = mount(Modal, {
+			...confirmMocks,
+			attachTo: document.body,
+			props: {enabled: true},
+			slots: {default: '<p class="test-body">hi</p>'},
+		})
+		await flushPromises()
+		await nextTick()
+
+		const dialog = document.querySelector('dialog.modal-dialog') as HTMLDialogElement
+		expect(dialog.classList.contains('is-confirm')).toBe(false)
+		expect(dialog.classList.contains('default')).toBe(true)
+
+		wrapper.unmount()
 	})
 })

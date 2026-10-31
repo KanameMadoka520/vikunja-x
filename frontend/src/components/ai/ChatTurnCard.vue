@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useNow} from '@vueuse/core'
 import {useI18n} from 'vue-i18n'
 import {marked} from 'marked'
@@ -10,6 +10,7 @@ import {openAgentDiagnostic} from '@/helpers/diagnostics'
 import OutputSpeed from './OutputSpeed.vue'
 import CacheUsage from './CacheUsage.vue'
 import WebSearchEvidence from './WebSearchEvidence.vue'
+import {toolLabels} from './toolLabels'
 import AronaAvatar from '@/components/ai/AronaAvatar.vue'
 import ChatAttachmentCard from '@/components/ai/attachments/ChatAttachmentCard.vue'
 import AgentReviewCard from '@/components/ai/AgentReviewCard.vue'
@@ -19,46 +20,56 @@ const props = withDefaults(defineProps<{
 	conversationId?: string
 	turn: ChatTurn
 	busy: boolean
- sending?: boolean
- reviewBusy?: boolean
-}>(), {reviewBusy: false, sending: false, conversationId: ''})
+	sending?: boolean
+	reviewBusy?: boolean
+}>(), {
+	reviewBusy: false,
+	sending: false,
+	conversationId: '',
+})
 const emit = defineEmits<{
 	fork: [id: string]
- review: [input: ReviewInput]
+	review: [input: ReviewInput]
 }>()
 const {t} = useI18n({useScope: 'global'})
 const copied = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
 const executionOpen = ref(false)
 const running = computed(() => props.turn.status === 'running')
 const result = computed(() => props.turn.result)
 const {now, pause, resume} = useNow({interval: 1000, controls: true})
 watch(running, value => value ? resume() : pause(), {immediate: true})
 const lastStep = computed(() => result.value?.steps?.at(-1))
-const activeTool = computed(() => result.value?.stage === 'model' ? (lastStep.value?.tool_calls?.at(-1) ? callName(lastStep.value.tool_calls.at(-1)!) : undefined) : result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
-const cacheUsages = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].map(step => step.usage))
+const activeTool = computed(() => result.value?.stage === 'model'
+	? (lastStep.value?.tool_calls?.at(-1) ? callName(lastStep.value.tool_calls.at(-1)!) : undefined)
+	: result.value?.operations?.at(-1)?.tool || result.value?.actions?.at(-1)?.tool)
+const searchSteps = computed(() => (result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : []))
+const cacheUsages = computed(() => [...(result.value?.steps ?? []), ...searchSteps.value].map(step => step.usage))
 function callName(call: {function?: {name?: string, arguments?: string}}) {
 	if (call.function?.name !== 'invoke_tool') return call.function?.name ?? ''
-	try { const name = JSON.parse(call.function.arguments ?? '{}').name; return typeof name === 'string' ? name : 'invoke_tool' } catch {return 'invoke_tool'}
+	try {
+		const name = JSON.parse(call.function.arguments ?? '{}').name
+		return typeof name === 'string' ? name : 'invoke_tool'
+	} catch {
+		return 'invoke_tool'
+	}
 }
-const liveUsage = computed(() => [...(result.value?.steps ?? []), ...(result.value?.actions ?? []).flatMap(a => a.search?.step ? [a.search.step] : [])].reduce((u, step) => ({input: u.input + (step.usage?.input ?? 0), output: u.output + (step.usage?.output ?? 0), reasoning: u.reasoning + (step.usage?.reasoning ?? 0), reported: u.reported || Boolean(step.usage?.reported)}), {input: 0, output: 0, reasoning: 0, reported: false}))
+const liveUsage = computed(() => [...(result.value?.steps ?? []), ...searchSteps.value].reduce((u, step) => ({
+	input: u.input + (step.usage?.input ?? 0),
+	output: u.output + (step.usage?.output ?? 0),
+	reasoning: u.reasoning + (step.usage?.reasoning ?? 0),
+	reported: u.reported || Boolean(step.usage?.reported),
+}), {input: 0, output: 0, reasoning: 0, reported: false}))
 function stepTime(step: ModelStep) {
-	const elapsed = running.value && step.round === lastStep.value?.round && result.value?.stage === 'model' && step.started ? Math.max(step.duration_ms ?? 0, now.value.getTime() - new Date(step.started).getTime()) : step.duration_ms
+	const live = running.value && step.round === lastStep.value?.round && result.value?.stage === 'model' && step.started
+	const elapsed = live
+		? Math.max(step.duration_ms ?? 0, now.value.getTime() - new Date(step.started!).getTime())
+		: step.duration_ms
 	return seconds(elapsed)
 }
 const answer = computed(() => result.value?.reply || result.value?.steps?.at(-1)?.text || '')
 const html = computed(() => sanitizeProjectDescription(marked.parse(answer.value, {async: false})))
-const labels = computed<Record<string, string>>(() => ({
-	web_search: t('webSearch.title'),
-	invoke_tool: t('cacheEfficiency.callTool'),
-	list_projects: t('tcymc.text.find_projects'),
-	list_tasks: t('tcymc.text.find_tasks'),
-	get_task: t('tcymc.text.read_task'),
-	create_project: t('tcymc.text.create_project'),
-	create_task: t('tcymc.text.create_task'),
-	update_task: t('tcymc.text.update_task'),
-	delete_task: t('tcymc.text.delete_task'),
-	...Object.fromEntries(['list_project_history','set_project_completed','update_project','find_tools','ask_user','get_project','list_labels','list_comments','list_project_users','bulk_update_tasks','create_label','add_task_label','remove_task_label','add_comment','assign_task','unassign_task','relate_tasks','unrelate_tasks'].map(name => [name, t(`agent.tools.${name}`)])),
-}))
+const labels = computed(() => toolLabels(t))
 function seconds(value?: number | null) {
 	return value == null ? t('chat.unavailable') : t('chat.seconds', {value: (value / 1000).toFixed(2)})
 }
@@ -66,8 +77,26 @@ function pretty(value?: string) {
 	try { return JSON.stringify(JSON.parse(value ?? ''), null, 2) } catch { return value }
 }
 async function copy() {
-	try { await navigator.clipboard.writeText(answer.value); copied.value = true } catch { copied.value = false }
+	try {
+		await navigator.clipboard.writeText(answer.value)
+		copied.value = true
+		clearTimeout(copiedTimer)
+		copiedTimer = setTimeout(() => { copied.value = false }, 2000)
+	} catch {
+		copied.value = false
+	}
 }
+onBeforeUnmount(() => clearTimeout(copiedTimer))
+
+// One polite status per turn that only changes with the stage, never with counters or streamed text.
+const finishedHere = ref(false)
+watch(running, (isRunning, wasRunning) => { if (wasRunning && !isRunning) finishedHere.value = true })
+const announcement = computed(() => {
+	if (props.sending) return t('chat.sending')
+	if (running.value) return t(`flow.stage_${result.value?.stage || 'model'}`)
+	if (result.value?.pause) return t(result.value.pause === 'budget' ? 'flow.stage_budget' : 'flow.stage_review')
+	return finishedHere.value && props.turn.status === 'completed' ? t('flow.stage_completed') : ''
+})
 </script>
 
 <template>
@@ -92,31 +121,26 @@ async function copy() {
 		</div>
 		<div class="assistant-message">
 			<div class="assistant-identity">
-				<AronaAvatar /><strong>{{ t('tcymc.text.task_assistant') }}</strong><span
+				<AronaAvatar size="small" />
+				<strong>{{ t('tcymc.text.task_assistant') }}</strong>
+				<span
 					v-if="result?.model"
 					class="model-badge"
-				>{{ result.model }}</span><span
-					v-if="running"
-					class="run-status"
+				>{{ result.model }}</span>
+				<span
+					class="is-sr-only"
 					role="status"
-				>{{ t(sending ? 'chat.sending' : 'chat.running') }}</span>
-			</div>
-			<div
-				v-if="running && !sending"
-				class="live-run-panel"
-				role="status"
-			>
-				<span class="working-orbit" /><div><strong>{{ t(`flow.stage_${result?.stage || 'model'}`) }}<template v-if="activeTool"> · {{ labels[activeTool] || activeTool }}</template></strong><small>{{ lastStep?.streaming ? t('flow.streaming') : t('flow.waitingData') }}<template v-if="lastStep"> · {{ stepTime(lastStep) }}</template></small></div>
-				<div class="live-counts">
-					<span v-if="liveUsage.reported">{{ liveUsage.input }} {{ t('chat.inputTokens') }} · {{ liveUsage.output }} {{ t('chat.outputTokens') }}<template v-if="liveUsage.reasoning"> · {{ liveUsage.reasoning }} {{ t('chat.reasoningTokens') }}</template></span><span v-else>{{ t('flow.usagePending') }}</span><small>{{ t('flow.observedCharacters', {count: lastStep?.output_characters ?? 0}) }}</small>
-				</div>
+				>{{ announcement }}</span>
 			</div>
 			<details
 				v-if="result?.steps?.length"
 				class="execution"
 				@toggle="executionOpen = ($event.target as HTMLDetailsElement).open"
 			>
-				<summary><Icon icon="sitemap" /> {{ t('chat.thinkingAndSteps') }} · {{ t('chat.rounds', {count: result.steps.length}) }} · {{ t('chat.operations', {count: result.actions?.length ?? 0}) }}</summary>
+				<summary>
+					<Icon icon="sitemap" />
+					<span>{{ t('chat.thinkingAndSteps') }} · {{ t('chat.rounds', {count: result.steps.length}) }} · {{ t('chat.operations', {count: result.actions?.length ?? 0}) }}</span>
+				</summary>
 				<template v-if="executionOpen">
 					<section
 						v-for="step in result.steps"
@@ -174,12 +198,16 @@ async function copy() {
 							:key="receipt.id"
 							class="tool-inflight"
 						>
-							<span class="working-orbit" />{{ labels[receipt.tool ?? ''] || receipt.tool }} · {{ t('flow.toolExecuting') }}
+							<span
+								class="working-orbit"
+								aria-hidden="true"
+							/>{{ labels[receipt.tool ?? ''] || receipt.tool }} · {{ t('flow.toolExecuting') }}
 						</div>
 						<details
 							v-for="(action, actionIndex) in (result?.actions ?? []).filter(a => a.round === step.round)"
 							:key="actionIndex"
 							class="tool-step"
+							:class="{'is-failed': !action.success}"
 						>
 							<summary><Icon :icon="action.success ? 'check' : 'exclamation-circle'" /> {{ labels[action.tool ?? ''] || action.tool }} · {{ action.success ? t('tcymc.text.succeeded') : t('tcymc.text.failed') }} · {{ seconds(action.duration_ms) }}</summary>
 							<WebSearchEvidence
@@ -210,10 +238,28 @@ async function copy() {
 			<p
 				v-if="!answer && running"
 				class="thinking-status"
-				role="status"
 			>
 				<Icon icon="bolt" /> {{ t(sending ? 'chat.sending' : 'chat.waiting') }}
 			</p>
+			<!-- Live status sits below the answer, so it can leave without moving text being read. -->
+			<div
+				v-if="running && !sending"
+				class="live-run-panel"
+			>
+				<span
+					class="working-orbit"
+					aria-hidden="true"
+				/>
+				<strong>{{ t(`flow.stage_${result?.stage || 'model'}`) }}<template v-if="activeTool"> · {{ labels[activeTool] || activeTool }}</template></strong>
+				<span class="live-detail">{{ lastStep?.streaming ? t('flow.streaming') : t('flow.waitingData') }}<template v-if="lastStep"> · {{ stepTime(lastStep) }}</template></span>
+				<span
+					class="live-counts"
+					aria-hidden="true"
+				>
+					<span v-if="liveUsage.reported">{{ liveUsage.input }} {{ t('chat.inputTokens') }} · {{ liveUsage.output }} {{ t('chat.outputTokens') }}<template v-if="liveUsage.reasoning"> · {{ liveUsage.reasoning }} {{ t('chat.reasoningTokens') }}</template></span><span v-else>{{ t('flow.usagePending') }}</span>
+					<small>{{ t('flow.observedCharacters', {count: lastStep?.output_characters ?? 0}) }}</small>
+				</span>
+			</div>
 			<p
 				v-if="result?.error"
 				class="run-error"
@@ -251,37 +297,47 @@ async function copy() {
 				</p>
 			</div>
 
-			<OutputSpeed
-				v-if="turn.status === 'completed'"
-				:step="lastStep"
-			/>
-
-			<details
-				v-if="result?.system_prompt"
-				class="request-details"
+			<div
+				v-if="turn.status === 'completed' || result?.system_prompt"
+				class="run-meta"
 			>
-				<summary>
-					{{ t('chat.requestDetails') }} · {{ seconds(result?.duration_ms) }}<template v-if="result?.usage?.reported">
-						· {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }} tokens
-					</template>
-				</summary><details
-					v-if="result?.configuration"
-					class="run-configuration"
+				<OutputSpeed
+					v-if="turn.status === 'completed'"
+					:step="lastStep"
+				/>
+				<details
+					v-if="result?.system_prompt"
+					class="request-details"
 				>
-					<summary>{{ t('assistantUI.runConfiguration') }}</summary><pre>{{ JSON.stringify(result.configuration, null, 2) }}</pre>
-				</details>			<div
-					v-if="!running"
-					class="run-metrics"
-				>
-					<span>{{ t('chat.totalTime') }}: {{ seconds(result?.duration_ms) }}</span><span>{{ t('chat.firstToken') }}: {{ seconds(result?.first_token_ms) }}</span><span>{{ t('chat.firstText') }}: {{ seconds(result?.first_text_ms) }}</span>
-					<span v-if="result?.steps?.at(-1)?.context_window">{{ t('modelConfig.context') }}: {{ result.steps.at(-1)?.context_window?.toLocaleString() }} · {{ t('modelConfig.lastInput') }}: {{ result.steps.at(-1)?.usage?.reported ? result.steps.at(-1)?.usage?.input?.toLocaleString() : t('chat.unavailable') }}</span>
-					<span v-if="result?.steps?.at(-1)?.max_output_tokens">{{ t('modelConfig.output') }}: {{ result.steps.at(-1)?.max_output_tokens?.toLocaleString() }}</span>
-					<span v-if="result?.usage?.reported">{{ t('chat.inputTokens') }}: {{ result.usage.input }} · {{ t('chat.outputTokens') }}: {{ result.usage.output }} · {{ t('chat.totalTokens') }}: {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }}</span>
-					<span v-else>{{ t('chat.tokens') }}: {{ t('chat.unavailable') }}</span>
-					<span v-if="result?.usage?.reported && result.usage.partial">{{ t('chat.partialUsage') }}</span>
-					<CacheUsage :usages="cacheUsages" /><span v-if="result?.usage?.reasoning_reported">{{ t('chat.reasoningTokens') }}: {{ result.usage.reasoning }}</span>
-				</div><p>{{ t('chat.requestedModel') }}: {{ result.requested_model }} · {{ result.protocol }}</p><code>{{ result.endpoint }}</code><pre>{{ result.system_prompt }}</pre><p>{{ t('chat.metricNotes') }}</p>
-			</details>
+					<summary>
+						{{ t('chat.requestDetails') }} · {{ seconds(result?.duration_ms) }}<template v-if="result?.usage?.reported">
+							· {{ t('assistantUI.tokenCount', {count: (result.usage.input ?? 0) + (result.usage.output ?? 0)}) }}
+						</template>
+					</summary>
+					<details
+						v-if="result?.configuration"
+						class="run-configuration"
+					>
+						<summary>{{ t('assistantUI.runConfiguration') }}</summary><pre>{{ JSON.stringify(result.configuration, null, 2) }}</pre>
+					</details>
+					<div
+						v-if="!running"
+						class="run-metrics"
+					>
+						<span>{{ t('chat.totalTime') }}: {{ seconds(result?.duration_ms) }}</span><span>{{ t('chat.firstToken') }}: {{ seconds(result?.first_token_ms) }}</span><span>{{ t('chat.firstText') }}: {{ seconds(result?.first_text_ms) }}</span>
+						<span v-if="result?.steps?.at(-1)?.context_window">{{ t('modelConfig.context') }}: {{ result.steps.at(-1)?.context_window?.toLocaleString() }} · {{ t('modelConfig.lastInput') }}: {{ result.steps.at(-1)?.usage?.reported ? result.steps.at(-1)?.usage?.input?.toLocaleString() : t('chat.unavailable') }}</span>
+						<span v-if="result?.steps?.at(-1)?.max_output_tokens">{{ t('modelConfig.output') }}: {{ result.steps.at(-1)?.max_output_tokens?.toLocaleString() }}</span>
+						<span v-if="result?.usage?.reported">{{ t('chat.inputTokens') }}: {{ result.usage.input }} · {{ t('chat.outputTokens') }}: {{ result.usage.output }} · {{ t('chat.totalTokens') }}: {{ (result.usage.input ?? 0) + (result.usage.output ?? 0) }}</span>
+						<span v-else>{{ t('chat.tokens') }}: {{ t('chat.unavailable') }}</span>
+						<span v-if="result?.usage?.reported && result.usage.partial">{{ t('chat.partialUsage') }}</span>
+						<CacheUsage :usages="cacheUsages" /><span v-if="result?.usage?.reasoning_reported">{{ t('chat.reasoningTokens') }}: {{ result.usage.reasoning }}</span>
+					</div>
+					<p>{{ t('chat.requestedModel') }}: {{ result.requested_model }} · {{ result.protocol }}</p>
+					<code>{{ result.endpoint }}</code>
+					<pre>{{ result.system_prompt }}</pre>
+					<p>{{ t('chat.metricNotes') }}</p>
+				</details>
+			</div>
 			<WebSearchEvidence
 				v-for="(action, index) in (result?.actions ?? []).filter(a => a.search)"
 				:key="`search-${index}`"
@@ -289,15 +345,8 @@ async function copy() {
 			/>
 			<div class="message-actions">
 				<BaseButton
-					class="message-action"
-					@click="openAgentDiagnostic(turn)"
-				>
-					<Icon icon="code" /> {{ t('debug.openRun') }}
-				</BaseButton>
-				<BaseButton
 					v-if="answer"
 					class="message-action"
-					:aria-label="t('chat.copy')"
 					@click="copy"
 				>
 					<Icon :icon="copied ? 'check' : 'copy'" /> {{ copied ? t('chat.copied') : t('chat.copy') }}
@@ -310,217 +359,428 @@ async function copy() {
 				>
 					<Icon icon="code-branch" /> {{ t('chat.forkHere') }}
 				</BaseButton>
+				<BaseButton
+					class="message-action is-icon"
+					:title="t('debug.openRun')"
+					:aria-label="t('debug.openRun')"
+					@click="openAgentDiagnostic(turn)"
+				>
+					<Icon icon="code" />
+				</BaseButton>
 			</div>
 		</div>
 	</article>
 </template>
 
 <style scoped lang="scss">
-.message-attachments { display: flex;
-flex-wrap: wrap;
-gap: .5rem;
-margin-block-start: .75rem;
-}
 .chat-turn {
-content-visibility: auto;contain-intrinsic-size: auto 200px;
-margin-block: 1rem 2.5rem;
-}
-.user-message {
-display: flex;gap: .75rem;background: var(--grey-100);
-inline-size: fit-content;
-max-inline-size: 85%;
-margin-inline-start: auto;
-padding: .65rem 1.1rem;
-border-radius: 1.5rem;
-line-height: 1.7;
-}
-.user-message p, .reasoning p, .step-text {
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	margin-block: .5rem 0;
-}
-.user-message > div {
-	min-inline-size: 0;
-}
-.assistant-message {
-;
-margin-block-start: 1.75rem;
-}
-.assistant-identity {
-display: flex;align-items: center;flex-wrap: wrap;margin-block-end: .875rem;
-gap: .5rem;
-font-size: .8rem;
-color: var(--text-light);
-}
-.model-badge, .run-status {
-border-radius: .375rem;color: var(--text-light);font-size: .75rem;overflow-wrap: anywhere;
-background: transparent;
-padding: 0;
-}
-.execution {
-margin-block-end: 1rem;
-border: 0;
-border-inline-start: 2px solid var(--grey-200);
-border-radius: 0;
-padding: .25rem .8rem;
-color: var(--text-light);
-font-size: .8rem;
-}
-summary {
-	cursor: pointer;
-	line-height: 1.6;
-	overflow-wrap: anywhere;
-}
-.model-step {
-	margin-block-start: .75rem;
-	border-inline-start: 2px solid var(--primary);
-	padding-inline-start: .75rem;
-}
-.model-step header {
-	display: flex;
-	flex-wrap: wrap;
-	gap: .5rem;
-	justify-content: space-between;
-}
-.model-step header span, .step-note {
-	color: var(--text-light);
-	font-size: .8rem;
-}
-.reasoning, .tool-step {
-	margin-block-start: .75rem;
-}
-.reasoning p {
-	max-block-size: 20rem;
-	overflow-y: auto;
-	padding: .75rem;
-	background: var(--grey-100);
-	border-radius: .5rem;
-}
-pre {
-	max-block-size: 20rem;
-	white-space: pre-wrap;
-	overflow: auto;
-	overflow-wrap: anywhere;
-	margin-block: .5rem;
-	font-size: .8rem;
-}
-.chat-markdown {
-overflow-wrap: anywhere;
-font-size: 1rem;
-line-height: 1.85;
-}
-.chat-markdown :deep(pre) {
-	overflow-x: auto;
-	max-inline-size: 100%;
-}
-.chat-markdown :deep(table) {
-	display: block;
-	max-inline-size: 100%;
-	overflow-x: auto;
-}
-.chat-markdown :deep(img) {
-	max-inline-size: 100%;
-}
-.run-error {
-	padding: .75rem;
-	border-inline-start: 3px solid var(--danger);
-	background: var(--grey-100);
-	overflow-wrap: anywhere;
-}
-.run-metrics {
-	display: flex;
-	flex-wrap: wrap;
-	gap: .4rem 1rem;
-	font-size: .75rem;
-	color: var(--text-light);
-	margin-block: .75rem;
-}
-.request-details {
-;
-border: 0;
-background: transparent;
-padding: .25rem 0;
-color: var(--text-light);
-font-size: .75rem;
-}
-.request-details code {
-	display: block;
-	overflow-wrap: anywhere;
-}
-.message-actions {
-display: flex;flex-wrap: wrap;
-gap: .5rem;
-margin-block-start: .25rem;
-}
-.message-action {
-display: inline-flex;align-items: center;gap: .5rem;min-block-size: 44px;color: var(--text-light);
-font-size: .7rem;
-padding: .5rem .25rem;
+	content-visibility: auto;
+	contain-intrinsic-size: auto 200px;
+	margin-block: var(--space-4) var(--space-8);
 }
 
 .chat-turn:has(.live-run-panel) {
-content-visibility: visible;
+	content-visibility: visible;
 }
-.live-run-panel {
-display: flex;flex-wrap: wrap;align-items: center;gap: .75rem;margin-block-end: .8rem;font-size: .8rem;
-background: transparent;
-border: 0;
-border-radius: 0;
-padding: .5rem 0;
-box-shadow: none;
+
+.user-message {
+	display: flex;
+	gap: var(--space-3);
+	inline-size: fit-content;
+	max-inline-size: min(85%, 40rem);
+	margin-inline-start: auto;
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-lg);
+	background: var(--surface-sunken);
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	line-height: var(--leading-normal);
 }
-.live-run-panel small {
-display: block;
-color: var(--text-light);
-font-size: .72rem;
-margin-block-start: .25rem;
+
+.user-message > div {
+	min-inline-size: 0;
 }
-.live-counts {
-margin-inline-start: auto;font-variant-numeric: tabular-nums;
-font-size: .7rem;
+
+.user-message p,
+.reasoning p,
+.step-text {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	margin-block: var(--space-2) 0;
 }
-.working-orbit {
-display: inline-block;border: 2px solid color-mix(in srgb, var(--primary) 20%, transparent);border-block-start-color: var(--primary);border-radius: 50%;animation: working-spin .85s linear infinite;flex-shrink: 0;
-inline-size: .7rem;
-block-size: .7rem;
-border-width: 2px;
-}
-.tool-inflight {
-display: flex;
-align-items: center;
-gap: .5rem;
-padding: .7rem;
-border-radius: .6rem;
-background: var(--grey-100);
-}
-.tool-draft {
-border: 1px dashed var(--grey-300);
-padding: .6rem;
-border-radius: .6rem;
-}
-.chat-markdown.is-streaming::after {
-content: '';
-display: inline-block;
-inline-size: .4rem;
-block-size: 1rem;
-background: var(--primary);
-border-radius: .15rem;
-animation: cursor-breathe 1s ease-in-out infinite;
-}
-@keyframes working-spin {
-to {
-transform: rotate(360deg);
-} }
-@keyframes cursor-breathe {
-50% {
-opacity: .2;
-} }
-@media (prefers-reduced-motion: reduce) {
-.working-orbit, .chat-markdown.is-streaming::after {
-animation: none;
-} }
 
 .user-message p {
-margin: 0;
+	margin: 0;
+}
+
+.message-attachments {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block-start: var(--space-2);
+}
+
+.assistant-message {
+	margin-block-start: var(--space-5);
+}
+
+.assistant-identity {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-2);
+	min-block-size: var(--control-height-sm);
+	margin-block-end: var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	strong {
+		color: var(--text-primary);
+		font-weight: var(--weight-semibold);
+	}
+}
+
+.model-badge {
+	padding-inline: var(--space-2);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-full);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+summary {
+	cursor: pointer;
+	line-height: var(--leading-normal);
+	overflow-wrap: anywhere;
+	border-radius: var(--radius-sm);
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
+.execution {
+	margin-block-end: var(--space-3);
+	padding-inline-start: var(--space-3);
+	border-inline-start: 2px solid var(--border-default);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	> summary {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		color: var(--text-tertiary);
+
+		&:hover {
+			color: var(--text-primary);
+		}
+
+		svg {
+			flex-shrink: 0;
+			inline-size: .8em;
+		}
+	}
+}
+
+.model-step {
+	margin-block-start: var(--space-3);
+	padding-inline-start: var(--space-3);
+	border-inline-start: 2px solid var(--primary);
+}
+
+.model-step header {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--space-2);
+}
+
+.model-step header span,
+.step-note {
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+}
+
+.reasoning,
+.tool-step {
+	margin-block-start: var(--space-3);
+}
+
+.reasoning p {
+	max-block-size: 20rem;
+	overflow-y: auto;
+	padding: var(--space-3);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+}
+
+.tool-step.is-failed > summary {
+	color: var(--danger-text);
+}
+
+.tool-draft {
+	padding: var(--space-2) var(--space-3);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-md);
+}
+
+.tool-inflight {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-block-start: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+}
+
+pre {
+	max-block-size: 20rem;
+	margin-block: var(--space-2);
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+}
+
+.chat-markdown {
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	line-height: 1.65;
+	overflow-wrap: anywhere;
+
+	// Replies are part of a dense column, not a document: headings stay close to body size.
+	:deep(h1),
+	:deep(h2) {
+		margin-block: var(--space-4) var(--space-2);
+		font-size: var(--text-lg);
+		font-weight: var(--weight-semibold);
+	}
+
+	:deep(h3),
+	:deep(h4),
+	:deep(h5),
+	:deep(h6) {
+		margin-block: var(--space-3) var(--space-1);
+		font-size: var(--text-base);
+		font-weight: var(--weight-semibold);
+	}
+
+	:deep(p),
+	:deep(ul),
+	:deep(ol) {
+		margin-block-end: var(--space-3);
+	}
+
+	> :deep(:last-child) {
+		margin-block-end: 0;
+	}
+
+	:deep(pre) {
+		max-inline-size: 100%;
+		overflow-x: auto;
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
+		font-size: var(--text-sm);
+	}
+
+	:deep(code) {
+		font-family: var(--font-mono);
+	}
+
+	:deep(table) {
+		display: block;
+		max-inline-size: 100%;
+		overflow-x: auto;
+		font-size: var(--text-md);
+	}
+
+	:deep(img) {
+		max-inline-size: 100%;
+	}
+}
+
+// The cursor follows the last block inline, so it never adds or removes a line while streaming.
+.chat-markdown.is-streaming > :deep(:last-child)::after {
+	content: '';
+	display: inline-block;
+	inline-size: .45em;
+	block-size: 1em;
+	margin-inline-start: .15em;
+	vertical-align: text-bottom;
+	border-radius: var(--radius-xs);
+	background: var(--primary);
+	animation: cursor-breathe 1s ease-in-out infinite;
+}
+
+.thinking-status {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+
+.live-run-panel {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+	min-block-size: var(--control-height-sm);
+	margin-block-start: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	strong {
+		color: var(--text-primary);
+		font-weight: var(--weight-medium);
+	}
+}
+
+.live-detail {
+	color: var(--text-tertiary);
+}
+
+.live-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 var(--space-2);
+	margin-inline-start: auto;
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.working-orbit {
+	display: inline-block;
+	flex-shrink: 0;
+	inline-size: .75rem;
+	block-size: .75rem;
+	border: 2px solid var(--border-default);
+	border-block-start-color: var(--primary);
+	border-radius: 50%;
+	animation: working-spin .85s linear infinite;
+}
+
+.run-error {
+	padding: var(--space-2) var(--space-3);
+	border-inline-start: 3px solid var(--danger);
+	border-radius: var(--radius-sm);
+	background: var(--tint-danger);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	overflow-wrap: anywhere;
+}
+
+.retry-panel {
+	margin-block: var(--space-3);
+}
+
+.run-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 var(--space-4);
+	min-block-size: var(--control-height-sm);
+	margin-block-start: var(--space-3);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+
+	> details[open] {
+		flex-basis: 100%;
+	}
+}
+
+.request-details {
+	color: var(--text-tertiary);
+
+	> summary {
+		padding-block: var(--space-1);
+	}
+
+	> p {
+		margin-block: var(--space-2);
+	}
+
+	code {
+		display: block;
+		overflow-wrap: anywhere;
+	}
+}
+
+.run-configuration {
+	margin-block: var(--space-2);
+}
+
+.run-metrics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-4);
+	margin-block: var(--space-2);
+	color: var(--text-secondary);
+	font-variant-numeric: tabular-nums;
+}
+
+.message-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	margin-block-start: var(--space-2);
+}
+
+.message-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1);
+	min-block-size: var(--control-height-sm);
+	min-inline-size: var(--control-height-sm);
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&.is-icon {
+		padding-inline: 0;
+	}
+
+	&[aria-disabled='true'] {
+		opacity: .5;
+		cursor: not-allowed;
+	}
+
+	svg {
+		inline-size: .85em;
+	}
+}
+
+@keyframes working-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes cursor-breathe {
+	50% {
+		opacity: .2;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.working-orbit,
+	.chat-markdown.is-streaming > :deep(:last-child)::after {
+		animation: none;
+	}
 }
 </style>

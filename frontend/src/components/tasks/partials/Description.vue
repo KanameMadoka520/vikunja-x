@@ -2,30 +2,57 @@
 	<div
 		:class="{'d-print-none': isEmpty}"
 	>
-		<h2 class="task-section-title">
-			<span class="icon is-grey">
-				<Icon icon="align-left" />
-			</span>
-			{{ $t('task.attributes.description') }}
-			<CustomTransition name="fade">
-				<span
-					v-if="saveState === 'saving'"
-					class="is-small is-inline-flex"
-					aria-hidden="true"
-				>
-					<span class="loader is-inline-block mie-2" />
-					{{ $t('misc.saving') }}
+		<div class="task-section-header">
+			<h2 class="task-section-title">
+				<span class="icon is-grey">
+					<Icon icon="align-left" />
 				</span>
-				<span
-					v-else-if="saveState === 'saved'"
-					class="is-small has-text-success"
-					aria-hidden="true"
+				{{ $t('task.attributes.description') }}
+				<CustomTransition name="fade">
+					<span
+						v-if="saveState === 'saving'"
+						class="is-small is-inline-flex"
+						aria-hidden="true"
+					>
+						<span class="loader is-inline-block" />
+						{{ $t('misc.saving') }}
+					</span>
+					<span
+						v-else-if="saveState === 'saved'"
+						class="is-small has-text-success"
+						aria-hidden="true"
+					>
+						<Icon icon="check" />
+						{{ $t('misc.saved') }}
+					</span>
+				</CustomTransition>
+			</h2>
+			<div
+				v-if="stageCount > 0 || canWrite"
+				class="task-section-actions description-view-actions d-print-none"
+			>
+				<XButton
+					v-if="stageCount > 0"
+					variant="tertiary"
+					class="is-small"
+					icon="list-check"
+					:aria-pressed="showStages"
+					@click="showStages = !showStages"
 				>
-					<Icon icon="check" />
-					{{ $t('misc.saved') }}
-				</span>
-			</CustomTransition>
-		</h2>
+					{{ showStages ? t('stages.fullDescription') : t('stages.title') }}
+				</XButton>
+				<XButton
+					v-if="canWrite"
+					variant="tertiary"
+					class="is-small"
+					icon="plus"
+					:aria-disabled="saving || undefined"
+					@click="insertStageTemplate"
+				>
+					{{ t('stages.insertTemplate') }}
+				</XButton>
+			</div>
+		</div>
 		<!-- Outside the h2 so the heading keeps a stable accessible name -->
 		<span
 			class="is-sr-only"
@@ -35,39 +62,20 @@
 		<p
 			v-if="saveError"
 			role="alert"
-			class="has-text-danger"
+			class="description-save-error"
 		>
 			{{ saveError }}
-			<button
+			<XButton
 				v-if="canWrite"
-				type="button"
-				class="button is-small"
-				:disabled="saving"
+				variant="secondary"
+				class="is-small"
+				:shadow="false"
+				:aria-disabled="saving || undefined"
 				@click="save"
 			>
 				{{ t('stages.retry') }}
-			</button>
+			</XButton>
 		</p>
-		<div class="description-view-actions d-print-none">
-			<button
-				v-if="stageCount > 0"
-				type="button"
-				class="button is-small"
-				:aria-pressed="showStages"
-				@click="showStages = !showStages"
-			>
-				{{ showStages ? t('stages.fullDescription') : t('stages.title') }}
-			</button>
-			<button
-				v-if="canWrite"
-				type="button"
-				class="button is-small"
-				:disabled="saving"
-				@click="insertStageTemplate"
-			>
-				{{ t('stages.insertTemplate') }}
-			</button>
-		</div>
 		<DescriptionStages
 			v-if="showStages && stageCount > 0"
 			:model-value="description"
@@ -102,9 +110,11 @@ import {removeAttachmentImages} from '@/helpers/attachmentImages'
 import {getErrorText} from '@/message'
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import {onBeforeRouteLeave} from 'vue-router'
+import {useQueryClient} from '@tanstack/vue-query'
 import {useI18n} from 'vue-i18n'
 
 import CustomTransition from '@/components/misc/CustomTransition.vue'
+import XButton from '@/components/input/Button.vue'
 import Editor from '@/components/input/AsyncEditor'
 
 import { clearEditorDraft } from '@/helpers/editorDraftStorage'
@@ -113,6 +123,7 @@ import {generateAttachmentUrl} from '@/helpers/attachments'
 import type {Task as ITask} from '@/client/generated'
 import {useUploadAttachmentsMutation} from '@/client/queries/attachments'
 import {useUpdateTaskMutation} from '@/client/queries/taskMutations'
+import {isTaskDeleted} from '@/client/queries/taskCache'
 
 const props = defineProps<{
 	modelValue: ITask,
@@ -158,6 +169,7 @@ const saveError = ref('')
 const saved = ref(false)
 const saving = ref(false)
 
+const queryClient = useQueryClient()
 const updateTask = useUpdateTaskMutation()
 
 const {t} = useI18n({useScope: 'global'})
@@ -269,6 +281,11 @@ async function save(): Promise<boolean> {
 	}
 	if (!hasChanges.value) return true
 	const taskId = props.modelValue.id!
+	// Deleted elsewhere: the detail shows its notice, and a save could only answer 404.
+	if (isTaskDeleted(queryClient, taskId)) {
+		hasChanges.value = false
+		return true
+	}
 	const submitted = description.value
 	const storageKey = descriptionStorageKey.value
 	if (changeTimeout.value !== null) clearTimeout(changeTimeout.value)
@@ -318,16 +335,28 @@ function uploadCallback(files: File[] | FileList): Promise<string[]> {
 </script>
 
 <style lang="scss" scoped>
-.description-view-actions {
- display: flex;
- flex-wrap: wrap;
- gap: .5rem;
- margin-block-end: .75rem;
+.description-save-error {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	margin-block-end: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	border-inline-start: 3px solid var(--danger);
+	border-radius: var(--radius-sm);
+	background: var(--tint-danger);
+	color: var(--text-primary);
+	font-size: var(--text-md);
 }
-@media print { .tiptap__task-description { display: block !important; } }
-.tiptap__task-description {
-	// The exact amount of pixels we need to make the description icon align with the buttons and the form inside the editor.
-	// The icon is not exactly the same length on all sides so we need to hack our way around it.
-	margin-inline-start: 4px;
+
+.task-section-title .loader {
+	inline-size: .75rem;
+	block-size: .75rem;
+}
+
+@media print {
+	.tiptap__task-description {
+		display: block !important;
+	}
 }
 </style>

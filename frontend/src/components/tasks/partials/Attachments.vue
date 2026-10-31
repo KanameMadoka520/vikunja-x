@@ -1,11 +1,37 @@
 <template>
 	<div class="attachments">
-		<h2 class="task-section-title">
-			<span class="icon is-grey">
-				<Icon icon="paperclip" />
-			</span>
-			{{ $t('task.attachment.title') }}
-		</h2>
+		<div class="task-section-header">
+			<h2 class="task-section-title">
+				<span class="icon is-grey">
+					<Icon icon="paperclip" />
+				</span>
+				{{ $t('task.attachment.title') }}
+			</h2>
+			<div
+				v-if="editEnabled"
+				class="task-section-actions d-print-none"
+			>
+				<XButton
+					:aria-disabled="loading || undefined"
+					class="is-small"
+					icon="cloud-upload-alt"
+					variant="secondary"
+					:shadow="false"
+					@click="openFilePicker()"
+				>
+					{{ $t('task.attachment.upload') }}
+				</XButton>
+				<XButton
+					variant="secondary"
+					class="is-small"
+					icon="folder"
+					:shadow="false"
+					@click="driveOpen = true"
+				>
+					{{ $t('drive.choose') }}
+				</XButton>
+			</div>
+		</div>
 
 		<input
 			v-if="editEnabled"
@@ -16,29 +42,31 @@
 			@change="uploadNewAttachment()"
 		>
 
-		<ProgressBar
-			v-if="uploadBatch !== null && !taskUploads.length"
-			:value="uploadProgress"
-			:aria-label="$t('task.attachment.upload')"
-			is-primary
-		/>
-
 		<div
-			v-if="taskUploads.length"
+			v-if="uploadBatch !== null || taskUploads.length"
 			class="attachment-upload-status"
+			role="group"
 			:aria-label="$t('flow.uploads')"
 		>
-			<UploadProgressRow
-				v-for="row in taskUploads"
-				:key="row.id"
-				:row="row"
+			<ProgressBar
+				v-if="!taskUploads.length"
+				:value="uploadProgress"
+				:aria-label="$t('task.attachment.upload')"
+				is-primary
 			/>
-			<BaseButton
-				class="clear-task-uploads"
-				@click="clearFinishedUploads"
-			>
-				{{ $t('flow.clearFinished') }}
-			</BaseButton>
+			<template v-else>
+				<UploadProgressRow
+					v-for="row in taskUploads"
+					:key="row.id"
+					:row="row"
+				/>
+				<BaseButton
+					class="clear-task-uploads"
+					@click="clearFinishedUploads"
+				>
+					{{ $t('flow.clearFinished') }}
+				</BaseButton>
+			</template>
 		</div>
 
 		<div
@@ -95,72 +123,51 @@
 						:ref="el => setAudioPlayerRef(a, el)"
 						:attachment="a"
 					/>
-					<p class="attachment-actions">
-						<BaseButton
-							v-tooltip="$t('task.attachment.downloadTooltip')"
-							:aria-label="$t('task.attachment.downloadTooltip')"
-							class="attachment-info-meta-button"
-							@click.prevent.stop="download(a)"
-						>
-							<Icon icon="download" />
-						</BaseButton>
-						<BaseButton
-							v-tooltip="$t('task.attachment.copyUrlTooltip')"
-							:aria-label="$t('task.attachment.copyUrlTooltip')"
-							class="attachment-info-meta-button"
-							@click.stop="copyUrl(a)"
-						>
-							<Icon icon="copy" />
-						</BaseButton>
-						<BaseButton
-							v-if="editEnabled"
-							v-tooltip="$t('task.attachment.deleteTooltip')"
-							:aria-label="$t('task.attachment.deleteTooltip')"
-							class="attachment-info-meta-button"
-							@click.prevent.stop="setAttachmentToDelete(a)"
-						>
-							<Icon icon="trash-alt" />
-						</BaseButton>
-						<BaseButton
-							v-if="editEnabled && canPreviewImage(a)"
-							v-tooltip="task.cover_image_attachment_id === a.id
-								? $t('task.attachment.unsetAsCover')
-								: $t('task.attachment.setAsCover')"
-							:aria-label="task.cover_image_attachment_id === a.id
-								? $t('task.attachment.unsetAsCover')
-								: $t('task.attachment.setAsCover')"
-							class="attachment-info-meta-button"
-							:disabled="loading"
-							@click.prevent.stop="setCoverImage(task.cover_image_attachment_id === a.id ? null : a)"
-						>
-							<Icon :icon="task.cover_image_attachment_id === a.id ? 'eye-slash' : 'eye'" />
-						</BaseButton>
-					</p>
 				</div>
+				<p class="attachment-actions">
+					<BaseButton
+						v-tooltip="$t('task.attachment.downloadTooltip')"
+						:aria-label="$t('task.attachment.downloadTooltip')"
+						class="attachment-info-meta-button"
+						@click.prevent.stop="download(a)"
+					>
+						<Icon icon="download" />
+					</BaseButton>
+					<BaseButton
+						v-tooltip="$t('task.attachment.copyUrlTooltip')"
+						:aria-label="$t('task.attachment.copyUrlTooltip')"
+						class="attachment-info-meta-button"
+						@click.stop="copyUrl(a)"
+					>
+						<Icon icon="copy" />
+					</BaseButton>
+					<BaseButton
+						v-if="editEnabled && canPreviewImage(a)"
+						v-tooltip="task.cover_image_attachment_id === a.id
+							? $t('task.attachment.unsetAsCover')
+							: $t('task.attachment.setAsCover')"
+						:aria-label="task.cover_image_attachment_id === a.id
+							? $t('task.attachment.unsetAsCover')
+							: $t('task.attachment.setAsCover')"
+						class="attachment-info-meta-button"
+						:disabled="loading"
+						@click.prevent.stop="setCoverImage(task.cover_image_attachment_id === a.id ? null : a)"
+					>
+						<Icon :icon="task.cover_image_attachment_id === a.id ? 'eye-slash' : 'eye'" />
+					</BaseButton>
+					<BaseButton
+						v-if="editEnabled"
+						v-tooltip="$t('task.attachment.deleteTooltip')"
+						:aria-label="$t('task.attachment.deleteTooltip')"
+						class="attachment-info-meta-button is-danger"
+						@click.prevent.stop="setAttachmentToDelete(a)"
+					>
+						<Icon icon="trash-alt" />
+					</BaseButton>
+				</p>
 			</div>
 		</div>
 
-		<XButton
-			v-if="editEnabled"
-			:aria-disabled="loading || undefined"
-			class="mbe-4"
-			icon="cloud-upload-alt"
-			variant="secondary"
-			:shadow="false"
-			@click="openFilePicker()"
-		>
-			{{ $t('task.attachment.upload') }}
-		</XButton>
-
-		<XButton
-			v-if="editEnabled"
-			variant="secondary"
-			class="mbe-4"
-			icon="folder"
-			@click="driveOpen = true"
-		>
-			{{ $t('drive.choose') }}
-		</XButton>
 		<DrivePicker
 			v-if="driveOpen"
 			:busy="attachDrive.isPending.value"
@@ -188,6 +195,7 @@
 		<!-- Delete modal -->
 		<Modal
 			:enabled="attachmentToDelete !== null"
+			danger
 			:loading="deleteMutation.isPending.value"
 			@close="setAttachmentToDelete(null)"
 			@submit="deleteAttachment()"
@@ -675,175 +683,51 @@ async function chooseDriveFile(file: DriveEntry) {
 	input[type="file"] {
 		display: none;
 	}
-
-	@media screen and (max-width: $tablet) {
-		.button {
-			inline-size: 100%;
-		}
-	}
 }
 
 .files {
-	margin-block-end: 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
 }
 
 .attachment {
 	display: grid;
-	grid-template-columns: 9rem 1fr;
+	grid-template-columns: 3rem minmax(0, 1fr) auto;
+	grid-template-areas: "preview info actions";
 	align-items: center;
+	gap: var(--space-1) var(--space-3);
 	inline-size: 100%;
-	
-	padding: .5rem;
-	
-	transition: background-color $transition;
+	padding: var(--space-2);
+	border-radius: var(--radius-md);
 	background-color: transparent;
-	
-	border: transparent;
-	border-radius: $radius;
+	transition: background-color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		background-color: var(--grey-200);
-	}
-}
-
-.attachment-open {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	inline-size: 100%;
-	min-inline-size: 0;
-	padding: 0;
-	border: 0;
-	background: transparent;
-	color: inherit;
-	font: inherit;
-	text-align: start;
-	cursor: pointer;
-}
-
-.filename {
-	display: flex;
-	align-items: center;
-	font-weight: bold;
-	min-block-size: 2rem;
-	color: var(--text);
-	text-align: start;
-	word-break: break-all;
-	min-inline-size: 0;
-}
-
-.attachment-info-meta,
-.attachment-actions {
-	color: var(--grey-500);
-	font-size: .9rem;
-}
-
-.attachment-actions {
-	display: flex;
-	margin-block-start: .25rem;
-	margin-block-end: 0;
-}
-
-.dropzone {
-	position: fixed;
-	background: hsla(var(--grey-100-hsl), 0.8);
-	inset-block-start: 0;
-	inset-inline-start: 0;
-	inset-block-end: 0;
-	inset-inline-end: 0;
-	z-index: 4001; // above app chrome when teleported to body (no modal open)
-	text-align: center;
-
-	&.hidden {
-		display: none;
-	}
-}
-
-.drop-hint {
-	position: absolute;
-	inset-block-end: 0;
-	inset-inline-start: 0;
-	inset-inline-end: 0;
-
-	.icon {
-		inline-size: 100%;
-		font-size: 5rem;
-		block-size: auto;
-		text-shadow: var(--shadow-md);
-		animation: bounce 2s infinite;
-
-		@media (prefers-reduced-motion: reduce) {
-			animation: none;
-		}
+		background-color: var(--surface-hover);
 	}
 
-	.hint {
-		margin: .5rem auto 2rem;
-		border-radius: $radius;
-		box-shadow: var(--shadow-md);
-		background: var(--primary);
-		padding: 1rem;
-		color: $white; // Should always be white because of the background, regardless of the theme
-		inline-size: 100%;
-		max-inline-size: 300px;
-	}
-}
-
-.attachment-info-column {
-	display: flex;
-	flex-flow: column wrap;
-	align-self: start;
-	min-inline-size: 0;
-}
-
-.attachment-info-meta {
-	display: flex;
-	align-items: center;
-	margin-block: 0;
-
-	> span {
-		padding: 0 .25rem;
+	@media screen and (min-width: $tablet) {
+		grid-template-columns: 4rem minmax(0, 1fr) auto;
 	}
 
-	:deep(.avatar-wrapper) {
-		margin-inline-end: 0;
-	}
-}
-
-.attachment-info-meta-button {
-	color: var(--link);
-	padding: 0 .25rem;
-}
-
-@keyframes bounce {
-	0%,
-	20%,
-	53%,
-	80%,
-	100% {
-		animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
-		transform: translate3d(0, 0, 0);
-	}
-
-	40%,
-	43% {
-		animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
-		transform: translate3d(0, -30px, 0);
-	}
-
-	70% {
-		animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
-		transform: translate3d(0, -15px, 0);
-	}
-
-	90% {
-		transform: translate3d(0, -4px, 0);
+	// Phones: actions move under the file name so the name keeps the row's width.
+	@media screen and (max-width: $tablet) {
+		grid-template-areas:
+			"preview info"
+			"preview actions";
+		grid-template-columns: 3rem minmax(0, 1fr);
+		align-items: start;
 	}
 }
 
 .preview-column {
-	max-inline-size: 8rem;
-	block-size: 5.2rem;
+	grid-area: preview;
+	aspect-ratio: 1;
+	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
 }
 
 // Redundant mouse-only click target; the real control is button.attachment-open.
@@ -858,59 +742,204 @@ async function chooseDriveFile(file: DriveEntry) {
 }
 
 .attachment-preview {
+	inline-size: 100%;
 	block-size: 100%;
 }
 
+.attachment-info-column {
+	grid-area: info;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.attachment-open {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	inline-size: 100%;
+	min-inline-size: 0;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
+.filename {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	min-inline-size: 0;
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+	text-align: start;
+	word-break: break-all;
+}
+
+.attachment .attachment-info-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin-block: 0;
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+
+	:deep(.avatar-wrapper) {
+		margin-inline-end: 0;
+	}
+}
+
+.attachment .attachment-actions {
+	grid-area: actions;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	margin: 0;
+}
+
+.attachment-info-meta-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: max(1.75rem, var(--target-min));
+	block-size: max(1.75rem, var(--target-min));
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&.is-danger:hover {
+		background: var(--tint-danger);
+		color: var(--danger-text);
+	}
+
+	&:disabled {
+		opacity: .5;
+		cursor: not-allowed;
+	}
+}
+
+.is-task-cover {
+	padding: 2px var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-2xs);
+	font-weight: var(--weight-semibold);
+	word-break: normal;
+}
+
+.attachment-upload-status {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin-block-end: var(--space-3);
+	padding: var(--space-3);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+}
+
+.clear-task-uploads {
+	align-self: flex-start;
+	min-block-size: var(--target-min);
+	padding-inline: var(--space-1);
+	border-radius: var(--radius-sm);
+	color: var(--accent-text);
+	font-size: var(--text-sm);
+
+	&:hover {
+		background: var(--surface-hover);
+	}
+}
+
+.dropzone {
+	position: fixed;
+	inset: 0;
+	// Above the app chrome when teleported to body; inside an open dialog the top layer already wins.
+	z-index: 4001;
+	background: hsla(var(--grey-100-hsl), .85);
+	text-align: center;
+
+	&.hidden {
+		display: none;
+	}
+}
+
+.drop-hint {
+	position: absolute;
+	inset-block-end: var(--space-8);
+	inset-inline: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-3);
+
+	.icon {
+		inline-size: auto;
+		block-size: auto;
+		color: var(--accent-text);
+		font-size: 3rem;
+	}
+
+	.hint {
+		inline-size: calc(100% - var(--space-8));
+		max-inline-size: 20rem;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-lg);
+		background: var(--primary);
+		box-shadow: var(--elevation-3);
+		color: #ffffff; // the primary fill needs white text in both themes
+		font-weight: var(--weight-semibold);
+	}
+}
+
 .pdf-preview-iframe {
+	display: block;
 	inline-size: 100%;
 	max-inline-size: calc(100% - 4rem);
-	block-size: calc(100vh - 40px);
-	border: none;
+	block-size: calc(100dvh - 40px);
 	margin: 0 auto;
-	display: block;
+	border: none;
 }
 
 .video-preview {
+	display: block;
 	inline-size: auto;
 	max-inline-size: calc(100% - 4rem);
-	max-block-size: calc(100vh - 40px);
+	max-block-size: calc(100dvh - 40px);
 	margin: 0 auto;
-	display: block;
 }
 
 // unlike the video and iframe branches, the error state has no opaque media of its own to sit on
 .video-preview-error {
 	max-inline-size: 25rem;
 	margin: 0 auto;
-	padding: 2rem;
-	border-radius: $radius;
-	background: var(--white);
-	color: var(--text);
+	padding: var(--space-8);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	color: var(--text-primary);
 	text-align: center;
 
 	p {
-		margin-block-end: 1rem;
+		margin-block-end: var(--space-4);
 	}
-}
-
-.is-task-cover {
-	background: var(--primary);
-	color: var(--white);
-	margin-inline-start: .25rem;
-	padding: .25rem .35rem;
-	border-radius: 4px;
-	font-size: .75rem;
-}
-.attachment-upload-status {
-	margin-block: 1rem;
-	padding: .5rem 1rem;
-	border: 1px solid var(--grey-200);
-	border-radius: .75rem;
-	background: var(--grey-100);
-}
-.clear-task-uploads {
-	color: var(--primary);
-	padding-block: .5rem;
-	font-size: .85rem;
 }
 </style>

@@ -31,9 +31,9 @@ const privacyPolicyUrl = computed(() => configStore.legal.privacy_policy_url)
 
 <style lang="scss" scoped>
 .legal-links {
-  margin-block-start: 1rem;
-  text-align: end;
-  color: var(--grey-300);
-  font-size: 1rem;
+	margin-block-start: var(--space-4);
+	text-align: end;
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 }
 </style>

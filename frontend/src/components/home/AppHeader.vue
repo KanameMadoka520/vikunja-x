@@ -1,26 +1,34 @@
 <template>
 	<header
 		:class="{ 'has-background': background, 'menu-active': menuActive }"
-		:aria-label="$t('tcymc.mainNavigation')"
 		class="navbar d-print-none"
+		:style="{'--sidebar-width': sidebarWidthStyle}"
+		:inert="drawerOpen"
 	>
-		<RouterLink
-			:to="{ name: 'home' }"
-			class="logo-link"
-			:aria-label="$t('navigation.home')"
-		>
-			<Logo
-				width="164"
-				height="48"
-			/>
-		</RouterLink>
+		<div class="navbar-start">
+			<RouterLink
+				:to="{ name: 'home' }"
+				class="logo-link"
+				:aria-label="$t('navigation.home')"
+			>
+				<Logo
+					width="164"
+					height="48"
+				/>
+			</RouterLink>
 
-		<MenuButton class="menu-button" />
+			<MenuButton class="menu-button" />
+		</div>
 
 		<div
 			v-if="currentProject?.id"
 			class="project-title-wrapper"
 		>
+			<ColorBubble
+				v-if="currentProject.hex_color"
+				:color="currentProject.hex_color"
+				class="project-title-color"
+			/>
 			<span class="project-title">
 				{{ currentProject.title === '' ? $t('misc.loading') : getProjectTitle(currentProject) }}
 			</span>
@@ -87,15 +95,13 @@
 					>
 						<UserAvatar
 							:user="authStore.info"
-							:size="40"
+							:size="56"
 							class="avatar"
 						/>
 						<span class="username">{{ authStore.userDisplayName }}</span>
 						<span
-							class="mis-1 dropdown-icon icon is-small"
-							:style="{
-								transform: open ? 'rotate(180deg)' : 'rotate(0)',
-							}"
+							class="dropdown-icon icon is-small"
+							:class="{'is-open': open}"
 						>
 							<Icon icon="chevron-down" />
 						</span>
@@ -180,6 +186,7 @@ import Notifications from '@/components/notifications/Notifications.vue'
 import TimerBadge from '@/components/time-tracking/TimerBadge.vue'
 import Logo from '@/components/home/Logo.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
+import ColorBubble from '@/components/misc/ColorBubble.vue'
 import MenuButton from '@/components/home/MenuButton.vue'
 import OpenQuickActions from '@/components/misc/OpenQuickActions.vue'
 import UserAvatar from '@/components/misc/UserAvatar.vue'
@@ -192,6 +199,7 @@ import {useGuidedTourStore} from '@/stores/guidedTour'
 import { useConfigStore } from '@/stores/config'
 import { useAuthStore } from '@/stores/auth'
 import {useCurrentProject} from '@/composables/useCurrentProject'
+import {useSidebarResize} from '@/composables/useSidebarResize'
 
 const baseStore = useBaseStore()
 const tour = useGuidedTourStore()
@@ -203,6 +211,9 @@ const canWriteCurrentProject = computed(() =>
 	currentProject.value.max_permission > Permissions.READ,
 )
 const menuActive = computed(() => baseStore.menuActive)
+// The start cluster follows the sidebar width so the title lines up with the content edge.
+const {sidebarWidthStyle, isMobile} = useSidebarResize()
+const drawerOpen = computed(() => isMobile.value && menuActive.value)
 
 // Standalone pages (no project) surface their route's title in the header.
 const route = useRoute()
@@ -221,42 +232,79 @@ const adminPanelEnabled = computed(() => configStore.isProFeatureEnabled(PRO_FEA
 </script>
 
 <style lang="scss" scoped>
-$user-dropdown-width-mobile: 5rem;
-
 .navbar {
-	--navbar-button-min-width: 40px;
-	--navbar-gap-width: 1rem;
-	--navbar-icon-size: 1.25rem;
+	--navbar-button-size: var(--control-height);
+	--navbar-icon-size: 1.0625rem;
 
 	position: fixed;
 	inset-block-start: 0;
-	inset-inline-start: 0;
-	inset-inline-end: 0;
-	z-index: 30;
+	inset-inline: 0;
+	z-index: var(--layer-header);
 
 	display: flex;
-	justify-content: space-between;
-	gap: var(--navbar-gap-width);
-	min-block-size: $navbar-height;
+	align-items: center;
+	gap: var(--space-2);
+	block-size: var(--header-height);
+	padding-inline: var(--space-3) var(--space-2);
 
-	background: var(--site-background);
+	background: var(--surface-app);
+	border-block-end: 1px solid var(--border-subtle);
 
-	@media screen and (min-width: $tablet) {
-		padding-inline-start: 2rem;
-		align-items: stretch;
+	// Over a project picture the bar turns into a translucent surface instead of an opaque grey band.
+	&.has-background {
+		background: color-mix(in srgb, var(--surface-app) 78%, transparent);
+		backdrop-filter: blur(12px) saturate(140%);
 	}
 
-	&.menu-active {
-		@media screen and (max-width: $tablet) {
-			z-index: 0;
-		}
+	@media screen and (min-width: $tablet) {
+		padding-inline: var(--space-4) var(--space-3);
+	}
+
+	// Phones: every control keeps a 36px target and the title gets the remaining room.
+	@media screen and (width <= 480px) {
+		--navbar-button-size: 2.25rem;
+
+		gap: var(--space-1);
+		padding-inline: var(--space-1);
 	}
 
 	// FIXME: notifications should provide a slot for the icon instead, so that we can style it as we want
-	:deep() {
-		.trigger-button {
-			color: var(--grey-400);
-			font-size: var(--navbar-icon-size);
+	:deep(.trigger-button) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		min-inline-size: var(--navbar-button-size);
+		block-size: var(--navbar-button-size);
+		border-radius: $radius;
+		color: var(--text-secondary);
+		font-size: var(--navbar-icon-size);
+		transition:
+			background-color var(--motion-fast) var(--ease-standard),
+			color var(--motion-fast) var(--ease-standard);
+
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		&[aria-expanded="true"] {
+			background-color: var(--surface-active);
+			color: var(--text-primary);
+		}
+	}
+}
+
+.navbar-start {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	gap: var(--space-2);
+
+	// With the sidebar open the title starts at the content edge.
+	@media screen and (min-width: $tablet) {
+		.menu-active & {
+			inline-size: calc(var(--sidebar-width) - var(--space-4));
 		}
 	}
 }
@@ -265,125 +313,186 @@ $user-dropdown-width-mobile: 5rem;
 	display: none;
 
 	@media screen and (min-width: $tablet) {
-		align-self: stretch;
 		display: flex;
 		align-items: center;
-		margin-inline-end: .5rem;
+		border-radius: $radius;
+
+		:deep(.logo) {
+			block-size: 1.75rem;
+			inline-size: auto;
+		}
 	}
 }
 
 .menu-button {
-	margin-inline-end: auto;
-	align-self: stretch;
 	flex: 0 0 auto;
 
-	@media screen and (max-width: $tablet) {
-		margin-inline-start: 1rem;
+	@media screen and (min-width: $tablet) {
+		margin-inline-start: auto;
 	}
 }
 
 .project-title-wrapper {
-	margin-inline: auto;
 	display: flex;
 	align-items: center;
-
-	// this makes the truncated text of the project title work
-	// inside the flexbox parent
+	flex: 1 1 auto;
+	gap: var(--space-1);
+	// lets the title truncate inside the flex row
 	min-inline-size: 0;
 
 	@media screen and (min-width: $tablet) {
-		padding-inline: var(--navbar-gap-width);
+		.menu-active & {
+			padding-inline-start: calc(var(--page-gutter) - var(--space-2));
+		}
 	}
 }
 
+.project-title-color {
+	inline-size: .625rem;
+	block-size: .625rem;
+	margin-inline-end: var(--space-1);
+}
+
 .project-title {
-	font-size: 1rem;
-	// We need the following for overflowing ellipsis to work
-	text-overflow: ellipsis;
+	min-inline-size: 0;
 	overflow: hidden;
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+	text-overflow: ellipsis;
 	white-space: nowrap;
 
 	@media screen and (min-width: $tablet) {
-		font-size: 1.75rem;
+		font-size: var(--text-lg);
+	}
+
+	// Phones wrap a long title onto a second line instead of cutting it after a few letters.
+	@media screen and (width <= 480px) {
+		display: -webkit-box;
+		font-size: var(--text-md);
+		line-height: 1.2;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
 	}
 }
 
 .project-title-dropdown {
-	align-self: stretch;
-
-	.project-title-button {
-		flex-grow: 1;
-	}
+	display: flex;
+	flex-shrink: 0;
 }
 
 .project-title-button {
-	align-self: stretch;
-	min-inline-size: var(--navbar-button-min-width);
 	display: flex;
-	place-items: center;
+	align-items: center;
 	justify-content: center;
+	flex-shrink: 0;
+	inline-size: var(--navbar-button-size);
+	block-size: var(--navbar-button-size);
+	border-radius: $radius;
+	color: var(--text-secondary);
 	font-size: var(--navbar-icon-size);
-	color: var(--grey-400);
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	@media screen and (width <= 480px) {
+		inline-size: 1.75rem;
+	}
 }
 
 .navbar-end {
-	flex: 0 0 auto;
 	display: flex;
-	align-items: stretch;
-
-	>* {
-		min-inline-size: var(--navbar-button-min-width);
-	}
-}
-
-.guide-help {
-	display: inline-flex;
 	align-items: center;
-	justify-content: center;
-	min-block-size: 44px;
+	flex: 0 0 auto;
+	gap: var(--space-1);
+	margin-inline-start: auto;
+
+	@media screen and (width <= 480px) {
+		gap: 0;
+	}
+
+	// A running timer keeps its elapsed time and stop button but shrinks on phones.
+	:deep(.timer-badge) {
+		block-size: var(--navbar-button-size);
+		font-size: var(--text-md);
+
+		@media screen and (width <= 480px) {
+			gap: 0;
+			font-size: var(--text-xs);
+
+			.timer-badge__elapsed {
+				padding-inline: var(--space-1) 0;
+			}
+
+			.timer-badge__stop {
+				padding-inline: var(--space-1);
+			}
+		}
+	}
 }
 
 .username-dropdown-trigger {
-	padding-inline-start: .75rem;
 	display: inline-flex;
 	align-items: center;
-	font-size: .85rem;
-	font-weight: 700;
-	gap: .5rem;
-	
+	gap: var(--space-2);
+	block-size: var(--navbar-button-size);
+	padding-inline: var(--space-1);
+	border-radius: $radius;
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-medium);
+
+	&:hover,
+	&[aria-expanded="true"] {
+		background-color: var(--surface-hover);
+	}
+
 	:deep(.avatar) {
 		margin-inline-end: 0;
 	}
-	
-	[dir="rtl"] & {
-		flex-direction: row-reverse;
-	}
 
-	@media screen and (max-width: $tablet) {
-		padding-inline-end: .5rem;
-	}
-
-	@media screen and (min-width: $tablet) {
-		padding-inline-end: .75rem;
+	@media screen and (width >= 1024px) {
+		padding-inline: var(--space-1) var(--space-2);
 	}
 }
 
 .username {
-	font-family: $vikunja-font;
+	display: none;
+	max-inline-size: 10rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 
-	@media screen and (max-width: $tablet) {
-		display: none;
+	@media screen and (width >= 1024px) {
+		display: inline;
 	}
 }
 
 .dropdown-icon {
-	transition: transform $transition;
+	display: none;
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	transition: transform var(--motion-fast) var(--ease-standard);
+
+	&.is-open {
+		transform: rotate(180deg);
+	}
+
+	@media screen and (width >= 1024px) {
+		display: inline-flex;
+	}
 }
 
 .avatar {
-	border-radius: 100%;
+	flex-shrink: 0;
+	inline-size: 1.75rem;
+	block-size: 1.75rem;
+	border-radius: var(--radius-full);
 	vertical-align: middle;
-	block-size: 40px;
-	margin-inline-end: .5rem;
 }
 </style>

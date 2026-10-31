@@ -46,11 +46,21 @@ const router = createRouter({
 	},
 	routes: [
 		{path: '/p/:slug', name: 'tcy-public', component: () => import('@/views/TcyPublic.vue')},
-		{path: '/drive', name: 'drive', component: () => import('@/views/Drive.vue')},
+		{
+			path: '/drive',
+			name: 'drive',
+			component: () => import('@/views/Drive.vue'),
+			meta: {
+				title: 'drive.title',
+			},
+		},
 		{path: '/ai', name: 'tcy-ai', component: () => import('@/views/TcyAssistant.vue')},
 		{
 			path: '/',
 			name: 'home',
+			meta: {
+				title: 'workspace.title',
+			},
 			component: () => import('@/views/Home.vue'),
 		},
 		{
@@ -101,6 +111,9 @@ const router = createRouter({
 		{
 			path: '/user/settings',
 			name: 'user.settings',
+			meta: {
+				title: 'user.settings.title',
+			},
 			component: () => import('@/views/user/Settings.vue'),
 			redirect: {name: 'user.settings.general'},
 			children: [
@@ -233,11 +246,17 @@ const router = createRouter({
 		{
 			path: '/projects/history',
 			name: 'projects.history',
+			meta: {
+				title: 'projectHistory.title',
+			},
 			component: () => import('@/views/project/ProjectHistory.vue'),
 		},
 		{
 			path: '/tasks/by/upcoming',
 			name: 'tasks.range',
+			meta: {
+				title: 'navigation.upcoming',
+			},
 			component: UpcomingTasks,
 			props: route => ({
 				dateFrom: parseDateOrString(route.query.from as string, new Date()),
@@ -262,6 +281,9 @@ const router = createRouter({
 		{
 			path: '/projects',
 			name: 'projects.index',
+			meta: {
+				title: 'project.projects',
+			},
 			component: () => import('@/views/project/ListProjects.vue'),
 		},
 		{
@@ -406,6 +428,9 @@ const router = createRouter({
 		{
 			path: '/teams',
 			name: 'teams.index',
+			meta: {
+				title: 'team.title',
+			},
 			component: () => import('@/views/teams/ListTeams.vue'),
 		},
 		{
@@ -424,6 +449,9 @@ const router = createRouter({
 		{
 			path: '/labels',
 			name: 'labels.index',
+			meta: {
+				title: 'label.title',
+			},
 			component: () => import('@/views/labels/ListLabels.vue'),
 		},
 		{

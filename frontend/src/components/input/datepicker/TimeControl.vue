@@ -201,20 +201,20 @@ function formatPreset(hours: number) {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: .75rem 1rem;
-	padding: .75rem 1rem;
-	border-block-start: 1px solid var(--grey-200);
+	gap: var(--space-3) var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	border-block-start: 1px solid var(--border-subtle);
 }
 
 .time-control__clock {
 	display: flex;
 	align-items: center;
-	gap: .25rem;
-	color: var(--grey-500);
+	gap: var(--space-1);
+	color: var(--text-tertiary);
 }
 
 .time-control__icon {
-	margin-inline-end: .25rem;
+	margin-inline-end: var(--space-1);
 }
 
 .time-control__segment {
@@ -225,16 +225,17 @@ function formatPreset(hours: number) {
 
 .time-control__step {
 	border: 0;
+	border-radius: var(--radius-xs);
 	background: transparent;
-	color: var(--grey-400);
-	font-size: .6rem;
+	color: var(--text-tertiary);
+	font-size: var(--text-2xs);
 	line-height: 1;
-	padding: .125rem .25rem;
+	padding: 2px var(--space-1);
 	cursor: pointer;
-	transition: color $transition;
+	transition: color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		color: var(--primary);
+		color: var(--accent-text);
 	}
 
 	// WCAG 2.5.8 minimum target size; only the sheet is touch-first, the desktop popup stays compact.
@@ -250,69 +251,83 @@ function formatPreset(hours: number) {
 .time-control__value {
 	inline-size: 2.25rem;
 	border: 0;
+	border-radius: var(--radius-sm);
 	background: transparent;
 	text-align: center;
-	font-family: $vikunja-font;
-	font-weight: 700;
-	font-size: 1.35rem;
+	font-weight: var(--weight-semibold);
+	font-size: var(--text-xl);
 	line-height: 1;
-	color: var(--grey-800);
+	color: var(--text-primary);
 	font-variant-numeric: tabular-nums;
-	padding: .1875rem 0;
+	padding: 3px 0;
+
+	&:hover {
+		background: var(--surface-hover);
+	}
 
 	&:focus {
 		outline: none;
-		border-radius: $radius;
 		@include focus-ring;
 	}
 }
 
 .time-control__colon {
-	font-family: $vikunja-font;
-	font-weight: 700;
-	font-size: 1.35rem;
-	color: var(--grey-400);
-	padding-block-end: .0625rem;
+	font-weight: var(--weight-semibold);
+	font-size: var(--text-xl);
+	color: var(--text-tertiary);
+	padding-block-end: 1px;
 }
 
 .time-control__meridiem {
-	margin-inline-start: .375rem;
-	padding: .25rem .5rem;
-	border: 1px solid var(--grey-200);
+	margin-inline-start: var(--space-2);
+	min-block-size: var(--control-height-sm);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-default);
 	border-radius: $radius;
-	background: var(--white);
-	color: var(--grey-600);
-	font-weight: 700;
-	font-size: .7rem;
+	background: transparent;
+	color: var(--text-secondary);
+	font-weight: var(--weight-semibold);
+	font-size: var(--text-xs);
 	letter-spacing: .04em;
 	cursor: pointer;
+
+	&:hover {
+		background: var(--surface-hover);
+	}
 }
 
 .time-control__presets {
 	display: flex;
-	gap: .375rem;
+	flex-wrap: wrap;
+	gap: var(--space-1);
 	margin-inline-start: auto;
 }
 
 .time-control__preset {
-	padding: .25rem .5625rem;
-	border: 1px solid var(--grey-200);
-	border-radius: $radius-rounded;
-	background: var(--white);
-	color: var(--grey-600);
-	font-size: .75rem;
-	font-weight: 600;
+	min-block-size: var(--control-height-sm);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	background: transparent;
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-medium);
+	font-variant-numeric: tabular-nums;
 	cursor: pointer;
-	transition: all $transition;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		border-color: var(--grey-300);
+		border-color: var(--border-strong);
+		background: var(--surface-hover);
 	}
 
 	&.is-active {
-		border-color: var(--primary);
-		background: hsla(var(--primary-hsl), .15);
-		color: var(--primary);
+		border-color: transparent;
+		background: var(--surface-selected-strong);
+		color: var(--accent-text);
 	}
 }
 </style>

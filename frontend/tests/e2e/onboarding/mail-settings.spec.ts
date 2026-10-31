@@ -2,7 +2,9 @@ import {test, expect} from '../../support/fixtures'
 import {UserFactory} from '../../factories/user'
 
 test.use({currentUser: async ({apiContext}, use) => {
- UserFactory.setRequestContext(apiContext)
+ // apiContext already points the shared Factory at this test's context. Setting it on UserFactory
+ // would shadow that with a static that outlives the disposed context and breaks later specs.
+ void apiContext
  const [user] = await UserFactory.create(1, {email: 'receiving@example.com'})
  await use(user)
 }})

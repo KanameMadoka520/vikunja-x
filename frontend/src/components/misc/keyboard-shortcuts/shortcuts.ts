@@ -58,7 +58,8 @@ export const KEYBOARD_SHORTCUTS: ShortcutGroup[] = [
 	},
 	{
 		title: 'keyboardShortcuts.list.title',
-		available: (route) => route.name === 'project.view',
+		// The workspace and Upcoming task rows take J/K too (useTaskRowKeyboard).
+		available: (route) => ['project.view', 'home', 'tasks.range'].includes(route.name as string),
 		shortcuts: [
 			{
 				title: 'keyboardShortcuts.list.navigateDown',

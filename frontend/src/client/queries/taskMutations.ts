@@ -1,4 +1,4 @@
-import {useMutation, type QueryClient} from '@tanstack/vue-query'
+import {hashKey, useMutation, type QueryClient, type QueryKey} from '@tanstack/vue-query'
 import {
 	tasksCreate,
 	tasksRead,
@@ -25,21 +25,29 @@ import {
 	type JsonPatchOp,
 	type Bucket,
 } from '@/client/generated'
-import {assertClientRequestContext, captureClientRequestContext} from '@/client/requestContext'
+import {assertClientRequestContext, captureClientRequestContext, isRequestContextAbort} from '@/client/requestContext'
 import {contextMutationOptions} from './contextMutation'
-import {normalizeTask, taskKeys, type PaginatedTaskResponse, type TaskResponse} from './tasks'
+import {normalizeTask, taskKeys, type PaginatedTaskResponse, type TaskFilterParams, type TaskResponse} from './tasks'
 import {bucketKeys, kanbanKeys, normalizeBucket, type BoardData} from './kanban'
 import {
+	cachedTaskCopies,
+	failTaskDetails,
 	invalidateTaskMembership,
+	isOvertakenByServerWrite,
+	isStaleTask,
 	mapTaskEverywhere,
+	recordServerTaskWrite,
 	removeTaskEverywhere,
 	replaceTaskEverywhere,
+	serverWriteMark,
 	taskQueryKeys,
 } from './taskCache'
+import {projectTimelineKeys, type ProjectTimelineQuery} from './projectTimeline'
+import {agentBoardKeys, refreshAgentBoards} from './kanbanServerRefresh'
 import {getCachedProject, projectKeys} from './projects'
 import {colorFromHex} from '@/helpers/color/colorFromHex'
 import {getDefaultBucketId, moveTaskToBucket} from '@/helpers/task'
-import {translatedError} from '@/message'
+import {error, translatedError} from '@/message'
 
 const API_ZERO_DATE = '0001-01-01T00:00:00Z'
 
@@ -169,6 +177,25 @@ function insertTaskIntoBoards(client: QueryClient, created: Task) {
 	}
 }
 
+/** A task created elsewhere: shown on open boards like a local create, then reconciled with the server. */
+export async function applyServerTaskCreated(client: QueryClient, created: Task) {
+	await applyServerTaskChanges(client, [{kind: 'created', task: created}])
+}
+
+/**
+ * A full task written elsewhere: every cached copy is patched and done buckets follow `done`, unless a
+ * newer copy is already cached. Returns whether the task was applied.
+ */
+export async function applyServerTaskUpdated(client: QueryClient, updated: Task): Promise<boolean> {
+	const [applied] = await applyServerTaskChanges(client, [{kind: 'updated', task: updated}])
+	return applied ?? false
+}
+
+/** A task deleted elsewhere: cards go, and an open detail shows its deleted notice. */
+export async function applyServerTaskDeleted(client: QueryClient, id: number) {
+	await applyServerTaskChanges(client, [{kind: 'deleted', id}])
+}
+
 export function createTaskMutationOptions() {
 	return contextMutationOptions({
 		mutationFn: async (task: Task & Required<Pick<Task, 'project_id'>>) => (await tasksCreate({
@@ -180,17 +207,25 @@ export function createTaskMutationOptions() {
 	})
 }
 
+// When each save started, keyed by its input, so its answer can tell which server writes came later.
+const saveMarks = new WeakMap<object, number>()
+
 export function updateTaskMutationOptions(optimistic = false) {
 	return contextMutationOptions({
-		mutationFn: async (task: Task & Required<Pick<Task, 'id'>>) => (await patchTasksRead({
-			path: {task: task.id},
-			body: taskPatchBody(task),
-		})).data,
+		mutationFn: async (task: Task & Required<Pick<Task, 'id'>>) => {
+			saveMarks.set(task, serverWriteMark())
+			return (await patchTasksRead({
+				path: {task: task.id},
+				body: taskPatchBody(task),
+			})).data
+		},
 		optimistic: optimistic ? {
 			queryKeys: ({id}, client) => taskQueryKeys(client, id),
 			update: (task, client) => replaceTaskEverywhere(client, task),
 		} : undefined,
 		onSuccess: (task, input, client) => {
+			// A receipt that arrived while this PATCH was in flight may already have written a newer version.
+			if (isOvertakenByServerWrite(client, {...task, id: input.id}, saveMarks.get(input) ?? Infinity)) return
 			replaceTaskEverywhere(client, task)
 			reconcileDoneBuckets(client, normalizeTask({...task, id: input.id}))
 		},
@@ -520,4 +555,140 @@ export function useUpdateTaskPositionMutation() {
 
 export function useMoveTaskMutation() {
 	return useMutation(moveTaskMutationOptions())
+}
+
+export type ServerTaskChange =
+	| {kind: 'created', task: Task}
+	| {kind: 'updated', task: Task}
+	| {kind: 'deleted', id: number}
+
+type ServerChangeScope = {projects: Set<number>, boards: QueryKey[]}
+
+function changedTaskId(change: ServerTaskChange): number | undefined {
+	return change.kind === 'deleted' ? change.id : change.task.id
+}
+
+// A search or filter on the board, or on its view, may stop or start matching after any field changes.
+function boardFiltersTasks(client: QueryClient, key: QueryKey): boolean {
+	const params = key[3] as TaskFilterParams | undefined
+	if (params?.filter || params?.q) return true
+	const project = kanbanKeys.projectOf(key)
+	const view = project === undefined ? undefined : getCachedProject(project, client)?.views?.find(item => item.id === kanbanKeys.viewOf(key))
+	return Boolean(view?.filter?.filter || view?.filter?.s) || view?.bucket_configuration_mode === 'filter'
+}
+
+// The echoed bucket belongs to one view; bucket ids are unique, so only that view's board can match it.
+function movesToAnotherBucket(client: QueryClient, key: QueryKey, task: Task): boolean {
+	const board = client.getQueryData<BoardData>(key)
+	if (!task.bucket_id || !board?.buckets.some(bucket => bucket.id === task.bucket_id)) return false
+	const view = getCachedProject(kanbanKeys.projectOf(key)!, client)?.views?.find(item => item.id === kanbanKeys.viewOf(key))
+	// Completion moves the card into the done bucket locally.
+	if (task.done && task.bucket_id === view?.done_bucket_id) return false
+	return board.buckets.some(bucket => bucket.id !== task.bucket_id && bucket.tasks.some(item => item.id === task.id))
+}
+
+/**
+ * Which projects and open boards a batch touches. Read before patching: afterwards a moved or deleted
+ * task no longer shows where it was. Creates and deletes change bucket counts and pages, so their
+ * boards reconcile; an update only does when it leaves or enters a project, meets a filter (a saved
+ * filter, a filtered view or filter buckets) or moves to another bucket. Everything else is patched.
+ */
+function serverChangeScope(client: QueryClient, changes: readonly ServerTaskChange[]): ServerChangeScope {
+	const projects = new Set<number>()
+	const boards = new Map<string, QueryKey>()
+	for (const change of changes) {
+		const id = changedTaskId(change)
+		if (id === undefined) continue
+		const before = new Set(cachedTaskCopies(client, id).map(copy => copy.project_id ?? 0).filter(project => project > 0))
+		const after = change.kind === 'deleted' ? undefined : change.task.project_id
+		const touched = [...before, ...(after ? [after] : [])]
+		touched.forEach(project => projects.add(project))
+		if (change.kind === 'updated' && isStaleTask(client, change.task)) continue
+		const moved = change.kind === 'updated' && [...before].some(project => project !== after)
+		for (const key of agentBoardKeys(client, {projectIds: touched, taskIds: [id]})) {
+			const project = kanbanKeys.projectOf(key)!
+			const reconcile = change.kind !== 'updated'
+				|| moved
+				|| project < 0
+				|| project !== after
+				|| boardFiltersTasks(client, key)
+				|| movesToAnotherBucket(client, key, change.task)
+			if (reconcile) boards.set(hashKey(key), key)
+		}
+	}
+	return {projects, boards: [...boards.values()]}
+}
+
+// Writes made outside this tab (Arona tool receipts) reuse the reconciliation of the local mutations.
+// Open lists refetch when a filter may now include or exclude the task: global and pseudo-project lists
+// always, project lists only for the projects the batch touched. Affected boards reload every loaded
+// page through their filters; others keep the patch. The timeline refetches only while mounted.
+async function refreshServerTaskMembership(client: QueryClient, scope: ServerChangeScope) {
+	const affects = (project: number | null | undefined) => !project || project < 0 || scope.projects.has(project)
+	await Promise.all([
+		client.invalidateQueries({
+			queryKey: taskKeys.lists,
+			refetchType: 'active',
+			predicate: query => affects(taskKeys.projectOf(query.queryKey)),
+		}),
+		client.invalidateQueries({
+			queryKey: taskKeys.allLists,
+			refetchType: 'active',
+			predicate: query => affects(taskKeys.projectOf(query.queryKey)),
+		}),
+		// A closed board reloads when it opens again; open ones are reconciled below or already patched.
+		client.invalidateQueries({
+			queryKey: kanbanKeys.all,
+			refetchType: 'none',
+			predicate: query => !query.isActive() && affects(kanbanKeys.projectOf(query.queryKey)),
+		}),
+		client.invalidateQueries({
+			queryKey: projectTimelineKeys.all,
+			predicate: query => affects((query.queryKey[1] as ProjectTimelineQuery | undefined)?.project),
+		}),
+		reconcileServerBoards(client, scope.boards),
+	])
+}
+
+// The write itself succeeded; only the board view of it may lag. A failed board keeps the patched
+// cards on screen and is marked stale, so its next mount reloads it instead of trusting the patch.
+async function reconcileServerBoards(client: QueryClient, keys: readonly QueryKey[]) {
+	const failed: QueryKey[] = []
+	await Promise.all(keys.map(key => refreshAgentBoards(client, [key]).catch(cause => {
+		// Another account or API: the cache is being replaced anyway.
+		if (!isRequestContextAbort(cause)) failed.push(key)
+	})))
+	if (!failed.length) return
+	await Promise.all(failed.map(key => client.invalidateQueries({queryKey: key, exact: true, refetchType: 'none'})))
+	error(translatedError('project.kanban.refreshFailed'))
+}
+
+/**
+ * Changes made elsewhere (one batch of Arona receipts), applied in order like local creates, updates and
+ * deletes. The batch refreshes once: one refresh per change would cancel and restart the same list and
+ * board requests for every task of a bulk update. Returns whether each change was applied.
+ */
+export async function applyServerTaskChanges(client: QueryClient, changes: readonly ServerTaskChange[]): Promise<boolean[]> {
+	if (!changes.length) return []
+	const scope = serverChangeScope(client, changes)
+	const applied = changes.map(change => {
+		if (change.kind === 'deleted') {
+			failTaskDetails(client, change.id)
+			removeTaskEverywhere(client, change.id)
+			return true
+		}
+		if (change.task.id === undefined) return false
+		if (change.kind === 'created') {
+			// The same receipt can arrive twice (conversation refetch, panel hand-over): never add a second card.
+			if (!taskQueryKeys(client, change.task.id).length) insertTaskIntoBoards(client, change.task)
+			return true
+		}
+		if (isStaleTask(client, change.task)) return false
+		recordServerTaskWrite(client, change.task)
+		replaceTaskEverywhere(client, change.task)
+		reconcileDoneBuckets(client, normalizeTask(change.task))
+		return true
+	})
+	await refreshServerTaskMembership(client, scope)
+	return applied
 }

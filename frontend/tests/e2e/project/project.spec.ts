@@ -179,6 +179,9 @@ test.describe('Projects', () => {
 		await expect(background).toHaveClass(/is-visible/)
 		await expect(background).toHaveCSS('background-image', /url\(/)
 		await page.locator('.project-background-setting footer.card-footer').getByRole('button', {name: 'Close', exact: true}).click()
+		// Closing navigates back; reload only once that navigation has finished.
+		await expect(page.locator('.project-background-setting')).toBeHidden()
+		await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/\\d+$`))
 
 		await page.reload()
 		await expect(background).toHaveClass(/is-visible/)
@@ -196,6 +199,9 @@ test.describe('Projects', () => {
 		expect((await removal).ok()).toBe(true)
 		await expect(background).not.toHaveClass(/is-visible/)
 		await expect(background).toHaveCSS('background-image', 'none')
+		// A successful removal closes the settings by navigating back.
+		await expect(page.locator('.project-background-setting')).toBeHidden()
+		await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/\\d+$`))
 
 		await page.reload()
 		await expect(page.locator('.project-title')).toContainText(project.title)

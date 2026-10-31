@@ -55,9 +55,10 @@
 		<section
 			v-if="baseStore.loading"
 			class="vikunja-loading"
+			role="status"
 		>
 			<Logo class="logo" />
-			<p>
+			<p class="loading-text">
 				<span class="loader-container is-loading-small is-loading" />
 				{{ $t('ready.loading') }}
 			</p>
@@ -66,7 +67,7 @@
 </template>
 
 <script lang="ts" setup>
-import Logo from '@/assets/logo.svg?component'
+import Logo from '@/components/home/Logo.vue'
 import ApiConfig from '@/components/misc/ApiConfig.vue'
 import Message from '@/components/misc/Message.vue'
 import CustomTransition from '@/components/misc/CustomTransition.vue'
@@ -85,55 +86,60 @@ const baseStore = useBaseStore()
 // stylelint-disable no-invalid-position-declaration
 
 .vikunja-loading {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	block-size: 100vh;
-	inline-size: 100vw;
-	flex-direction: column;
 	position: fixed;
-	inset-block-start: 0;
-	inset-inline-start: 0;
-	inset-block-end: 0;
-	inset-inline-end: 0;
-	background: var(--grey-100);
-	z-index: 99;
+	inset: 0;
+	// Covers the whole shell, floating dock included, until the app is ready.
+	z-index: calc(var(--layer-floating) + 1);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-4);
+	background: var(--surface-app);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	.logo :deep(.logo) {
+		block-size: 2.5rem;
+		inline-size: auto;
+	}
 }
 
-.logo {
-	margin-block-end: 1rem;
-	inline-size: 100px;
-	block-size: 100px;
+.loading-text {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
 }
 
 .loader-container {
-	margin-inline-end: 1rem;
+	display: inline-block;
+	inline-size: 1.5rem;
+	block-size: 1.5rem;
 
 	&.is-loading::after {
-		border-inline-start-color: var(--grey-400);
-		border-block-end-color: var(--grey-400);
+		border-inline-start-color: var(--text-tertiary);
+		border-block-end-color: var(--text-tertiary);
 	}
 }
 
 .offline {
 	background: url('@/assets/llama-nightscape.jpg') no-repeat center;
 	background-size: cover;
-	block-size: 100vh;
+	block-size: 100dvh;
 }
 
 .offline-message {
-	text-align: center;
 	position: absolute;
-	inline-size: 100vw;
 	inset-block-end: 5vh;
+	inline-size: 100%;
+	padding: 0 var(--space-4);
 	color: $white;
-	padding: 0 1rem;
+	text-align: center;
 }
 
 .title {
-	text-align: center;
 	color: $white;
-	font-weight: 700 !important;
-	font-size: 1.5rem;
+	font-size: var(--text-2xl);
+	text-align: center;
 }
 </style>

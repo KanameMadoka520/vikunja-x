@@ -1,9 +1,11 @@
 <template>
 	<div class="control repeat-after-input">
-		<div class="button-group mbs-2">
+		<div class="repeat-presets">
 			<XButton
 				variant="secondary"
 				class="is-small"
+				:shadow="false"
+				:disabled="disabled"
 				@click="() => setRepeatAfter(1, 'days')"
 			>
 				{{ $t('task.repeat.everyDay') }}
@@ -11,6 +13,8 @@
 			<XButton
 				variant="secondary"
 				class="is-small"
+				:shadow="false"
+				:disabled="disabled"
 				@click="() => setRepeatAfter(1, 'weeks')"
 			>
 				{{ $t('task.repeat.everyWeek') }}
@@ -18,48 +22,53 @@
 			<XButton
 				variant="secondary"
 				class="is-small"
+				:shadow="false"
+				:disabled="disabled"
 				@click="() => setRepeatAfter(30, 'days')"
 			>
 				{{ $t('task.repeat.every30d') }}
 			</XButton>
 		</div>
-		<div class="is-flex is-align-items-center mbe-2">
+		<div class="repeat-row">
 			<label
 				for="repeatMode"
-				class="is-fullwidth"
+				class="repeat-label"
 			>
-				{{ $t('task.repeat.mode') }}:
+				{{ $t('task.repeat.mode') }}
 			</label>
-			<div class="control">
-				<div class="select">
-					<select
-						id="repeatMode"
-						v-model="task.repeat_mode"
-						@change="updateData"
-					>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT">
-							{{ $t('misc.default') }}
-						</option>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_MONTH">
-							{{ $t('task.repeat.monthly') }}
-						</option>
-						<option :value="TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE">
-							{{ $t('task.repeat.fromCurrentDate') }}
-						</option>
-					</select>
-				</div>
+			<div class="select">
+				<select
+					id="repeatMode"
+					v-model="task.repeat_mode"
+					:disabled="disabled || undefined"
+					@change="updateData"
+				>
+					<option :value="TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT">
+						{{ $t('misc.default') }}
+					</option>
+					<option :value="TASK_REPEAT_MODES.REPEAT_MODE_MONTH">
+						{{ $t('task.repeat.monthly') }}
+					</option>
+					<option :value="TASK_REPEAT_MODES.REPEAT_MODE_FROM_CURRENT_DATE">
+						{{ $t('task.repeat.fromCurrentDate') }}
+					</option>
+				</select>
 			</div>
 		</div>
 		<div
 			v-if="task.repeat_mode !== TASK_REPEAT_MODES.REPEAT_MODE_MONTH"
-			class="is-flex"
+			class="repeat-row"
 		>
-			<p class="pis-4">
+			<label
+				:for="amountId"
+				class="repeat-label"
+			>
 				{{ $t('task.repeat.each') }}
-			</p>
-			<div class="field has-addons is-fullwidth">
+			</label>
+			<div class="field has-addons repeat-amount">
 				<div class="control">
 					<input
+						:id="amountId"
 						v-model="repeatAfter.amount"
 						:disabled="disabled || undefined"
 						class="input"
@@ -74,6 +83,7 @@
 						<select
 							v-model="repeatAfter.type"
 							:disabled="disabled || undefined"
+							:aria-label="$t('task.reminder.periodUnit')"
 							@change="updateData"
 						>
 							<option value="hours">
@@ -94,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, watch} from 'vue'
+import {ref, reactive, useId, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import {error} from '@/message'
@@ -116,6 +126,7 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n({useScope: 'global'})
+const amountId = useId()
 
 const task = ref<ITask>(createTaskDraft())
 const repeatAfter = reactive({
@@ -123,19 +134,22 @@ const repeatAfter = reactive({
 	type: '',
 })
 
+// Only the repeat values reset the inputs: an unrelated live update must not wipe an amount being typed.
 watch(
-	() => props.modelValue,
-	(value) => {
+	[
+		() => props.modelValue?.id,
+		() => props.modelValue?.repeat_after,
+		() => props.modelValue?.repeat_mode,
+	],
+	() => {
+		const value = props.modelValue
 		if (!value) return
 		task.value = {...value}
 		if (typeof value.repeat_after !== 'undefined') {
 			Object.assign(repeatAfter, parseRepeatAfter(value.repeat_after))
 		}
 	},
-	{
-		immediate: true,
-		deep: true,
-	},
+	{immediate: true},
 )
 
 function updateData() {
@@ -152,7 +166,11 @@ function updateData() {
 	}
 
 	task.value.repeat_after = repeatAfterToSeconds(repeatAfter as IRepeatAfter)
-	emit('update:modelValue', task.value)
+	emit('update:modelValue', {
+		...props.modelValue,
+		repeat_after: task.value.repeat_after,
+		repeat_mode: task.value.repeat_mode,
+	})
 }
 
 function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
@@ -162,26 +180,37 @@ function setRepeatAfter(amount: number, type: IRepeatAfter['type']) {
 </script>
 
 <style lang="scss" scoped>
-p {
-	padding-block-start: 6px;
-}
-
-.input {
-	min-inline-size: 2rem;
-}
-
-.button-group {
+.repeat-after-input {
 	display: flex;
-	justify-content: center;
+	flex-direction: column;
+	gap: var(--space-2);
+}
 
-	:deep(.button:not(:last-child)) {
-		border-start-end-radius: 0;
-		border-end-end-radius: 0;
-	}
+.repeat-presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
 
-	:deep(.button:not(:first-child)) {
-		border-start-start-radius: 0;
-		border-end-start-radius: 0;
+.repeat-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+}
+
+.repeat-label {
+	min-inline-size: 6rem;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+
+.repeat-amount {
+	margin-block-end: 0;
+
+	.input {
+		inline-size: 6rem;
+		min-inline-size: 3rem;
 	}
 }
 </style>

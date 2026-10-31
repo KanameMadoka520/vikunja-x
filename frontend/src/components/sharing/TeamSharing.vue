@@ -19,7 +19,7 @@
 			<span class="search-result">{{ candidate.name }}</span>
 		</template>
 		<template #share="{share}">
-			<td>
+			<td class="sharing-name">
 				<RouterLink :to="{name: 'teams.edit', params: {id: share.id}}">
 					{{ share.name }}
 				</RouterLink>
@@ -51,3 +51,14 @@ const createShare = useCreateProjectTeamShareMutation()
 const updateShare = useUpdateProjectTeamShareMutation()
 const deleteShare = useDeleteProjectTeamShareMutation()
 </script>
+
+<style lang="scss" scoped>
+.sharing-name {
+	overflow-wrap: anywhere;
+
+	a {
+		color: var(--accent-text);
+		font-weight: var(--weight-medium);
+	}
+}
+</style>

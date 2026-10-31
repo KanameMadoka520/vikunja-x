@@ -147,7 +147,7 @@ const showHowItWorks = ref(false)
 		inline-size: 100%;
 		text-align: start;
 		padding: .5rem 1rem;
-		transition: $transition;
+		transition: background-color $transition, color $transition;
 		font-size: .9rem;
 		color: var(--text);
 		background: transparent;

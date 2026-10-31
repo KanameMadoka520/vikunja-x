@@ -31,14 +31,23 @@ withDefaults(defineProps<{
 }
 
 kbd {
-	padding: .1rem .35rem;
-	border: 1px solid var(--grey-300);
-	background: var(--grey-100);
-	border-radius: 3px;
-	font-size: .75rem;
+	min-inline-size: 1.5em;
+	padding: 1px var(--space-1);
+	border: 1px solid var(--border-default);
+	border-block-end-width: 2px;
+	background: var(--surface-sunken);
+	border-radius: var(--radius-xs);
+	color: var(--text-primary);
+	font-family: inherit;
+	font-size: var(--text-xs);
+	font-weight: var(--weight-medium);
+	line-height: 1.4;
+	text-align: center;
 }
 
 span {
-	padding: 0 .25rem;
+	padding: 0 var(--space-1);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
 }
 </style>

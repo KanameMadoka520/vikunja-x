@@ -5,7 +5,10 @@
 			ref="dialogRef"
 			class="modal-dialog"
 			:class="[
-				{ 'has-overflow': overflow },
+				{
+					'has-overflow': overflow,
+					'is-confirm': isConfirm,
+				},
 				isSheet ? 'bottom-sheet' : variant,
 			]"
 			:aria-labelledby="headerLabelId"
@@ -21,7 +24,6 @@
 					v-if="isSheet"
 					class="bottom-sheet__panel"
 				>
-					<div class="bottom-sheet__handle" />
 					<div
 						v-if="title || $slots['header-action']"
 						class="bottom-sheet__header"
@@ -61,8 +63,8 @@
 							</div>
 							<div class="actions">
 								<XButton
-									variant="tertiary"
-									class="has-text-danger"
+									variant="secondary"
+									:shadow="false"
 									:disabled="loading"
 									@click="!loading && $emit('close')"
 								>
@@ -71,9 +73,9 @@
 								<XButton
 									v-cy="'modalPrimary'"
 									variant="primary"
+									:danger="danger"
 									:shadow="false"
 									:loading="loading"
-									:disabled="loading"
 									@click="!loading && $emit('submit')"
 								>
 									{{ $t('misc.doit') }}
@@ -103,6 +105,8 @@ const props = withDefaults(defineProps<{
 	wide?: boolean,
 	variant?: 'default' | 'hint-modal' | 'scrolling' | 'top' | 'fullscreen' | 'sheet',
 	title?: string,
+	// Styles the confirm action of the built-in header/text layout as destructive.
+	danger?: boolean,
 }>(), {
 	enabled: true,
 	loading: false,
@@ -110,6 +114,7 @@ const props = withDefaults(defineProps<{
 	wide: false,
 	variant: 'default',
 	title: '',
+	danger: false,
 })
 
 defineEmits(['close', 'submit'])
@@ -118,7 +123,12 @@ defineOptions({
 	inheritAttrs: false,
 })
 
-const TRANSITION_DURATION = 150
+// Matches --motion-fast on .modal-dialog; the token drops to 0ms under reduced motion.
+const TRANSITION_DURATION = 140
+
+function closeTransitionDuration() {
+	return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : TRANSITION_DURATION
+}
 
 const attrs = useAttrs()
 const slots = useSlots()
@@ -129,6 +139,8 @@ const headerLabelId = computed(() =>
 	!attrs['aria-label'] && !slots.default && slots.header ? headerId : undefined,
 )
 const isSheet = computed(() => props.variant === 'sheet')
+// The built-in header/text/actions layout renders as a compact card instead of a full page.
+const isConfirm = computed(() => !isSheet.value && !slots.default)
 const sheetLabel = computed(() => (isSheet.value && props.title) || undefined)
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const previouslyFocused = ref<Element | null>(null)
@@ -193,7 +205,7 @@ function closeDialog() {
 			previouslyFocused.value.focus()
 		}
 		previouslyFocused.value = null
-	}, TRANSITION_DURATION)
+	}, closeTransitionDuration())
 }
 
 watch(
@@ -281,6 +293,8 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 $modal-margin: 4rem;
 $modal-width: 1024px;
+// useIsMobile() switches at 768px; Bulma's $tablet starts at 769px.
+$mobile-max: $tablet - 1px;
 
 .modal-dialog {
 	// Reset UA dialog styles
@@ -292,7 +306,8 @@ $modal-width: 1024px;
 	// though getComputedStyle still reports the color. The dialog fills the
 	// viewport anyway, and its opacity transition fades the scrim with it —
 	// same as the old div-based .modal-mask.
-	background: rgba(0, 0, 0, .8);
+	background: var(--scrim);
+	// Only the close button and the lightbox sit directly on the scrim, which is dark in both themes.
 	color: #ffffff;
 	// Fill viewport
 	position: fixed;
@@ -305,9 +320,9 @@ $modal-width: 1024px;
 	// Transitions. No display/allow-discrete transition needed: the close
 	// fade runs while the dialog is still [open] (data-closing + timer in
 	// closeDialog), and transitioning display triggers the Chromium paint
-	// bug above.
+	// bug above. Keep the duration in sync with TRANSITION_DURATION.
 	opacity: 0;
-	transition: opacity 150ms ease;
+	transition: opacity var(--motion-fast) var(--ease-standard);
 
 	&[open]:not([data-closing]) {
 		opacity: 1;
@@ -318,12 +333,35 @@ $modal-width: 1024px;
 	}
 
 	&::backdrop {
-		background-color: rgba(0, 0, 0, 0);
+		background-color: transparent;
 	}
 
 	// in quick-add mode the Electron window itself is the overlay — no scrim
 	&:has(.is-quick-add-mode) {
 		background: transparent;
+	}
+}
+
+// Judging a picture needs a near-opaque backdrop; dialogs only dim the page.
+.fullscreen {
+	background: hsla(0, 0%, 0%, .86);
+}
+
+// Surfaces rise a few pixels while the scrim fades in; the lightbox only fades.
+.modal-dialog:not(.fullscreen) .modal-content {
+	animation: modal-surface-in var(--motion-slow) var(--ease-enter);
+}
+
+@keyframes modal-surface-in {
+	from {
+		opacity: 0;
+		translate: 0 .5rem;
+	}
+}
+
+@keyframes sheet-surface-in {
+	from {
+		translate: 0 1.5rem;
 	}
 }
 
@@ -335,10 +373,9 @@ $modal-width: 1024px;
 	overflow: auto;
 	padding-block-start: env(safe-area-inset-top);
 	padding-block-end: env(safe-area-inset-bottom);
-
 }
 
-.default .modal-content,
+.default:not(.is-confirm) .modal-content,
 .hint-modal .modal-content,
 .top .modal-content {
 	text-align: center;
@@ -358,22 +395,13 @@ $modal-width: 1024px;
 		transform: translate(50%, -50%);
 	}
 
-	@media screen and (max-width: $tablet) {
+	@media screen and (max-width: $mobile-max) {
 		margin: 0;
 		position: static;
 		transform: none;
 		// the fullscreen mobile layout flows and scrolls in .modal-container
 		max-block-size: none;
 		overflow: visible;
-	}
-
-	.modal-header {
-		font-size: 2rem;
-		font-weight: 700;
-	}
-
-	.button {
-		margin: 0 0.5rem;
 	}
 }
 
@@ -389,7 +417,7 @@ $modal-width: 1024px;
 	}
 
 	// the fullscreen mobile layout flows and scrolls in .modal-container
-	@media screen and (max-width: $tablet) {
+	@media screen and (max-width: $mobile-max) {
 		transform: none;
 		max-block-size: none;
 		overflow: visible;
@@ -399,15 +427,75 @@ $modal-width: 1024px;
 // Default width for centered modals. Scoped with :not(.is-wide) so the
 // `wide` prop can still expand the modal (the .is-wide rule below would
 // otherwise be outranked by .default .modal-content's specificity).
-.default .modal-content:not(.is-wide),
+.default:not(.is-confirm) .modal-content:not(.is-wide),
 .hint-modal .modal-content:not(.is-wide),
 .top .modal-content:not(.is-wide) {
 	inline-size: calc(100% - 2rem);
 	max-inline-size: 640px;
 
-	@media screen and (max-width: $tablet) {
+	@media screen and (max-width: $mobile-max) {
 		inline-size: 100%;
 		max-inline-size: none;
+	}
+}
+
+// Confirm dialogs (the built-in header/text/actions layout) stay a compact
+// card on every screen size instead of turning into a full page on phones.
+.is-confirm {
+	.modal-container {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding:
+			max(var(--space-4), env(safe-area-inset-top))
+			var(--space-4)
+			max(var(--space-4), env(safe-area-inset-bottom));
+	}
+
+	// Cancel sits right next to the confirm action; the viewport corner close would only duplicate it.
+	.close {
+		display: none;
+	}
+
+	.modal-content {
+		inline-size: 100%;
+		max-inline-size: 28rem;
+		max-block-size: 100%;
+		overflow: auto;
+		padding: var(--space-5) var(--space-5) var(--space-4);
+		background: var(--surface-raised);
+		color: var(--text-primary);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--elevation-3);
+		text-align: start;
+		overflow-wrap: anywhere;
+	}
+
+	.modal-header {
+		font-size: var(--text-lg);
+		font-weight: var(--weight-semibold);
+		line-height: var(--leading-tight);
+		color: var(--text-strong);
+	}
+
+	.content {
+		margin-block: var(--space-2) var(--space-5);
+		font-size: var(--text-md);
+		line-height: var(--leading-normal);
+		color: var(--text-secondary);
+
+		// Confirm copy written for the old dark scrim marks its emphasis as white text.
+		:deep(.has-text-white) {
+			color: var(--text-strong) !important;
+		}
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: var(--space-2);
 	}
 }
 
@@ -470,7 +558,7 @@ $modal-width: 1024px;
 
 // No scrim element: the dialog itself paints it, so the container's mousedown-outside is the scrim tap.
 .bottom-sheet {
-	background: hsla(0, 0%, 4%, .4);
+	background: var(--scrim);
 
 	.modal-container {
 		display: flex;
@@ -489,35 +577,29 @@ $modal-width: 1024px;
 	inline-size: 100%;
 	overflow-x: hidden;
 	max-block-size: 92dvh;
-	background: var(--white);
-	color: var(--text);
-	border-radius: 18px 18px 0 0;
-	box-shadow: 0 -8px 30px hsla(var(--grey-500-hsl), .18);
-	padding-block-end: env(safe-area-inset-bottom);
-}
-
-.bottom-sheet__handle {
-	inline-size: 2.5rem;
-	block-size: 5px;
-	margin: .5rem auto 0;
-	border-radius: $radius-rounded;
-	background: var(--grey-200);
-	flex-shrink: 0;
+	padding-block: var(--space-2) env(safe-area-inset-bottom);
+	background: var(--surface-raised);
+	color: var(--text-primary);
+	border-start-start-radius: var(--radius-lg);
+	border-start-end-radius: var(--radius-lg);
+	box-shadow: var(--elevation-3);
+	animation: sheet-surface-in var(--motion-slow) var(--ease-enter);
 }
 
 .bottom-sheet__header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: .5rem 1rem .75rem;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-4) var(--space-3);
 	flex-shrink: 0;
 }
 
 .bottom-sheet__title {
-	font-family: $vikunja-font;
-	font-weight: 700;
-	font-size: 1.15rem;
-	color: var(--grey-900);
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+	color: var(--text-strong);
 }
 
 .bottom-sheet__body {
@@ -536,8 +618,19 @@ $modal-width: 1024px;
 	position: fixed;
 	inset-block-start: .5rem;
 	inset-inline-end: $close-button-padding;
-	color: var(--white);
-	font-size: 2rem;
+	display: grid;
+	place-items: center;
+	inline-size: 2.5rem;
+	block-size: 2.5rem;
+	border-radius: var(--radius-full);
+	color: inherit;
+	font-size: var(--text-xl);
+	transition: background-color var(--motion-fast) var(--ease-standard);
+
+	// A light wash: the button sits on the scrim, which stays dark in both themes.
+	&:hover {
+		background-color: hsla(0, 0%, 100%, .14);
+	}
 
 	@media screen and (min-width: $desktop) and (width <= calc(#{$desktop	} + #{$close-button-min-space})) {
 		inset-block-start: calc(5px + $modal-margin);
@@ -558,7 +651,7 @@ $modal-width: 1024px;
 	}
 }
 
-@media print, screen and (max-width: $tablet) {
+@media print, screen and (max-width: $mobile-max) {
 	.modal-dialog {
 		overflow: visible !important;
 	}
@@ -586,7 +679,7 @@ $modal-width: 1024px;
 
 	// no card-header close icon to fall back on
 	.fullscreen .close {
-		display: block;
+		display: grid;
 	}
 
 	:deep(.card) {
@@ -626,32 +719,27 @@ $modal-width: 1024px;
 	}
 }
 
-.modal-content:has(.modal-header) {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	padding: 0 1rem;
-	min-block-size: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-}
-
 .modal-content :deep(.card .card-header-icon.close) {
 	display: none;
 
-	@media screen and (max-width: $tablet) {
+	@media screen and (max-width: $mobile-max) {
 		display: block;
 	}
 }
 </style>
 
 <style lang="scss">
-// Close icon SVG uses currentColor, change the color to keep it visible
-.dark .modal-dialog .close {
-	color: var(--grey-900);
+// Printing shows the dialog alone.
+@media print {
+	body:has(dialog[open].modal-dialog:not(.bottom-sheet)) #app {
+		display: none;
+	}
 }
 
-@media print, screen and (max-width: $tablet) {
-  body:has(dialog[open].modal-dialog:not(.bottom-sheet)) #app {
-	display: none;
-  }
+// Full-page dialogs cover the app on phones anyway; sheets and confirm cards keep it visible behind the scrim.
+@media screen and (max-width: $tablet - 1px) {
+	body:has(dialog[open].modal-dialog:not(.bottom-sheet, .is-confirm)) #app {
+		display: none;
+	}
 }
 </style>

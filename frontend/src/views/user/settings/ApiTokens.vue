@@ -13,9 +13,12 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import {useI18n} from 'vue-i18n'
 import Message from '@/components/misc/Message.vue'
 import Pagination from '@/components/misc/Pagination.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import type {ApiToken as IApiToken} from '@/client/generated'
 import ApiTokenForm from '@/components/token/ApiTokenForm.vue'
 import {getApiBaseUrl} from '@/helpers/apiUrl'
+import {useTitle} from '@/composables/useTitle'
+import {useCopyToClipboard} from '@/composables/useCopyToClipboard'
 
 const page = useRouteQuery('page', '1', {transform: normalizePageNumber})
 const {data, isFetching, isPlaceholderData} = useQuery(computed(() => apiTokensQuery(page.value)))
@@ -26,11 +29,14 @@ const deleteMutation = useDeleteApiTokenMutation()
 const apiDocsUrl = `${getApiBaseUrl()}/docs`
 const showCreateForm = ref(false)
 const tokenCreatedSuccessMessage = ref('')
+const createdToken = ref('')
+const copy = useCopyToClipboard()
 
 const showDeleteModal = ref<boolean>(false)
 const tokenToDelete = ref<IApiToken>()
 
 const {t} = useI18n()
+useTitle(() => `${t('user.settings.apiTokens.title')} - ${t('user.settings.title')}`)
 
 const route = useRoute()
 
@@ -71,129 +77,157 @@ function formatPermissionTitle(title: string): string {
 
 function onTokenCreated(token: IApiToken) {
 	tokenCreatedSuccessMessage.value = t('user.settings.apiTokens.tokenCreatedSuccess', {token: token.token})
+	createdToken.value = token.token ?? ''
 	showCreateForm.value = false
 }
 </script>
 
 <template>
-	<Card :title="$t('user.settings.apiTokens.title')">
-		<Message
-			v-if="tokenCreatedSuccessMessage !== ''"
-			class="has-text-centered mbe-4"
-		>
-			{{ tokenCreatedSuccessMessage }}<br>
-			{{ $t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
-		</Message>
-
-		<p>
-			{{ $t('user.settings.apiTokens.general') }}
-			<BaseButton :href="apiDocsUrl">
-				{{ $t('user.settings.apiTokens.apiDocs') }}
-			</BaseButton>
-			.
-		</p>
-
-		<div
-			v-if="tokens.length > 0"
-			class="has-horizontal-overflow"
-		>
-			<table class="table">
-				<thead>
-					<tr>
-						<th>{{ $t('misc.id') }}</th>
-						<th>{{ $t('user.settings.apiTokens.attributes.title') }}</th>
-						<th>{{ $t('user.settings.apiTokens.attributes.permissions') }}</th>
-						<th>{{ $t('user.settings.apiTokens.attributes.expiresAt') }}</th>
-						<th>{{ $t('misc.created') }}</th>
-						<th class="has-text-end">
-							{{ $t('misc.actions') }}
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="tk in tokens"
-						:key="tk.id"
+	<div class="settings-page">
+		<PageHeader :title="$t('user.settings.apiTokens.title')">
+			<template #description>
+				{{ $t('user.settings.apiTokens.general') }}
+				<BaseButton :href="apiDocsUrl">
+					{{ $t('user.settings.apiTokens.apiDocs') }}
+				</BaseButton>
+			</template>
+		</PageHeader>
+		<Card>
+			<Message
+				v-if="tokenCreatedSuccessMessage !== ''"
+				variant="success"
+				class="mbe-4"
+			>
+				<div class="token-created">
+					<p>
+						{{ tokenCreatedSuccessMessage }}<br>
+						{{ $t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
+					</p>
+					<XButton
+						variant="secondary"
+						icon="paste"
+						class="is-small"
+						@click="copy(createdToken)"
 					>
-						<td>{{ tk.id }}</td>
-						<td>{{ tk.title }}</td>
-						<td class="is-capitalized">
-							<template
-								v-for="(v, p) in tk.permissions"
-								:key="'permission-' + p"
-							>
-								<strong>{{ formatPermissionTitle(p) }}:</strong>
-								{{ (v ?? []).map(formatPermissionTitle).join(', ') }}
-								<br>
-							</template>
-						</td>
-						<td>
-							{{ formatDisplayDate(tk.expires_at) }}
-							<p
-								v-if="isApiTokenExpired(tk)"
-								class="has-text-danger"
-							>
-								{{ $t('user.settings.apiTokens.expired', {ago: formatDateSince(tk.expires_at)}) }}
-							</p>
-						</td>
-						<td>{{ formatDisplayDate(tk.created) }}</td>
-						<td class="has-text-end">
-							<XButton
-								variant="secondary"
-								@click="() => {tokenToDelete = tk; showDeleteModal = true}"
-							>
-								{{ $t('misc.delete') }}
-							</XButton>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+						{{ $t('misc.copy') }}
+					</XButton>
+				</div>
+			</Message>
 
-		<Pagination
-			:total-pages="totalPages"
-			:current-page="page"
-		/>
+			<div
+				v-if="tokens.length > 0"
+				class="has-horizontal-overflow"
+			>
+				<table class="table is-fullwidth">
+					<thead>
+						<tr>
+							<th>{{ $t('misc.id') }}</th>
+							<th>{{ $t('user.settings.apiTokens.attributes.title') }}</th>
+							<th>{{ $t('user.settings.apiTokens.attributes.permissions') }}</th>
+							<th>{{ $t('user.settings.apiTokens.attributes.expiresAt') }}</th>
+							<th>{{ $t('misc.created') }}</th>
+							<th class="has-text-end">
+								{{ $t('misc.actions') }}
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="tk in tokens"
+							:key="tk.id"
+						>
+							<td>{{ tk.id }}</td>
+							<td>{{ tk.title }}</td>
+							<td class="is-capitalized token-permissions">
+								<template
+									v-for="(v, p) in tk.permissions"
+									:key="'permission-' + p"
+								>
+									<strong>{{ formatPermissionTitle(p) }}:</strong>
+									{{ (v ?? []).map(formatPermissionTitle).join(', ') }}
+									<br>
+								</template>
+							</td>
+							<td>
+								{{ formatDisplayDate(tk.expires_at) }}
+								<p
+									v-if="isApiTokenExpired(tk)"
+									class="has-text-danger"
+								>
+									{{ $t('user.settings.apiTokens.expired', {ago: formatDateSince(tk.expires_at)}) }}
+								</p>
+							</td>
+							<td>{{ formatDisplayDate(tk.created) }}</td>
+							<td class="has-text-end">
+								<XButton
+									variant="secondary"
+									danger
+									class="is-small"
+									@click="() => {tokenToDelete = tk; showDeleteModal = true}"
+								>
+									{{ $t('misc.delete') }}
+								</XButton>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 
-		<ApiTokenForm
-			v-if="showCreateForm"
-			:initial-title="initialTitle"
-			:initial-scopes="initialScopes"
-			@created="onTokenCreated"
-			@cancel="showCreateForm = false"
-		/>
+			<Pagination
+				:total-pages="totalPages"
+				:current-page="page"
+			/>
 
-		<XButton
-			v-else
-			icon="plus"
-			class="mbe-4"
-			:loading="isFetching || deleteMutation.isPending.value"
-			@click="() => showCreateForm = true"
-		>
-			{{ $t('user.settings.apiTokens.createAToken') }}
-		</XButton>
+			<ApiTokenForm
+				v-if="showCreateForm"
+				:initial-title="initialTitle"
+				:initial-scopes="initialScopes"
+				@created="onTokenCreated"
+				@cancel="showCreateForm = false"
+			/>
 
-		<Modal
-			:enabled="showDeleteModal"
-			@close="showDeleteModal = false"
-			@submit="deleteToken()"
-		>
-			<template #header>
-				{{ $t('user.settings.apiTokens.delete.header') }}
-			</template>
+			<XButton
+				v-else
+				icon="plus"
+				class="mbs-2"
+				:loading="isFetching || deleteMutation.isPending.value"
+				@click="() => showCreateForm = true"
+			>
+				{{ $t('user.settings.apiTokens.createAToken') }}
+			</XButton>
 
-			<template #text>
-				<p v-if="tokenToDelete">
-					{{ $t('user.settings.apiTokens.delete.text1', {token: tokenToDelete.title}) }}<br>
-					{{ $t('user.settings.apiTokens.delete.text2') }}
-				</p>
-			</template>
-		</Modal>
-	</Card>
+			<Modal
+				danger
+				:enabled="showDeleteModal"
+				@close="showDeleteModal = false"
+				@submit="deleteToken()"
+			>
+				<template #header>
+					{{ $t('user.settings.apiTokens.delete.header') }}
+				</template>
+
+				<template #text>
+					<p v-if="tokenToDelete">
+						{{ $t('user.settings.apiTokens.delete.text1', {token: tokenToDelete.title}) }}<br>
+						{{ $t('user.settings.apiTokens.delete.text2') }}
+					</p>
+				</template>
+			</Modal>
+		</Card>
+	</div>
 </template>
 
 <style lang="scss" scoped>
-.preset-buttons {
-	margin-block-start: 1rem;
+.token-created {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	overflow-wrap: anywhere;
+}
+
+.token-permissions {
+	font-size: var(--text-sm);
 }
 </style>

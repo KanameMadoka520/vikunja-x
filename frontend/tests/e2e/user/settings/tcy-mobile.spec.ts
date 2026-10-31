@@ -102,8 +102,10 @@ test('mobile core pages keep navigation, projects, tasks and settings inside the
 	await expect(page.locator('button.menu-show-button:visible')).toBeVisible()
 	await fitsScreen(page)
 	await page.locator('button.menu-show-button:visible').click()
-	await expect(page.locator('.menu-container')).toHaveClass(/is-active/)
-	await page.getByRole('link', {name: 'Arona', exact: true}).click()
+	const menu = page.locator('.menu-container')
+	await expect(menu).toHaveClass(/is-active/)
+	// Home has its own Arona workspace link, so go through the opened navigation drawer.
+	await menu.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Arona', exact: true}).click()
 	await expect(page.getByRole('heading', {name: 'Arona'})).toBeVisible()
 	for (const path of ['/projects', ...projects[0].views.map((view: {id: number}) => `/projects/${projects[0].id}/${view.id}`), `/tasks/${task.id}`, '/user/settings/general']) {
 		await page.goto(path)
@@ -117,6 +119,8 @@ test('mobile core pages keep navigation, projects, tasks and settings inside the
 test('update banner shows the waiting fork build and sends skipWaiting on refresh', async ({authenticatedPage: page}) => {
 	await page.setViewportSize({width: 360, height: 800})
 	await page.goto('/')
+	// The app mounts after its async start; dispatch only once it listens for swUpdated.
+	await expect(page.locator('main h1')).toBeVisible()
 	await expect(page.locator('.update-notification')).toHaveCount(0)
 	await page.evaluate(() => {
 		const registration = {waiting: {postMessage(message: string, ports?: MessagePort[]) {

@@ -1,7 +1,9 @@
 <template>
 	<div class="content csv-migration">
-		<h1>{{ $t('migrate.titleService', {name: 'CSV'}) }}</h1>
-		<p>{{ $t('migrate.csv.description') }}</p>
+		<PageHeader
+			:title="$t('migrate.titleService', {name: 'CSV'})"
+			:description="$t('migrate.csv.description')"
+		/>
 
 		<Message
 			v-if="error"
@@ -208,6 +210,7 @@ import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
 import {createTaskDraft} from '@/helpers/task'
 

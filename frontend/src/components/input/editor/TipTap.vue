@@ -19,6 +19,7 @@
 				v-if="editor"
 				v-show="isEditing"
 				:editor="editor"
+				:options="bubbleMenuOptions"
 				:should-show="showTextBubbleMenu"
 			>
 				<div class="editor-bubble__wrapper">
@@ -88,6 +89,7 @@
 				v-show="isEditing"
 				plugin-key="imageBubbleMenu"
 				:editor="editor"
+				:options="bubbleMenuOptions"
 				:should-show="showImageBubbleMenu"
 			>
 				<div class="editor-bubble__wrapper">
@@ -100,14 +102,6 @@
 				</div>
 			</BubbleMenu>
 
-			<XButton
-				v-if="isEditing && driveTaskId"
-				variant="tertiary"
-				icon="folder"
-				@click="driveOpen = true"
-			>
-				{{ $t('drive.insertImage') }}
-			</XButton>
 			<DrivePicker
 				v-if="driveOpen"
 				images
@@ -151,6 +145,7 @@
 					class="done-edit"
 					@click="() => setEdit()"
 				>
+					<Icon icon="pen" />
 					{{ $t('input.editor.edit') }}
 				</BaseButton>
 			</li>
@@ -184,17 +179,31 @@
 				</BaseButton>
 			</li>
 		</ul>
-		<XButton
-			v-else-if="isEditing && showSave"
-			v-cy="'saveEditor'"
-			class="mbs-4"
-			variant="secondary"
-			:shadow="false"
-			:disabled="!contentHasChanged"
-			@click="bubbleSave"
+		<div
+			v-if="isEditing && (hasSaveButton || driveTaskId)"
+			class="tiptap__footer d-print-none"
 		>
-			{{ $t('misc.save') }}
-		</XButton>
+			<XButton
+				v-if="hasSaveButton"
+				v-cy="'saveEditor'"
+				variant="secondary"
+				class="is-small"
+				:shadow="false"
+				:disabled="!contentHasChanged"
+				@click="bubbleSave"
+			>
+				{{ $t('misc.save') }}
+			</XButton>
+			<XButton
+				v-if="driveTaskId"
+				variant="tertiary"
+				class="is-small"
+				icon="folder"
+				@click="driveOpen = true"
+			>
+				{{ $t('drive.insertImage') }}
+			</XButton>
+		</div>
 	</div>
 </template>
 
@@ -213,6 +222,7 @@ import {EditorContent, type Extensions, useEditor, VueNodeViewRenderer} from '@t
 import type {EditorState} from '@tiptap/pm/state'
 import type {EditorView} from '@tiptap/pm/view'
 import {BubbleMenu} from '@tiptap/vue-3/menus'
+import type {MiddlewareState} from '@floating-ui/dom'
 
 import Mention from '@tiptap/extension-mention'
 
@@ -230,6 +240,7 @@ import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import inputPrompt from '@/helpers/inputPrompt'
 import {getScrollParent} from '@/helpers/getScrollParent'
 import {setLinkInEditor} from '@/components/input/editor/setLinkInEditor'
+import {getViewportBelowNavbar} from '@/components/input/editor/popupContainer'
 import {saveEditorDraft, loadEditorDraft, clearEditorDraft} from '@/helpers/editorDraftStorage'
 import {error} from '@/message'
 
@@ -279,6 +290,8 @@ type Mode = 'edit' | 'preview'
 
 const internalMode = ref<Mode>('preview')
 const isEditing = computed(() => internalMode.value === 'edit' && props.isEditEnabled)
+// Editors with bottom actions (comments) render their Save inside that list instead.
+const hasSaveButton = computed(() => props.showSave && props.bottomActions.length === 0)
 const contentHasChanged = ref<boolean>(false)
 
 // TipTap crashes when inserting an image into an empty editor.
@@ -596,6 +609,18 @@ function showImageBubbleMenu() {
 	return editor.value?.isActive('image') ?? false
 }
 
+// The bubble menus open above the selection. When the selection sits just below the
+// fixed navbar they flip below it instead of hiding behind the navbar.
+const BUBBLE_MENU_OFFSET = 8
+const bubbleMenuOptions = {
+	offset: BUBBLE_MENU_OFFSET,
+	flip: ({elements}: MiddlewareState) => ({
+		rootBoundary: getViewportBelowNavbar(elements.floating),
+		// TipTap runs flip before offset, so the offset counts towards the room needed.
+		padding: {top: BUBBLE_MENU_OFFSET},
+	}),
+}
+
 async function promptAndApplyImageAlt(rect: DOMRect, previous: string) {
 	const alt = await inputPrompt(rect, t('input.editor.altTextPlaceholder'), previous, editor.value ?? undefined)
 
@@ -856,30 +881,28 @@ watch(
 
 <style lang="scss">
 .tiptap__wrapper {
-	// Transparent until focused so the box size never changes and the page stays flat, same pattern as .input.title
+	// The border is always there (transparent in preview) so entering edit mode never changes the box size.
 	border: 1px solid transparent;
-	border-radius: $radius;
-	transition: border-color $transition;
+	border-radius: var(--radius-md);
+	transition: border-color var(--motion-fast) var(--ease-standard);
+
+	&.tiptap__wrapper-is-editing {
+		border-color: var(--input-border-color);
+		background-color: var(--surface);
+	}
 
 	// The is-editing guard prevents a border flash when focusing checkboxes in preview mode
 	&.tiptap__wrapper-is-editing:focus-within {
-		border-color: var(--primary);
-		
-		.editor-toolbar {
-			border-end-start-radius: 0;
-			border-end-end-radius: 0;
-			border-color: transparent;
-			border-block-end-color: var(--grey-200);
-		}
+		border-color: var(--focus-ring-color);
 	}
 }
 
 .tiptap__editor {
 	&.tiptap__editor-is-edit-enabled {
-		min-block-size: 10rem;
+		min-block-size: 6rem;
 
 		.ProseMirror {
-			padding: .5rem;
+			padding: var(--space-2) var(--space-3);
 		}
 
 		ul[data-type='taskList'] li > div {
@@ -890,10 +913,18 @@ watch(
 
 .tiptap p::before {
 	content: attr(data-placeholder);
-	color: var(--grey-400);
+	color: var(--text-tertiary);
 	pointer-events: none;
 	block-size: 0;
 	float: inline-start;
+}
+
+.tiptap__footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin-block-start: var(--space-2);
 }
 
 // Basic editor styles
@@ -924,28 +955,29 @@ watch(
 	}
 
 	code {
-		background-color: var(--grey-200);
-		color: var(--grey-700);
-		border-radius: $radius;
+		background-color: var(--surface-active);
+		color: var(--text-primary);
+		border-radius: var(--radius-xs);
 	}
 
 	pre {
-		background: var(--grey-200);
-		color: var(--grey-700);
-		font-family: JetBrainsMono, monospace;
-		padding: 0.75rem 1rem;
-		border-radius: $radius;
+		background: var(--surface-sunken);
+		border: 1px solid var(--border-subtle);
+		color: var(--text-primary);
+		font-family: var(--font-mono);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
 
 		code {
 			color: inherit;
 			padding: 0;
 			background: none;
-			font-size: 0.8rem;
+			font-size: var(--text-sm);
 		}
 
 		.hljs-comment,
 		.hljs-quote {
-			color: var(--grey-500);
+			color: var(--text-tertiary);
 		}
 
 		.hljs-variable,
@@ -1000,19 +1032,20 @@ watch(
 		block-size: auto;
 
 		&.ProseMirror-selectednode {
-			outline: 3px solid var(--primary);
+			outline: 2px solid var(--focus-ring-color);
+			outline-offset: 2px;
 		}
 	}
 
 	blockquote {
-		padding-inline-start: 1rem;
-		border-inline-start: 2px solid rgba(#0d0d0d, 0.1);
+		padding-inline-start: var(--space-4);
+		border-inline-start: 2px solid var(--border-strong);
 	}
 
 	hr {
 		border: none;
-		border-block-start: 2px solid rgba(#0d0d0d, 0.1);
-		margin: 2rem 0;
+		border-block-start: 1px solid var(--border-default);
+		margin: var(--space-6) 0;
 	}
 	
 	// Table-specific styling
@@ -1026,7 +1059,7 @@ watch(
 		td,
 		th {
 			min-inline-size: 1em;
-			border: 2px solid var(--grey-300) !important;
+			border: 1px solid var(--border-default) !important;
 			padding: 3px 5px;
 			vertical-align: top;
 			box-sizing: border-box;
@@ -1038,9 +1071,9 @@ watch(
 		}
 
 		th {
-			font-weight: bold;
+			font-weight: var(--weight-semibold);
 			text-align: start;
-			background-color: var(--grey-200);
+			background-color: var(--surface-sunken);
 		}
 
 		.selectedCell:after {
@@ -1051,7 +1084,7 @@ watch(
 			inset-inline-end: 0;
 			inset-block-start: 0;
 			inset-block-end: 0;
-			background: rgba(200, 200, 255, 0.4);
+			background: var(--surface-selected-strong);
 			pointer-events: none;
 		}
 
@@ -1061,7 +1094,7 @@ watch(
 			inset-block-start: 0;
 			inset-block-end: -2px;
 			inline-size: 4px;
-			background-color: #aaddff;
+			background-color: var(--focus-ring-color);
 			pointer-events: none;
 		}
 
@@ -1102,7 +1135,7 @@ ul[data-type='taskList'] {
 	margin-inline-start: 0;
 
 	li[data-checked='true'] > div > :not(ul, ol) {
-		color: var(--grey-500);
+		color: var(--text-tertiary);
 		text-decoration: line-through;
 	}
 
@@ -1128,18 +1161,23 @@ ul[data-type='taskList'] {
 }
 
 .editor-bubble__wrapper {
-	background: var(--white);
-	border-radius: $radius;
-	border: 1px solid var(--grey-200);
-	box-shadow: var(--shadow-md);
 	display: flex;
+	gap: 2px;
+	padding: 2px;
 	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
 }
 
 .editor-bubble__button {
-	color: var(--grey-700);
-	transition: all $transition;
+	border-radius: var(--radius-sm);
 	background: transparent;
+	color: var(--text-secondary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	svg {
 		box-sizing: border-box;
@@ -1151,43 +1189,70 @@ ul[data-type='taskList'] {
 	}
 
 	&:hover {
-		background: var(--grey-200);
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&.is-active {
+		background: var(--surface-selected);
+		color: var(--accent-text);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: -2px;
 	}
 
 	&--text {
 		padding: .5rem .75rem;
-		font-size: .9rem;
+		font-size: var(--text-sm);
 		white-space: nowrap;
 	}
 }
 
-ul.tiptap__editor-actions {
-	font-size: .8rem;
-	margin: 0;
+// Inside .content the list would pick up bullets and indentation.
+.tiptap ul.tiptap__editor-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	margin: var(--space-1) 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--text-sm);
 
-	li {
-		display: inline-block;
-
-		&::after {
-			content: '·';
-			padding: 0 .25rem;
-		}
-
-		&:last-child:after {
-			content: '';
-		}
+	li,
+	li + li {
+		display: inline-flex;
+		margin: 0;
 	}
 
-	&, a {
-		color: var(--grey-500);
+	button,
+	a {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-block-size: var(--target-min);
+		padding-inline: var(--space-2);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition:
+			background-color var(--motion-fast) var(--ease-standard),
+			color var(--motion-fast) var(--ease-standard);
+
+		&:hover {
+			background: var(--surface-hover);
+			color: var(--text-primary);
+		}
 
 		&.done-edit {
-			color: var(--primary);
+			color: var(--accent-text);
 		}
-	}
 
-	a:hover {
-		text-decoration: underline;
+		svg {
+			font-size: var(--text-xs);
+		}
 	}
 }
 </style>

@@ -39,21 +39,23 @@ const filteredProjects = computed(() => {
 
 <style lang="scss" scoped>
 .project-grid {
-	--project-grid-item-height: 150px;
-	--project-grid-gap: 1rem;
-	--project-grid-min-column: 14.5rem;
-	margin: 0; // reset li
-	padding: 0;
-	list-style-type: none;
+	--project-grid-item-height: 7.25rem;
+	--project-grid-gap: var(--space-3);
+	--project-grid-min-column: 14rem;
+
 	display: grid;
 	// min() keeps a single column from overflowing containers narrower than the minimum.
 	grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--project-grid-min-column)), 1fr));
-	grid-auto-rows: var(--project-grid-item-height);
+	// Rows grow past the minimum instead of clipping long (for example Chinese) titles.
+	grid-auto-rows: minmax(var(--project-grid-item-height), auto);
 	gap: var(--project-grid-gap);
+	margin: 0; // reset li
+	padding: 0;
+	list-style-type: none;
 
-	@media screen and (width <= 30rem) {
-		--project-grid-item-height: 8rem;
-		--project-grid-gap: .75rem;
+	@media screen and (max-width: $tablet) {
+		--project-grid-item-height: 6.25rem;
+		--project-grid-gap: var(--space-2);
 	}
 
 	&.show-even-number-of-projects {

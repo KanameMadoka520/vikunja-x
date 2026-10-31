@@ -31,6 +31,7 @@
 		class="popup"
 		:class="{
 			'is-open': openValue,
+			'popover-surface': surface,
 		}"
 		:style="floatingStyle"
 		@toggle="onToggle"
@@ -59,12 +60,15 @@ const props = withDefaults(defineProps<{
 	anchor?: HTMLElement | null
 	sheetOnMobile?: boolean
 	sheetTitle?: string
+	// Paints the shared popover surface on the popup box itself, so its shadow is not clipped by the scroll box.
+	surface?: boolean
 }>(), {
 	open: false,
 	placement: undefined,
 	anchor: null,
 	sheetOnMobile: false,
 	sheetTitle: '',
+	surface: false,
 })
 
 const emit = defineEmits<{
@@ -183,14 +187,38 @@ onClickOutside(popup, dismissWithoutPopoverApi)
 onKeyStroke('Escape', dismissWithoutPopoverApi)
 
 const floatingStyle = ref<Record<string, string>>({})
-// 4rem app header ($navbar-height) plus a small margin.
-const VIEWPORT_PADDING = {top: 72, right: 8, bottom: 8, left: 8}
+const VIEWPORT_MARGIN = 8
+// 3.25rem, the fallback when --header-height cannot be read.
+const FALLBACK_HEADER_HEIGHT = 52
+
+// The fixed app header covers the top of the viewport; --header-height is its height in rem or px.
+function headerHeight() {
+	const rootStyle = getComputedStyle(document.documentElement)
+	const value = rootStyle.getPropertyValue('--header-height').trim()
+	const amount = parseFloat(value)
+	if (Number.isNaN(amount)) {
+		return FALLBACK_HEADER_HEIGHT
+	}
+	return value.endsWith('rem')
+		? amount * (parseFloat(rootStyle.fontSize) || 16)
+		: amount
+}
+
+function viewportPadding() {
+	return {
+		top: headerHeight() + VIEWPORT_MARGIN,
+		right: VIEWPORT_MARGIN,
+		bottom: VIEWPORT_MARGIN,
+		left: VIEWPORT_MARGIN,
+	}
+}
 
 async function updatePosition() {
 	if (!props.anchor || !popup.value || !props.placement) {
 		return
 	}
 	let availableBlockSize = 0
+	const padding = viewportPadding()
 	const {x, y} = await computePosition(props.anchor, popup.value, {
 		placement: props.placement,
 		strategy: 'fixed',
@@ -199,10 +227,13 @@ async function updatePosition() {
 		// left, so it scrolls inside itself instead of overflowing the viewport.
 		middleware: [
 			offset(4),
-			flip({padding: VIEWPORT_PADDING, fallbackStrategy: 'initialPlacement'}),
-			shift({padding: VIEWPORT_PADDING}),
+			flip({
+				padding,
+				fallbackStrategy: 'initialPlacement',
+			}),
+			shift({padding}),
 			size({
-				padding: VIEWPORT_PADDING,
+				padding,
 				apply: ({availableHeight}) => {
 					availableBlockSize = availableHeight
 				},
@@ -247,7 +278,7 @@ onScopeDispose(() => {
 	opacity: 0;
 	// Fade in only: the closing fade would need display/overlay allow-discrete, which paints badly
 	// in Chromium (see Modal.vue).
-	transition: opacity $transition;
+	transition: opacity var(--motion-fast) var(--ease-standard);
 
 	&:popover-open {
 		opacity: 1;
@@ -258,9 +289,9 @@ onScopeDispose(() => {
 	}
 
 	// Without the Popover API the box neither hides itself while closed nor paints in the top layer,
-	// so do both here. 40 clears the app header's 30.
+	// so do both here, above the app header and the sidebar.
 	@supports not selector(:popover-open) {
-		z-index: 40;
+		z-index: var(--layer-floating);
 		display: none;
 
 		&.is-open {

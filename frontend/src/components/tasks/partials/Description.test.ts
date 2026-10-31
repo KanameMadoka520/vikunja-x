@@ -3,6 +3,8 @@ import {flushPromises, mount, type VueWrapper} from '@vue/test-utils'
 import {createPinia} from 'pinia'
 import {QueryClient, VueQueryPlugin} from '@tanstack/vue-query'
 import {taskKeys, normalizeTask} from '@/client/queries/tasks'
+import {failTaskDetails} from '@/client/queries/taskCache'
+import {removeToken, saveToken} from '@/helpers/auth'
 
 const sdk = vi.hoisted(() => ({patchTasksRead: vi.fn(), tasksRead: vi.fn()}))
 vi.mock('@/client/generated', async original => ({...await original<typeof import('@/client/generated')>(), ...sdk}))
@@ -19,8 +21,9 @@ vi.mock('@/components/input/AsyncEditor', async () => {
 import Description from './Description.vue'
 
 let wrapper: VueWrapper | undefined
+let client: QueryClient
 function setup() {
- const client = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}})
+ client = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}})
  const task = normalizeTask({id: 1, project_id: 1, title: 'Test', description: 'old', attachments: []})
  client.setQueryData(taskKeys.detail(1), task)
  sdk.tasksRead.mockResolvedValue({data: task})
@@ -59,5 +62,28 @@ describe('description save races', () => {
   await flushPromises()
   expect(sdk.patchTasksRead).toHaveBeenCalledTimes(2)
   expect(view.find('[role="alert"]').exists()).toBe(false)
+ })
+ it('does not save a draft of a task deleted elsewhere when it unmounts', async () => {
+  const view = setup()
+  await view.find('textarea').setValue('unsaved draft')
+  failTaskDetails(client, 1)
+  view.unmount()
+  wrapper = undefined
+  await flushPromises()
+  expect(sdk.patchTasksRead).not.toHaveBeenCalled()
+ })
+ it('saves a task with a deleted id again after another login on the same client', async () => {
+  const token = (id: number) => `header.${btoa(JSON.stringify({id, type: 1}))}.signature`
+  saveToken(token(1), false)
+  sdk.patchTasksRead.mockResolvedValue({data: {id: 1, description: 'other server'}})
+  const view = setup()
+  failTaskDetails(client, 1)
+  removeToken()
+  saveToken(token(2), false)
+  await view.find('textarea').setValue('other server')
+  await view.find('.tiptap__task-description button').trigger('click')
+  await flushPromises()
+  expect(sdk.patchTasksRead).toHaveBeenCalledTimes(1)
+  removeToken()
  })
 })

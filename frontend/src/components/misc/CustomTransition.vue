@@ -14,51 +14,27 @@ withDefaults(defineProps<{
 </script>
 
 <style scoped lang="scss">
-$flash-background-duration: 750ms;
-
+// fade and width live in styles/transitions.scss so plain <Transition> users share them.
 .flash-background-enter-from,
 .flash-background-enter-active {
-  animation: flash-background $flash-background-duration ease 1;
+	animation: flash-background 750ms var(--ease-standard) 1;
 }
 
 @keyframes flash-background {
-  0% {
-    background: var(--primary-light);
-  }
-  100% {
-    background: transparent;
-  }
-}
+	0% {
+		background: var(--surface-selected-strong);
+	}
 
-@media (prefers-reduced-motion: reduce) {
-	@keyframes flash-background {
-		0% {
-			background: transparent;
-		}
+	100% {
+		background: transparent;
 	}
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity .14s ease-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.width-enter-active,
-.width-leave-active {
-  transition: width $transition-duration;
-}
-
-.width-enter-from,
-.width-leave-to {
-  inline-size: 0;
-}
-
+// A colour flash is not motion, but the highlight should not linger for users who asked for less animation.
 @media (prefers-reduced-motion: reduce) {
- .fade-enter-active, .fade-leave-active, .width-enter-active, .width-leave-active { transition: none; }
+	.flash-background-enter-from,
+	.flash-background-enter-active {
+		animation: none;
+	}
 }
 </style>

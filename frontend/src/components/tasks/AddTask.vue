@@ -285,25 +285,23 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-.task-add { border-radius: .8rem;
-transition: box-shadow .25s ease;
-}
-.task-add.is-invited, .task-add:focus-within { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 17%, transparent);
-}
-.task-invite { font-size: .8rem;
-color: var(--primary);
-margin: .5rem;
-}
 .task-add,
-	// overwrite bulma styles
+// overwrite bulma styles
 .task-add .add-task__field {
 	margin-block-end: 0;
 }
 
+.task-invite {
+	margin: var(--space-2) 0 0;
+	color: var(--accent-text);
+	font-size: var(--text-sm);
+}
+
 .task-add .add-task__field {
 	display: flex;
+	align-items: flex-start;
 	justify-content: flex-start;
-	gap: .75rem;
+	gap: var(--space-2);
 
 	.control {
 		flex-shrink: 0;
@@ -322,31 +320,66 @@ margin: .5rem;
 	position: relative;
 	flex-grow: 1;
 
-	textarea {
-		padding-inline: 2.5rem;
-	}
-
 	.icon {
-		color: var(--grey-300);
+		// Above the textarea, which Bulma positions relatively.
+		z-index: 1;
+		color: var(--text-tertiary);
 	}
 
-	.task-icon, 
+	.task-icon,
 	:deep(.quick-add-magic-trigger-btn) {
 		position: absolute;
-		inset-block-start: .75rem;
-	}
-
-	:deep(.quick-add-magic-trigger-btn) {
-		inset-inline-end: .75rem;
 	}
 
 	.task-icon {
-		inset-inline-start: 1rem;
+		inset-block-start: .75rem;
+		inset-inline-start: .875rem;
+		pointer-events: none;
+	}
+
+	:deep(.quick-add-magic-trigger-btn) {
+		inset-block-start: .5rem;
+		inset-inline-end: .5rem;
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+		border-radius: $radius;
+
+		&:hover {
+			background: var(--surface-hover);
+			color: var(--text-secondary);
+		}
+
+		@media (pointer: coarse) {
+			&::before {
+				content: '';
+				position: absolute;
+				inset: calc((var(--target-min) - 1.5rem) / -2);
+			}
+		}
 	}
 }
 
+// The field's own border and keyboard outline are the only focus indicator.
+.add-task-textarea {
+	min-block-size: var(--control-height-lg);
+	padding-inline: 2.5rem;
+	resize: none;
+
+	.is-invited & {
+		border-color: var(--primary);
+		box-shadow: 0 0 0 3px var(--surface-selected-strong);
+	}
+}
+
+// Fixed height: the button stays one line tall while the textarea grows.
 .add-task-button {
-	block-size: 100% !important;
+	block-size: var(--control-height-lg);
+	min-block-size: var(--control-height-lg);
+
+	@media (pointer: coarse) {
+		block-size: max(var(--control-height-lg), var(--target-min));
+		min-block-size: max(var(--control-height-lg), var(--target-min));
+	}
 
 	@media screen and (max-width: $tablet) {
 		.button-text {
@@ -359,20 +392,10 @@ margin: .5rem;
 	}
 }
 
-.add-task-textarea {
-	transition: border-color $transition;
-	resize: none;
-}
-
 // Adding this class when the textarea has no text prevents the textarea from wrapping the placeholder.
 .textarea-empty {
 	white-space: nowrap;
 	text-overflow: ellipsis;
-}
-
-.control .icon {
-	transition: all $transition;
-	z-index: 4;
 }
 </style>
 

@@ -2,10 +2,22 @@
 	<XButton
 		variant="secondary"
 		icon="filter"
+		class="filter-popup-trigger"
 		:class="{'has-filters': hasFilters}"
+		aria-haspopup="dialog"
 		@click="() => modalOpen = true"
 	>
 		{{ $t('filters.title') }}
+		<span
+			v-if="hasFilters"
+			class="filter-active-indicator"
+		>
+			<span
+				class="filter-active-dot"
+				aria-hidden="true"
+			/>
+			<span class="is-sr-only">{{ $t('filters.applied') }}</span>
+		</span>
 	</XButton>
 	<Modal
 		:enabled="modalOpen"
@@ -114,26 +126,24 @@ const filterFromView = computed(() => {
 <style scoped lang="scss">
 .filter-popup {
 	margin: 0;
-
-	&.is-open {
-		margin: 2rem 0 1rem;
-	}
 }
 
-$filter-bubble-size: .75rem;
-.has-filters {
-	position: relative;
+// The accent border plus the dot (a shape, not only a colour) mark a view whose results are filtered.
+.button.filter-popup-trigger.has-filters {
+	border-color: var(--accent-text);
+	color: var(--accent-text);
+}
 
-	&::after {
-		content: '';
-		position: absolute;
-		inset-block-start: math.div($filter-bubble-size, -2);
-		inset-inline-end: math.div($filter-bubble-size, -2);
+.filter-active-indicator {
+	display: inline-flex;
+	align-items: center;
+	margin-inline-start: var(--space-1);
+}
 
-		inline-size: $filter-bubble-size;
-		block-size: $filter-bubble-size;
-		border-radius: 100%;
-		background: var(--primary);
-	}
+.filter-active-dot {
+	inline-size: .4375rem;
+	block-size: .4375rem;
+	border-radius: var(--radius-full);
+	background: currentColor;
 }
 </style>

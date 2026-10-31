@@ -293,69 +293,101 @@ async function applyPreset(preset: CoverPreset) {
 
 <style lang="scss" scoped>
 .cover-presets {
-margin-block-end: 1.5rem;
+	margin-block-end: var(--space-6);
+
+	h3 {
+		margin-block-end: var(--space-1);
+		font-size: var(--text-lg);
+	}
+
+	p {
+		color: var(--text-secondary);
+		font-size: var(--text-md);
+	}
 }
+
 .cover-preset-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-gap: .75rem;
-margin-block: 1rem;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+	gap: var(--space-3);
+	margin-block: var(--space-4);
 }
+
+// Labels sit on the preset gradients themselves, so they keep fixed light text with a shadow.
 .cover-preset-grid button {
-block-size: 5rem;
-border: 0;
-border-radius: .75rem;
-color: white;
-font-weight: 600;
-text-shadow: 0 1px 3px #000000;
-cursor: pointer;
+	block-size: 4.5rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	color: var(--text-on-accent);
+	font-weight: var(--weight-semibold);
+	text-shadow: 0 1px 3px hsla(220, 30%, 6%, .7);
+	cursor: pointer;
+
+	&:hover {
+		box-shadow: var(--elevation-2);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+
+	&[disabled] {
+		cursor: not-allowed;
+		opacity: .6;
+	}
 }
 
 .cover-preview img {
-display: block;
-inline-size: min(24rem, 100%);
-block-size: 10rem;
-object-fit: cover;
-border-radius: 1rem;
-margin-block-end: 1rem;
+	display: block;
+	inline-size: min(24rem, 100%);
+	block-size: 10rem;
+	margin-block-end: var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-lg);
+	object-fit: cover;
 }
+
 .unsplash-credit {
 	text-align: end;
-	font-size: .8rem;
+	font-size: var(--text-sm);
 }
 
 .unsplash-credit__link {
-	color: var(--grey-800);
+	color: var(--text-secondary);
 }
 
 .image-search__result-list {
 	--items-per-row: 1;
-	margin: 1rem 0 0;
+
 	display: grid;
-	gap: 1rem;
 	grid-template-columns: repeat(var(--items-per-row), 1fr);
+	gap: var(--space-3);
+	margin: var(--space-4) 0 0;
 
 	@media screen and (min-width: $mobile) {
 		--items-per-row: 2;
 	}
+
 	@media screen and (min-width: $tablet) {
 		--items-per-row: 4;
 	}
-	@media screen and (min-width: $tablet) {
+
+	@media screen and (min-width: $desktop) {
 		--items-per-row: 5;
 	}
 }
 
 .image-search__result-item {
-	margin-block-start: 0;
-// FIXME: removes padding from .content
-	aspect-ratio: 16 / 10;
 	display: flex;
+	aspect-ratio: 16 / 10;
+	margin-block-start: 0; // removes the spacing .content adds between list items
+	overflow: hidden;
+	border-radius: var(--radius-md);
 }
 
 .is-load-more-button {
-	margin: 1rem auto 0 !important;
 	display: block;
 	inline-size: 200px;
+	margin: var(--space-4) auto 0 !important;
 }
 </style>

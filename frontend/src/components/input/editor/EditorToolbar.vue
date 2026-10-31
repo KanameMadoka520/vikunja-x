@@ -39,6 +39,7 @@
 		<Dropdown
 			class="editor-toolbar__more"
 			:class="{'is-hidden-more': overflowingActions.length === 0}"
+			@shown="onMenuShown"
 		>
 			<template #trigger="{toggleOpen, open}">
 				<BaseButton
@@ -364,17 +365,26 @@ function menuItems(): HTMLButtonElement[] {
 	return Array.from(toolbarRef.value?.querySelectorAll<HTMLButtonElement>('.dropdown-menu button:not(:disabled)') ?? [])
 }
 
-async function onMoreClick(event: MouseEvent | undefined, toggleOpen: () => void, open: boolean) {
+// The Dropdown keeps a new menu hidden until it is positioned, and hidden items
+// can't take focus, so a keyboard open moves focus in once the menu is shown.
+let focusMenuWhenShown = false
+
+function onMoreClick(event: MouseEvent | undefined, toggleOpen: () => void, open: boolean) {
 	if (event === undefined && open) {
 		menuItems()[0]?.focus()
 		return
 	}
-	toggleOpen()
 	// detail is 0 for keyboard clicks
-	if (!open && (event === undefined || event.detail === 0)) {
-		await nextTick()
-		menuItems()[0]?.focus()
+	focusMenuWhenShown = !open && (event === undefined || event.detail === 0)
+	toggleOpen()
+}
+
+function onMenuShown() {
+	if (!focusMenuWhenShown) {
+		return
 	}
+	focusMenuWhenShown = false
+	menuItems()[0]?.focus()
 }
 
 // Roving tabindex: the toolbar is a single Tab stop and arrow keys move between
@@ -481,15 +491,14 @@ onBeforeUnmount(() => {
 // Keeps the focus ring inside the clipped row
 $focus-ring-room: 2px;
 
+// Quiet until the editor is focused: no box of its own, just a hairline above the text.
 .editor-toolbar {
-	background: var(--white);
-	border: 1px solid var(--grey-200);
-	user-select: none;
-	padding: .5rem;
-	border-radius: $radius;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
+	padding: var(--space-1);
+	border-block-end: 1px solid var(--border-subtle);
+	user-select: none;
 }
 
 .editor-toolbar__row {
@@ -500,7 +509,7 @@ $focus-ring-room: 2px;
 	align-content: flex-start;
 	position: relative;
 	overflow: hidden;
-	block-size: calc(2rem + #{$focus-ring-room * 2});
+	block-size: calc(1.75rem + #{$focus-ring-room * 2});
 	padding: $focus-ring-room;
 	margin: -$focus-ring-room;
 }
@@ -510,30 +519,46 @@ $focus-ring-room: 2px;
 }
 
 .editor-toolbar__button {
-	min-inline-size: 2rem;
-	block-size: 2rem;
-	border-radius: $radius;
-	border: 1px solid transparent;
-	color: var(--grey-700);
-	transition: all $transition;
-	background: transparent;
-	margin-inline-end: .25rem;
 	position: relative;
+	min-inline-size: 1.75rem;
+	block-size: 1.75rem;
+	margin-inline-end: 2px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-tertiary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	.tiptap__wrapper:focus-within & {
+		color: var(--text-secondary);
+	}
 
 	&:hover {
-		background: var(--grey-100);
-		border-color: var(--grey-200);
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&.is-active {
+		background: var(--surface-selected);
+		color: var(--accent-text);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: 0;
 	}
 
 	&.is-group-start {
-		margin-inline-start: 13px;
+		margin-inline-start: var(--space-3);
 
 		&::before {
 			content: '';
 			position: absolute;
-			inset-block: -1px;
-			inset-inline-start: -8px;
-			border-inline-start: 1px solid var(--grey-200);
+			inset-block: var(--space-1);
+			inset-inline-start: calc(-1 * var(--space-2) - 1px);
+			border-inline-start: 1px solid var(--border-default);
 		}
 	}
 
@@ -543,40 +568,45 @@ $focus-ring-room: 2px;
 
 	.icon {
 		position: relative;
+		font-size: var(--text-sm);
 
 		.icon__lower-text {
-			font-size: .75rem;
 			position: absolute;
-			inset-block-end: -3px;
-			inset-inline-end: -2px;
-			font-weight: bold;
+			inset-block-end: -.2rem;
+			inset-inline-end: -.15rem;
+			font-size: var(--text-2xs);
+			font-weight: var(--weight-bold);
 		}
 	}
 }
 
 .editor-toolbar__menu-divider {
-	background-color: var(--grey-200);
-	border: none;
 	block-size: 1px;
-	margin: .5rem 0;
+	margin: var(--space-1) 0;
+	border: none;
+	background-color: var(--border-subtle);
 }
 
 .editor-toolbar__menu-check {
-	margin-inline-start: .5rem;
-	color: var(--primary);
+	margin-inline-start: var(--space-2);
+	color: var(--accent-text);
 }
 
 .editor-toolbar__table-buttons {
+	display: flex;
 	flex-basis: 100%;
-	margin-block-start: .5rem;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	margin-block-start: var(--space-1);
 
 	> .editor-toolbar__button {
-		margin-inline-end: .5rem;
-		margin-block-end: .5rem;
-		padding: 0 .25rem;
-		border: 1px solid var(--grey-400);
-		font-size: .75rem;
-		block-size: 1.5rem;
+		block-size: auto;
+		min-block-size: var(--control-height-sm);
+		margin: 0;
+		padding: 0 var(--space-2);
+		border-color: var(--border-default);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
 	}
 }
 </style>

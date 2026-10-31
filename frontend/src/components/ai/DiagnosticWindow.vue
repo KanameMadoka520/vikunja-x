@@ -49,14 +49,14 @@ function download() {
 				<Icon icon="code" /> {{ t('debug.title') }}
 			</h2><XButton
 				variant="secondary"
-				:aria-label="t('misc.close')"
+				:shadow="false"
 				@click="diagnosticsOpen = false"
 			>
 				{{ t('misc.close') }}
 			</XButton>
 		</header>
 		<p>{{ t('debug.description') }}</p>
-		<label>{{ t('debug.records') }}<select
+		<label class="records-label">{{ t('debug.records') }}<select
 			v-model="selectedDiagnostic"
 			class="input"
 		><option
@@ -110,52 +110,92 @@ function download() {
 .diagnostic-window {
 	inline-size: min(58rem, calc(100vw - 1.5rem));
 	max-block-size: calc(100dvh - 2rem);
+	padding: var(--space-5);
 	overflow: auto;
-	padding: 1.25rem;
-	background: var(--white);
-	color: var(--text);
-	border: 1px solid var(--grey-300);
-	border-radius: 1rem;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
+	&::backdrop {
+		background: var(--scrim);
+	}
+
+	> p {
+		color: var(--text-secondary);
+		font-size: var(--text-md);
+	}
 }
-.diagnostic-window::backdrop {
-	background: rgb(0 0 0 / 50%);
-}
-header, footer {
+
+header,
+footer {
 	display: flex;
-	align-items: center;
 	flex-wrap: wrap;
-	gap: .75rem;
+	align-items: center;
+	gap: var(--space-2);
 }
+
 header {
 	justify-content: space-between;
+	margin-block-end: var(--space-2);
 }
+
+footer {
+	margin-block-start: var(--space-3);
+}
+
 h2 {
-	font-size: 1.25rem;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
 	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
 }
-label {
-	display: block;
-	margin-block: .75rem;
+
+.records-label {
+	display: grid;
+	gap: var(--space-1);
+	margin-block: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
 }
+
 pre {
 	max-block-size: 45dvh;
+	padding: var(--space-3);
 	overflow: auto;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+	color: var(--text-primary);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
-	background: var(--grey-100);
-	padding: 1rem;
-	font-size: .8rem;
+
+	&:focus-visible {
+		@include focus-ring;
+	}
 }
+
 .detail-warning {
-	color: var(--text-light);
-	font-size: .85rem;
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 }
+
 .trace-id {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
 	overflow-wrap: anywhere;
 }
+
 .details-opt-in {
 	display: flex;
-	gap: .5rem;
 	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-md);
 }
 </style>

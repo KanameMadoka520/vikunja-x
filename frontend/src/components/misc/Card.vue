@@ -7,9 +7,12 @@
 			v-if="title !== ''"
 			class="card-header"
 		>
-			<p class="card-header-title">
+			<component
+				:is="`h${titleLevel}`"
+				class="card-header-title"
+			>
 				{{ title }}
-			</p>
+			</component>
 			<BaseButton
 				v-if="showClose"
 				class="card-header-icon close"
@@ -53,6 +56,8 @@ const props = withDefaults(defineProps<{
 	hasContent?: boolean
 	loading?: boolean
 	showClose?: boolean
+	/** Card titles are section headings in the page outline. */
+	titleLevel?: 2 | 3
 }>(), {
 	title: '',
 	padding: true,
@@ -60,6 +65,7 @@ const props = withDefaults(defineProps<{
 	hasContent: true,
 	loading: false,
 	showClose: false,
+	titleLevel: 2,
 })
 
 defineEmits<{
@@ -71,11 +77,11 @@ const showLoading = useDelayedLoading(() => props.loading)
 
 <style lang="scss" scoped>
 .card {
-	background-color: var(--white);
-	border-radius: $radius;
+	background-color: var(--surface);
+	border-radius: var(--radius-md);
 	margin-block-end: 1rem;
-	border: 1px solid var(--card-border-color);
-	box-shadow: var(--shadow-sm);
+	border: 1px solid var(--border-subtle);
+	box-shadow: var(--elevation-1);
 	color: var(--text);
 	max-inline-size: 100%;
 	position: relative;
@@ -91,17 +97,19 @@ const showLoading = useDelayedLoading(() => props.loading)
 	align-items: stretch;
 	display: flex;
 	box-shadow: none;
-	border-inline-end: 1px solid var(--card-border-color);
-	border-radius: $radius $radius 0 0;
+	border-block-end: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .card-header-title {
+	margin: 0;
 	align-items: center;
 	color: var(--text-strong);
 	display: flex;
 	flex-grow: 1;
-	font-weight: 700;
-	padding: 0.75rem 1rem;
+	font-size: var(--text-base);
+	font-weight: var(--weight-semibold);
+	padding: .7rem 1rem;
 
 	&.is-centered {
 		justify-content: center;
@@ -113,21 +121,27 @@ const showLoading = useDelayedLoading(() => props.loading)
 	cursor: pointer;
 	display: flex;
 	justify-content: center;
-	padding: 0.75rem 1rem;
+	padding: .7rem 1rem;
+	color: var(--text-secondary);
+	border-radius: var(--radius-sm);
+
+	&:hover {
+		color: var(--text-primary);
+	}
 }
 
 .card-content {
 	background-color: transparent;
-	padding: 1.5rem;
+	padding: 1.25rem;
 
 	&:first-child {
-		border-start-start-radius: $radius;
-		border-start-end-radius: $radius;
+		border-start-start-radius: var(--radius-md);
+		border-start-end-radius: var(--radius-md);
 	}
 
 	&:last-child {
-		border-end-start-radius: $radius;
-		border-end-end-radius: $radius;
+		border-end-start-radius: var(--radius-md);
+		border-end-end-radius: var(--radius-md);
 	}
 
 	// Utility classes like .p-0 are defined globally with lower specificity
@@ -135,13 +149,20 @@ const showLoading = useDelayedLoading(() => props.loading)
 	&.p-0 {
 		padding: 0;
 	}
+
+	@media screen and (max-width: $tablet) {
+		padding: 1rem;
+	}
 }
 
 .card-footer {
-	align-items: stretch;
-	background-color: var(--grey-50);
-	border-block-start: 0;
-	padding: 20px;
+	align-items: center;
+	gap: .5rem;
+	background-color: var(--surface-sunken);
+	border-block-start: 1px solid var(--border-subtle);
+	border-end-start-radius: var(--radius-md);
+	border-end-end-radius: var(--radius-md);
+	padding: .75rem 1.25rem;
 	display: flex;
 	justify-content: flex-end;
 }

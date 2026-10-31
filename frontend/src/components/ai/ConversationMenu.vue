@@ -32,7 +32,16 @@ function choose(action: 'pin' | 'archive' | 'rename' | 'delete' | 'export' | 'co
 function keydown(event: KeyboardEvent) {
 	const items = [...(menu.value?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])]
 	const index = items.indexOf(document.activeElement as HTMLButtonElement)
-	if (event.key === 'Escape' || event.key === 'Tab') { menu.value?.hidePopover(); if (event.key === 'Escape') { event.preventDefault(); trigger.value?.focus() } return }
+	if (event.key === 'Escape' || event.key === 'Tab') {
+		menu.value?.hidePopover()
+		if (event.key === 'Escape') {
+			event.preventDefault()
+			// Only the menu closes: the floating panel and the history overlay also listen for Escape.
+			event.stopPropagation()
+			trigger.value?.focus()
+		}
+		return
+	}
 	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
 	event.preventDefault()
 	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
@@ -112,81 +121,115 @@ onBeforeUnmount(() => cleanup?.())
 </template>
 
 <style scoped lang="scss">
-.chat-menu-trigger { display: inline-flex;
-align-items: center;
-justify-content: center;
-flex: 0 0 36px;
-inline-size: 36px;
-block-size: 40px;
-padding: 0;
-border: 0;
-border-radius: .6rem;
-color: var(--text-muted);
-background: transparent;
-cursor: pointer;
-}
-.chat-menu-trigger:hover, .chat-menu-trigger[aria-expanded='true'] { background: var(--grey-200);
-color: var(--text);
-}
-.chat-menu-trigger svg { display: block;
-inline-size: 1rem;
-block-size: 1rem;
-}
-.chat-options { position: fixed;
-inset: auto;
-margin: 0;
-padding: .4rem;
-border: 1px solid var(--grey-200);
-border-radius: .9rem;
-background: var(--scheme-main);
-color: var(--text);
-box-shadow: var(--shadow-md);
-inline-size: min(240px, calc(100vw - 16px));
-max-block-size: min(480px, 80dvh);
-overflow: auto;
-}
-.chat-options button { display: flex;
-align-items: center;
-gap: .75rem;
-inline-size: 100%;
-min-block-size: 42px;
-border: 0;
-border-radius: .5rem;
-padding: .55rem .7rem;
-background: transparent;
-color: inherit;
-font: inherit;
-font-size: .875rem;
-text-align: start;
-cursor: pointer;
-}
-.chat-options button:hover, .chat-options button:focus-visible { background: var(--grey-100);
-}
-.chat-options button:disabled { opacity: .45;
-cursor: not-allowed;
-}
-.chat-options button.danger { color: var(--danger);
-}
-.chat-options svg { flex: 0 0 1rem;
-inline-size: 1rem;
-block-size: 1rem;
-}
-.chat-options hr { margin: .3rem;
-background: var(--grey-200);
-block-size: 1px;
-}
-.chat-options p { font-size: .75rem;
-color: var(--text-muted);
-padding: .4rem .7rem;
-margin: 0;
-line-height: 1.5;
-}
-@media (pointer: coarse) {
-	.chat-menu-trigger { flex-basis: 44px;
-	inline-size: 44px;
-	block-size: 44px;
+.chat-menu-trigger {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--control-height);
+	block-size: var(--control-height);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-secondary);
+	cursor: pointer;
+
+	&:hover,
+	&[aria-expanded='true'] {
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
-	.chat-options button { min-block-size: 44px;
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+
+	&:disabled {
+		opacity: .5;
+		cursor: not-allowed;
+	}
+
+	svg {
+		display: block;
+		inline-size: 1rem;
+		block-size: 1rem;
+	}
+}
+
+.chat-options {
+	position: fixed;
+	inset: auto;
+	inline-size: min(15rem, calc(100vw - 1rem));
+	max-block-size: min(30rem, 80dvh);
+	margin: 0;
+	padding: var(--space-1);
+	overflow: auto;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
+	button {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		inline-size: 100%;
+		min-block-size: var(--control-height);
+		padding: var(--space-1) var(--space-3);
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		font-size: var(--text-md);
+		text-align: start;
+		cursor: pointer;
+
+		&:hover,
+		&:focus-visible {
+			background: var(--surface-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--focus-ring-color);
+			outline-offset: -2px;
+		}
+
+		&:disabled {
+			opacity: .45;
+			cursor: not-allowed;
+		}
+
+		&.danger {
+			color: var(--danger-text);
+		}
+	}
+
+	svg {
+		flex: 0 0 1rem;
+		inline-size: 1rem;
+		block-size: 1rem;
+		color: var(--text-tertiary);
+	}
+
+	.danger svg {
+		color: inherit;
+	}
+
+	hr {
+		block-size: 1px;
+		margin: var(--space-1) var(--space-2);
+		background: var(--border-subtle);
+	}
+
+	p {
+		margin: 0;
+		padding: var(--space-1) var(--space-3) var(--space-2);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+		line-height: var(--leading-normal);
 	}
 }
 </style>

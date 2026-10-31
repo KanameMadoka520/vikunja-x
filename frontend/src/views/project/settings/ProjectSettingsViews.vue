@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import CreateEdit from '@/components/misc/CreateEdit.vue'
 import {computed, watch, ref} from 'vue'
+import {useI18n} from 'vue-i18n'
+import {useMediaQuery} from '@vueuse/core'
 import type {ProjectView} from '@/client/generated'
 import {
 	createProjectViewDraft,
@@ -25,6 +27,7 @@ const props = defineProps<{
 }>()
 
 const draggable = draggableFor<ProjectView>()
+const {t} = useI18n({useScope: 'global'})
 
 const query = useProjectViews(() => props.projectId)
 // useProject snapshots its project, which suits the permission check but would freeze the table.
@@ -142,6 +145,33 @@ async function saveView(view: ProjectView) {
 	}
 }
 
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+
+const VIEW_KIND_LABEL_KEYS: Record<string, string> = {
+	list: 'project.list.title',
+	gantt: 'project.gantt.title',
+	table: 'project.table.title',
+	kanban: 'project.kanban.title',
+}
+
+function viewKindLabel(kind: ProjectView['view_kind']) {
+	const key = kind ? VIEW_KIND_LABEL_KEYS[kind] : undefined
+	return key ? t(key) : (kind ?? '')
+}
+
+// Keyboard alternative to dragging the handle: swap with the neighbour, then save like a drop there.
+function moveView(index: number, direction: -1 | 1) {
+	const target = index + direction
+	if (isSaving.value || target < 0 || target >= views.value.length) {
+		return
+	}
+	const reordered = [...views.value]
+	const [moved] = reordered.splice(index, 1)
+	reordered.splice(target, 0, moved)
+	views.value = reordered
+	return saveViewPosition({newIndex: target})
+}
+
 async function saveViewPosition(e: {newIndex: number}) {
 	const view = views.value[e.newIndex]
 	if (!view?.id) {
@@ -217,10 +247,10 @@ async function saveViewPosition(e: {newIndex: number}) {
 						tag="tbody"
 						item-key="id"
 						handle=".handle"
-						:animation="100"
+						:animation="reducedMotion ? 0 : 150"
 						@end="saveViewPosition"
 					>
-						<template #item="{element: v}">
+						<template #item="{element: v, index}">
 							<tr>
 								<template v-if="viewToEdit !== null && viewToEdit.id === v.id">
 									<td colspan="3">
@@ -235,28 +265,60 @@ async function saveViewPosition(e: {newIndex: number}) {
 									</td>
 								</template>
 								<template v-else>
-									<td>{{ v.title }}</td>
-									<td>{{ v.view_kind }}</td>
-									<td class="has-text-end actions">
-										<XButton
-											v-if="isAdmin"
-											class="is-danger mie-2"
-											:aria-label="$t('project.views.delete')"
-											icon="trash-alt"
-											@click="() => {
-												viewIdToDelete = v.id ?? null
-												showDeleteModal = true
-											}"
-										/>
-										<XButton
-											v-if="isAdmin"
-											icon="pen"
-											:aria-label="$t('project.views.edit')"
-											@click="viewToEdit = {...v}"
-										/>
-										<span class="icon handle">
-											<Icon icon="grip-lines" />
-										</span>
+									<td class="view-title">
+										{{ v.title }}
+									</td>
+									<td class="view-kind">
+										{{ viewKindLabel(v.view_kind) }}
+									</td>
+									<td class="has-text-end">
+										<div class="actions">
+											<template v-if="isAdmin">
+												<XButton
+													variant="tertiary"
+													:shadow="false"
+													icon="arrow-up"
+													:aria-label="$t('project.views.moveUp', {view: v.title})"
+													:aria-disabled="index === 0 || isSaving || undefined"
+													@click="moveView(index, -1)"
+												/>
+												<XButton
+													variant="tertiary"
+													:shadow="false"
+													icon="arrow-down"
+													:aria-label="$t('project.views.moveDown', {view: v.title})"
+													:aria-disabled="index === views.length - 1 || isSaving || undefined"
+													@click="moveView(index, 1)"
+												/>
+											</template>
+											<XButton
+												v-if="isAdmin"
+												variant="secondary"
+												:shadow="false"
+												icon="pen"
+												:aria-label="$t('project.views.edit')"
+												@click="viewToEdit = {...v}"
+											/>
+											<XButton
+												v-if="isAdmin"
+												variant="secondary"
+												:shadow="false"
+												danger
+												:aria-label="$t('project.views.delete')"
+												icon="trash-alt"
+												@click="() => {
+													viewIdToDelete = v.id ?? null
+													showDeleteModal = true
+												}"
+											/>
+											<span
+												class="icon handle"
+												:title="$t('project.views.dragHandle')"
+												aria-hidden="true"
+											>
+												<Icon icon="grip-lines" />
+											</span>
+										</div>
 									</td>
 								</template>
 							</tr>
@@ -268,6 +330,7 @@ async function saveViewPosition(e: {newIndex: number}) {
 	</CreateEdit>
 
 	<Modal
+		danger
 		:enabled="showDeleteModal"
 		@close="showDeleteModal = false"
 		@submit="deleteView(viewIdToDelete)"
@@ -282,15 +345,29 @@ async function saveViewPosition(e: {newIndex: number}) {
 	</Modal>
 </template>
 
-<style scoped>
-.handle {
-	cursor: grab;
-	margin-inline-start: .25rem;
+<style lang="scss" scoped>
+.table {
+	font-size: var(--text-md);
+
+	td {
+		vertical-align: middle;
+	}
+}
+
+.view-kind {
+	color: var(--text-secondary);
 }
 
 .actions {
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
+	gap: var(--space-1);
+}
+
+.handle {
+	cursor: grab;
+	margin-inline-start: var(--space-1);
+	color: var(--text-tertiary);
 }
 </style>

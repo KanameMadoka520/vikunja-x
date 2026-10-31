@@ -33,13 +33,14 @@ function handleChange(event: Event) {
 // component is the sole consumer of that class).
 label.checkbox {
 	cursor: pointer;
-	line-height: 1.25;
+	line-height: var(--leading-tight);
 	position: relative;
 
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-2);
 	inline-size: fit-content;
+	min-block-size: var(--target-min);
 
 	&:hover {
 		color: var(--input-hover-color);
@@ -52,11 +53,16 @@ label.checkbox {
 	}
 
 	input {
+		flex-shrink: 0;
+		inline-size: 1rem;
+		block-size: 1rem;
+		margin: 0;
+		accent-color: var(--primary);
 		cursor: pointer;
 	}
 
 	&:not(:last-child) {
-		margin-block-end: .75rem;
+		margin-block-end: var(--space-2);
 	}
 }
 </style>

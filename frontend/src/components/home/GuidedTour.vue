@@ -120,8 +120,12 @@ function close() {
 	tour.hide()
 	if (!disposed && eligible.value) {
 		base.setMenuActive(previousMenu)
-		// Only restore focus when its original element still exists after a route change.
-		if (previousFocus?.isConnected) previousFocus.focus({preventScroll: true})
+		const restore = previousFocus
+		// Closing the phone drawer leaves the header inert until the next render.
+		void nextTick(() => {
+			// Only restore focus when its original element still exists after a route change.
+			if (restore?.isConnected) restore.focus({preventScroll: true})
+		})
 	}
 }
 
@@ -335,7 +339,10 @@ onBeforeUnmount(() => {
 		class="guide-welcome d-print-none"
 		:aria-label="t('tour.welcomeTitle')"
 	>
-		<Icon icon="compass" />
+		<Icon
+			icon="compass"
+			aria-hidden="true"
+		/>
 		<div>
 			<strong>{{ t('tour.welcomeTitle') }}</strong>
 			<p>{{ t('tour.welcomeText') }}</p>
@@ -347,10 +354,10 @@ onBeforeUnmount(() => {
 			{{ t('tour.open') }}
 		</BaseButton>
 		<BaseButton
-			class="guide-icon"
-			:aria-label="t('tour.dismiss')"
+			class="guide-icon guide-dismiss"
 			@click="dismissWelcome"
 		>
+			<span class="is-sr-only">{{ t('tour.dismiss') }}</span>
 			<Icon icon="times" />
 		</BaseButton>
 	</aside>
@@ -380,21 +387,21 @@ onBeforeUnmount(() => {
 						<rect
 							v-if="rect"
 							v-bind="rect"
-							rx="10"
+							rx="8"
 							fill="black"
 						/>
 					</mask>
 				</defs>
 				<rect
+					class="guide-scrim"
 					width="100%"
 					height="100%"
-					fill="rgb(9 15 28 / 74%)"
 					:mask="`url(#${maskId})`"
 				/>
 				<rect
 					v-if="rect"
 					v-bind="rect"
-					rx="10"
+					rx="8"
 					fill="none"
 					stroke="white"
 					stroke-width="2"
@@ -513,58 +520,83 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+// First-run card: centred between the dock reserves on wide screens, above the dock on phones,
+// so it never sits under the Arona launcher.
 .guide-welcome {
 	position: fixed;
-	inset-block-end: 1rem;
-	inset-inline-start: 50%;
-	transform: translateX(-50%);
-	z-index: 40;
+	inset-block-end: var(--dock-inset-block);
+	inset-inline: var(--dock-reserve-inline);
+	z-index: var(--layer-header);
 	display: flex;
 	align-items: center;
-	gap: .75rem;
-	inline-size: min(42rem, calc(100% - 2rem));
-	padding: 1rem;
-	border: 1px solid var(--primary);
-	border-radius: 1rem;
-	background: var(--white);
-	color: var(--text);
-	box-shadow: 0 8px 32px rgb(0 0 0 / 16%);
+	gap: var(--space-3);
+	max-inline-size: 40rem;
+	margin-inline: auto;
+	padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+	border: 1px solid var(--border-default);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
 	> svg {
-		color: var(--primary);
-		font-size: 1.5rem;
+		flex-shrink: 0;
+		color: var(--accent-text);
+		font-size: var(--text-xl);
 	}
+
+	> div {
+		flex: 1 1 auto;
+		min-inline-size: 0;
+	}
+
+	strong {
+		font-size: var(--text-base);
+		font-weight: var(--weight-semibold);
+	}
+
 	p {
-		margin: .25rem 0 0;
-		font-size: .875rem;
+		margin: var(--space-1) 0 0;
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
 	}
+
 	// Beside the text the CTA left two or three CJK characters per line; on phones it
 	// gets its own row and the close button keeps a reserved corner.
-	@media (width <= 480px) {
+	@media (width <= 540px) {
+		inset-block-end: var(--dock-reserve);
+		inset-inline: var(--dock-inset-inline);
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		align-items: start;
-		gap: .5rem .75rem;
-		padding-inline-end: 3rem;
+		gap: var(--space-2) var(--space-3);
+		max-inline-size: none;
+		padding-inline-end: calc(var(--nav-row-height) + var(--space-1));
+
 		> svg {
 			grid-column: 1;
 			grid-row: 1;
 			margin-block-start: .125rem;
 		}
+
 		> div {
 			grid-column: 2;
 			grid-row: 1;
-			min-inline-size: 0;
 		}
+
 		.guide-button.primary {
 			grid-column: 1 / -1;
 			grid-row: 2;
 			justify-self: stretch;
-			margin-inline-end: -2rem;
+			margin-inline-end: calc(-1 * var(--nav-row-height));
 		}
-		.guide-icon {
+
+		.guide-dismiss {
 			position: absolute;
-			inset-block-start: .25rem;
-			inset-inline-end: .25rem;
+			inset-block-start: var(--space-1);
+			inset-inline-end: var(--space-1);
 		}
 	}
 }
@@ -578,10 +610,11 @@ onBeforeUnmount(() => {
 	max-block-size: none;
 	margin: 0;
 	padding: 0;
+	overflow: hidden;
 	border: 0;
 	background: transparent;
-	color: var(--text);
-	overflow: hidden;
+	color: var(--text-primary);
+
 	&::backdrop {
 		background: transparent;
 	}
@@ -593,150 +626,190 @@ onBeforeUnmount(() => {
 	pointer-events: none;
 }
 
+.guide-scrim {
+	fill: var(--scrim);
+}
+
 .selector-shade {
-	background: rgb(9 15 28 / 74%);
+	background: var(--scrim);
 }
 
 .guide-panel {
 	position: fixed;
 	inline-size: min(26rem, calc(100vw - 2rem));
 	max-block-size: calc(100dvh - 2rem);
-	padding: 1.25rem;
-	border: 1px solid var(--grey-200);
-	border-radius: 1rem;
-	background: var(--white);
-	box-shadow: 0 12px 48px rgb(0 0 0 / 25%);
+	padding: var(--space-5);
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
 	text-align: start;
+
 	&.is-centered {
 		inset-block-start: 50%;
 		inset-inline-start: 50%;
 		transform: translate(-50%, -50%);
+
+		[dir="rtl"] & {
+			transform: translate(50%, -50%);
+		}
 	}
-	header, footer, .guide-pagination {
+
+	header,
+	footer,
+	.guide-pagination {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: .5rem;
+		gap: var(--space-2);
 	}
+
 	header {
-		margin-block-end: .5rem;
+		margin-block-end: var(--space-2);
 	}
+
 	h2 {
-		margin: 0 0 .75rem;
+		margin: 0 0 var(--space-3);
 		padding: 0;
-		font-size: 1.35rem;
-		line-height: 1.35;
+		font-size: var(--text-xl);
+		line-height: var(--leading-tight);
 		outline: none;
 	}
+
 	p {
-		margin: 0 0 1rem;
-		line-height: 1.65;
+		margin: 0 0 var(--space-4);
+		color: var(--text-secondary);
+		font-size: var(--text-md);
+		line-height: var(--leading-normal);
 		overflow-wrap: anywhere;
 	}
+
 	progress {
 		display: block;
 		inline-size: 100%;
 		block-size: .25rem;
-		margin-block: .5rem 1rem;
+		margin-block: var(--space-2) var(--space-4);
 		accent-color: var(--primary);
 	}
 }
 
-.guide-eyebrow {
-	color: var(--primary);
-	font-weight: 700;
-	font-size: .8rem;
-	margin: 0 !important;
+.guide-panel .guide-eyebrow {
+	margin: 0;
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
 }
-.guide-note, .guide-progress {
-	color: var(--text-light);
-	font-size: .8rem;
-}
+
+.guide-panel .guide-note,
 .guide-panel .guide-progress {
-	margin-block: 1rem .25rem;
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 }
+
+.guide-panel .guide-progress {
+	margin-block: var(--space-4) var(--space-1);
+}
+
 .guide-panel .guide-note {
-	margin-block: 1rem 0;
+	margin-block: var(--space-4) 0;
 }
+
 .guide-choices {
 	display: grid;
-	gap: .625rem;
+	gap: var(--space-2);
 }
 
 .guide-choice {
 	display: flex;
 	align-items: center;
-	gap: .75rem;
+	gap: var(--space-3);
 	inline-size: 100%;
-	padding: .875rem;
-	border: 1px solid var(--grey-200);
-	border-radius: .75rem;
+	padding: var(--space-3);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
 	text-align: start;
-	color: var(--text);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard);
+
 	> svg {
-		color: var(--primary);
-		inline-size: 1.25rem;
 		flex-shrink: 0;
+		inline-size: 1.125rem;
+		color: var(--accent-text);
 	}
+
 	> span {
 		flex: 1;
 		min-inline-size: 0;
 	}
-	strong, small {
+
+	strong,
+	small {
 		display: block;
 	}
-	small {
-		margin-block-start: .25rem;
-		color: var(--text-light);
-		font-size: .8rem;
+
+	strong {
+		font-size: var(--text-md);
+		font-weight: var(--weight-semibold);
 	}
+
+	small {
+		margin-block-start: var(--space-1);
+		color: var(--text-secondary);
+		font-size: var(--text-xs);
+	}
+
 	&:hover {
-		border-color: var(--primary);
-		background: var(--grey-100);
+		border-color: var(--border-strong);
+		background-color: var(--surface-hover);
 	}
 }
 
 .guide-completed {
-	color: var(--primary);
+	color: var(--accent-text);
 }
 
-.guide-button, .guide-icon {
+.guide-button,
+.guide-icon {
 	display: inline-flex;
+	flex-shrink: 0;
 	align-items: center;
 	justify-content: center;
-	min-block-size: 44px;
-	min-inline-size: 44px;
-	border-radius: .5rem;
-	color: var(--text);
-	flex-shrink: 0;
-	&:focus-visible {
-		outline: 2px solid var(--primary);
-		outline-offset: 3px;
-	}
+	min-block-size: var(--nav-row-height);
+	min-inline-size: var(--nav-row-height);
+	border-radius: $radius;
+	color: var(--text-primary);
+	transition: background-color var(--motion-fast) var(--ease-standard);
+
 	&:hover {
-		background: var(--grey-100);
+		background-color: var(--surface-hover);
 	}
+
 	&[aria-disabled="true"] {
 		opacity: .45;
 		cursor: default;
 	}
 }
 
-.guide-button {
-	padding: .5rem .75rem;
-	font-weight: 600;
-	font-size: .875rem;
-	&.primary {
-		background: var(--primary);
-		color: var(--primary-invert);
-	}
+.guide-icon {
+	color: var(--text-secondary);
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.guide-panel, .guide-choice, .guide-button {
-		transition: none;
+.guide-button {
+	padding: var(--space-2) var(--space-3);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+
+	&.primary {
+		background-color: var(--primary);
+		color: var(--text-on-accent);
+
+		&:hover {
+			background-image: linear-gradient(var(--surface-active), var(--surface-active));
+		}
 	}
 }
 </style>

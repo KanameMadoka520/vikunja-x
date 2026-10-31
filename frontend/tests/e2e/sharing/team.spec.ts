@@ -257,15 +257,16 @@ test.describe('Team permission tiers on shared projects', () => {
 		await login(page, apiContext, owner)
 		await page.goto('/projects/1/settings/share')
 
-		const teamRow = page.locator('table.table tbody tr').filter({hasText: team.name})
+		const teamSection = page.getByRole('heading', {name: 'Shared with these teams', exact: true}).locator('..')
+		const teamRow = teamSection.getByRole('row').filter({hasText: team.name})
 		await expect(teamRow).toBeVisible()
-		await teamRow.locator('.button.is-danger, button.is-danger').first().click()
+		await teamRow.getByRole('button', {name: 'Remove this team'}).click()
 
 		const deleteRequest = page.waitForResponse(r =>
 			r.url().includes('/projects/1/teams/') && r.request().method() === 'DELETE',
 		)
-		await page.locator('dialog[open] .modal-content .actions .button')
-			.filter({hasText: 'Do it!'}).click()
+		await page.getByRole('dialog', {name: 'Remove a team from the project'})
+			.getByRole('button', {name: 'Do it!'}).click()
 		await deleteRequest
 
 		await expect(teamRow).toHaveCount(0)

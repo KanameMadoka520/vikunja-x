@@ -45,5 +45,10 @@ export function useTimeEntries(
 	return {
 		entries: computed(() => query.data.value?.items ?? []),
 		totalPages: computed(() => query.data.value?.total_pages ?? 0),
+		// Lets pages tell "no entries" apart from "not loaded yet" and "failed to load".
+		hasData: computed(() => query.data.value !== undefined),
+		isFetching: query.isFetching,
+		isError: query.isError,
+		refetch: query.refetch,
 	}
 }

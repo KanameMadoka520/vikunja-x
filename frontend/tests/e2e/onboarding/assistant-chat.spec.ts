@@ -274,7 +274,8 @@ test('failed compaction exposes provider termination and can retry without losin
 	page.on('dialog', dialog => dialog.accept())
 	await page.getByRole('button', {name: 'Retry compaction', exact: true}).click()
 	await expect(page.locator('.summary-banner')).toContainText('Kept compact summary')
-	await expect(page.locator('.compact-progress')).not.toContainText('did not finish')
+	// A finished compaction leaves only its summary; the failed run's progress is gone.
+	await expect(page.locator('.compact-progress')).toHaveCount(0)
 	await expect(page.locator('.chat-markdown')).toHaveText('Saved answer')
 	expect(c.turns).toHaveLength(1)
 	expect(server.sends()).toBe(1)

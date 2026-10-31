@@ -1,15 +1,22 @@
 <template>
-	<div class="time-tracking">
-		<div class="time-tracking__actions">
-			<span class="time-tracking__range">
-				{{ rangeLabel }}
-			</span>
-			<div class="time-tracking__buttons">
+	<div
+		class="time-tracking is-max-width-desktop"
+		:aria-busy="entriesLoading"
+	>
+		<PageHeader
+			class="time-tracking__actions"
+			:title="$t('timeTracking.title')"
+		>
+			<template #description>
+				<span class="time-tracking__range">{{ rangeLabel }}</span>
+			</template>
+			<template #actions>
 				<XButton
 					v-cy="'addTimeEntry'"
 					variant="secondary"
 					icon="plus"
 					:class="{'is-active': showForm}"
+					:aria-expanded="formVisible"
 					@click="showForm = !showForm"
 				>
 					{{ $t('timeTracking.logTime') }}
@@ -22,9 +29,13 @@
 					@click="filterModalOpen = true"
 				>
 					{{ $t('filters.title') }}
+					<span
+						v-if="hasFilters"
+						class="is-sr-only"
+					>{{ $t('filters.applied') }}</span>
 				</XButton>
-			</div>
-		</div>
+			</template>
+		</PageHeader>
 
 		<Card
 			v-if="formVisible"
@@ -38,13 +49,46 @@
 			/>
 		</Card>
 
-		<TimeEntryList
-			:entries="entries"
-			:empty-text="$t('timeTracking.list.emptyFiltered')"
-			:paged="totalPages > 1"
-			@edit="editingEntry = $event"
-			@delete="onDelete"
+		<LoadError
+			v-if="entriesError && !hasEntryData"
+			:retry="() => refetchEntries()"
 		/>
+
+		<div
+			v-else-if="!entriesSettled"
+			class="time-tracking__skeleton"
+			role="status"
+		>
+			<span class="is-sr-only">{{ $t('misc.loading') }}</span>
+			<span
+				v-for="row in 3"
+				:key="row"
+				class="time-tracking__skeleton-row"
+				aria-hidden="true"
+			/>
+		</div>
+
+		<EmptyState
+			v-else-if="entries.length === 0"
+			:icon="['far', 'clock']"
+			:title="$t('timeTracking.list.emptyFiltered')"
+		/>
+
+		<template v-else>
+			<!-- Entries stay on screen after a failed background refresh. -->
+			<LoadError
+				v-if="entriesError"
+				class="time-tracking__refresh-error"
+				:retry="() => refetchEntries()"
+			/>
+			<TimeEntryList
+				:entries="entries"
+				:empty-text="$t('timeTracking.list.emptyFiltered')"
+				:paged="totalPages > 1"
+				@edit="editingEntry = $event"
+				@delete="onDelete"
+			/>
+		</template>
 
 		<PaginationEmit
 			v-if="totalPages > 1"
@@ -134,6 +178,9 @@ import PaginationEmit from '@/components/misc/PaginationEmit.vue'
 import ProjectSearch from '@/components/tasks/partials/ProjectSearch.vue'
 import TimeEntryForm from '@/components/time-tracking/TimeEntryForm.vue'
 import TimeEntryList from '@/components/time-tracking/TimeEntryList.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
+import EmptyState from '@/components/misc/state/EmptyState.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 
 import {useTasks} from '@/composables/useTasks'
 import {ensureTask} from '@/client/queries/tasks'
@@ -285,11 +332,20 @@ const filterQuery = computed(() => {
 
 const ready = ref(false)
 const currentPage = ref(1)
-const {entries, totalPages} = useTimeEntries(() => filter.value, {
+const {
+	entries,
+	totalPages,
+	hasData: hasEntryData,
+	isFetching: entriesLoading,
+	isError: entriesError,
+	refetch: refetchEntries,
+} = useTimeEntries(() => filter.value, {
 	enabled: ready,
 	keepPrevious: true,
 	page: currentPage,
 })
+// "No time tracked" only once a request answered; not while the URL filter is restored or loading.
+const entriesSettled = computed(() => hasEntryData.value || (ready.value && !entriesLoading.value && !entriesError.value))
 
 watch(filter, () => {
 	currentPage.value = 1
@@ -354,31 +410,46 @@ watch(filterQuery, q => {
 </script>
 
 <style lang="scss" scoped>
-.time-tracking__actions {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 1rem;
-	margin-block-end: 1.5rem;
-}
-
 .time-tracking__range {
-	color: var(--grey-500);
-	font-size: .9rem;
+	color: var(--text-secondary);
+	font-variant-numeric: tabular-nums;
 }
 
-.time-tracking__buttons {
-	display: flex;
-	gap: .5rem;
+.time-tracking__refresh-error {
+	margin-block-end: var(--space-3);
+}
+
+.time-tracking__skeleton {
+	display: grid;
+	gap: var(--space-2);
+	padding: var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+
+.time-tracking__skeleton-row {
+	block-size: 1.25rem;
+	border-radius: var(--radius-xs);
+	background: var(--surface-active);
+
+	&:nth-child(2n + 1) {
+		inline-size: 70%;
+	}
 }
 
 .filter-columns {
 	display: flex;
-	gap: 1rem;
+	gap: var(--space-4);
 
 	> .field {
 		flex: 1;
 		min-inline-size: 0;
+	}
+
+	@media screen and (max-width: $tablet) {
+		flex-direction: column;
+		gap: 0;
 	}
 }
 
@@ -389,21 +460,20 @@ watch(filterQuery, q => {
 	display: none;
 }
 
-$filter-bubble-size: .75rem;
-
-// Blue dot on the filter button when any filter is active (mirrors project views).
+// Dot on the filter button when any filter is active (mirrors project views);
+// the button also carries hidden text, so the state is not colour-only.
 .has-filters {
 	position: relative;
 
 	&::after {
 		content: '';
 		position: absolute;
-		inset-block-start: math.div($filter-bubble-size, -2);
-		inset-inline-end: math.div($filter-bubble-size, -2);
-
-		inline-size: $filter-bubble-size;
-		block-size: $filter-bubble-size;
-		border-radius: 100%;
+		inset-block-start: -.25rem;
+		inset-inline-end: -.25rem;
+		inline-size: .625rem;
+		block-size: .625rem;
+		border: 2px solid var(--surface-app);
+		border-radius: var(--radius-full);
 		background: var(--primary);
 	}
 }

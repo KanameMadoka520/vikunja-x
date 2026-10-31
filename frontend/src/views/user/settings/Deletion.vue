@@ -1,82 +1,95 @@
 <template>
-	<Card
+	<div
 		v-if="configStore.user_deletion_enabled"
-		:title="$t('user.deletion.title')"
+		class="settings-page"
 	>
-		<template v-if="deletionScheduledAt !== null">
-			<form @submit.prevent="cancelDeletion()">
-				<p>
-					{{
-						$t('user.deletion.scheduled', {
-							date: formatDisplayDate(deletionScheduledAt),
-							dateSince: formatDateSince(deletionScheduledAt),
-						})
-					}}
-				</p>
-				<template v-if="isLocalUser">
-					<p>
-						{{ $t('user.deletion.scheduledCancelText') }}
+		<PageHeader
+			:title="$t('user.deletion.title')"
+			:description="$t('user.deletion.text1')"
+		/>
+		<Card class="deletion-card">
+			<template v-if="deletionScheduledAt !== null">
+				<form @submit.prevent="cancelDeletion()">
+					<Message
+						variant="warning"
+						class="mbe-4"
+					>
+						{{
+							$t('user.deletion.scheduled', {
+								date: formatDisplayDate(deletionScheduledAt),
+								dateSince: formatDateSince(deletionScheduledAt),
+							})
+						}}
+					</Message>
+					<template v-if="isLocalUser">
+						<p class="settings-copy">
+							{{ $t('user.deletion.scheduledCancelText') }}
+						</p>
+						<FormField
+							id="currentPasswordAccountDelete"
+							ref="passwordInput"
+							v-model="password"
+							:label="$t('user.settings.currentPassword')"
+							:placeholder="$t('user.settings.currentPasswordPlaceholder')"
+							type="password"
+							:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
+							@keyup="() => errPasswordRequired = password === ''"
+						/>
+					</template>
+					<p
+						v-else
+						class="settings-copy"
+					>
+						{{ $t('user.deletion.scheduledCancelButton') }}
+					</p>
+				</form>
+			</template>
+			<template v-else>
+				<form
+					v-if="isLocalUser"
+					@submit.prevent="deleteAccount()"
+				>
+					<p class="settings-copy">
+						{{ $t('user.deletion.text2') }}
 					</p>
 					<FormField
 						id="currentPasswordAccountDelete"
 						ref="passwordInput"
 						v-model="password"
 						:label="$t('user.settings.currentPassword')"
+						:class="{'is-danger': errPasswordRequired}"
 						:placeholder="$t('user.settings.currentPasswordPlaceholder')"
 						type="password"
 						:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
 						@keyup="() => errPasswordRequired = password === ''"
 					/>
-				</template>
-				<p v-else>
-					{{ $t('user.deletion.scheduledCancelButton') }}
+				</form>
+				<p
+					v-else
+					class="settings-copy"
+				>
+					{{ $t('user.deletion.text3') }}
 				</p>
-			</form>
-
-			<XButton
-				:loading="loading"
-				class="is-fullwidth mbs-4"
-				@click="cancelDeletion()"
-			>
-				{{ $t('user.deletion.scheduledCancelConfirm') }}
-			</XButton>
-		</template>
-		<template v-else>
-			<p>
-				{{ $t('user.deletion.text1') }}
-			</p>
-			<form
-				v-if="isLocalUser"
-				@submit.prevent="deleteAccount()"
-			>
-				<p>
-					{{ $t('user.deletion.text2') }}
-				</p>
-				<FormField
-					id="currentPasswordAccountDelete"
-					ref="passwordInput"
-					v-model="password"
-					:label="$t('user.settings.currentPassword')"
-					:class="{'is-danger': errPasswordRequired}"
-					:placeholder="$t('user.settings.currentPasswordPlaceholder')"
-					type="password"
-					:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
-					@keyup="() => errPasswordRequired = password === ''"
-				/>
-			</form>
-			<p v-else>
-				{{ $t('user.deletion.text3') }}
-			</p>
-
-			<XButton
-				:loading="loading"
-				class="is-fullwidth mbs-4 is-danger"
-				@click="deleteAccount()"
-			>
-				{{ $t('user.deletion.confirm') }}
-			</XButton>
-		</template>
-	</Card>
+			</template>
+			<template #footer>
+				<XButton
+					v-if="deletionScheduledAt !== null"
+					:loading="loading"
+					@click="cancelDeletion()"
+				>
+					{{ $t('user.deletion.scheduledCancelConfirm') }}
+				</XButton>
+				<XButton
+					v-else
+					:loading="loading"
+					class="is-danger"
+					@click="deleteAccount()"
+				>
+					{{ $t('user.deletion.confirm') }}
+				</XButton>
+			</template>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -91,6 +104,8 @@ import {useAuthStore} from '@/stores/auth'
 import {useConfigStore} from '@/stores/config'
 import {AUTH_TYPES} from '@/constants/auth'
 import FormField from '@/components/input/FormField.vue'
+import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 
 defineOptions({name: 'UserSettingsDeletion'})
 
@@ -113,6 +128,7 @@ const isLocalUser = computed(() => authStore.info?.is_local_user)
 const passwordInput = ref()
 
 async function deleteAccount() {
+	if (loading.value) return
 	if (isLocalUser.value && password.value === '') {
 		errPasswordRequired.value = true
 		passwordInput.value?.focus()
@@ -128,6 +144,7 @@ async function deleteAccount() {
 }
 
 async function cancelDeletion() {
+	if (loading.value) return
 	if (isLocalUser.value && password.value === '') {
 		errPasswordRequired.value = true
 		passwordInput.value?.focus()
@@ -146,3 +163,15 @@ async function cancelDeletion() {
 	password.value = ''
 }
 </script>
+
+<style lang="scss" scoped>
+.deletion-card {
+	border-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .35);
+}
+
+.settings-copy {
+	margin-block-end: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+</style>

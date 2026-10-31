@@ -12,8 +12,13 @@ test.describe('User Settings', () => {
 
 		await uploadRadio.click()
 
+		// Cropping is opt-in: without it the picked file goes straight to the upload format prompt
+		const cropToggle = page.getByRole('checkbox', {name: /^Crop to a square before choosing the upload format/})
+		await expect(cropToggle).not.toBeChecked()
+		await cropToggle.check()
+
 		// Set the file directly on the (hidden) file input
-		const fileInput = page.locator('input[type=file]')
+		const fileInput = page.getByRole('main').locator('input[type=file]')
 		await fileInput.setInputFiles('tests/fixtures/image.jpg')
 
 		// Wait for the cropper to be visible (the image needs to be loaded)
@@ -34,11 +39,48 @@ test.describe('User Settings', () => {
 
 		await uploadButton.click()
 
+		// The cropped square, not the picked file, goes through the shared upload format prompt
+		const formatDialog = page.getByRole('dialog', {name: 'Choose how to upload images'})
+		await expect(formatDialog).toBeVisible()
+		await expect(formatDialog.getByRole('listitem')).toHaveText(/^avatar\.png ·/)
+		await expect(formatDialog.getByRole('radio', {name: 'Upload original'})).toBeChecked()
+		await formatDialog.getByRole('button', {name: 'Upload images', exact: true}).click()
+
 		// Wait for the avatar upload response and verify it succeeded
 		const response = await avatarUploadPromise
 		expect(response.ok()).toBe(true)
+		expect(response.request().headers()['x-vikunja-image-mode']).toBe('original')
 
 		await expect(page.locator('.global-notification')).toContainText('Success', {timeout: 10000})
+		await expect(cropper).toHaveCount(0)
+	})
+
+	test('Uploads the picked avatar without cropping by default', async ({authenticatedPage: page}) => {
+		await page.goto('/user/settings/avatar')
+		await page.waitForLoadState('networkidle')
+
+		const uploadRadio = page.locator('input[name=avatarProvider][value=upload]')
+		await expect(uploadRadio).toBeVisible({timeout: 5000})
+		await uploadRadio.click()
+		await expect(page.getByRole('checkbox', {name: /^Crop to a square before choosing the upload format/})).not.toBeChecked()
+
+		const avatarUploadPromise = page.waitForResponse(response =>
+			response.url().includes('avatar') && response.request().method() === 'PUT',
+		)
+		await page.getByRole('main').locator('input[type=file]').setInputFiles('tests/fixtures/image.jpg')
+
+		const formatDialog = page.getByRole('dialog', {name: 'Choose how to upload images'})
+		await expect(formatDialog).toBeVisible()
+		await expect(formatDialog.getByRole('listitem')).toHaveText(/^image\.jpg ·/)
+		await formatDialog.getByRole('radio', {name: 'Compress to WebP before uploading'}).check()
+		await formatDialog.getByRole('button', {name: 'Upload images', exact: true}).click()
+
+		const response = await avatarUploadPromise
+		expect(response.ok()).toBe(true)
+		expect(response.request().headers()['x-vikunja-image-mode']).toBe('webp')
+		await expect(page.locator('.global-notification')).toContainText('Success', {timeout: 10000})
+		await expect(page.locator('.vue-advanced-cropper')).toHaveCount(0)
+		await expect(page.locator('.username-dropdown-trigger img.avatar')).toHaveAttribute('src', /blob:|data:/, {timeout: 10000})
 	})
 
 	test('Invalidates avatar cache when uploading a new avatar', async ({authenticatedPage: page}) => {
@@ -48,11 +90,14 @@ test.describe('User Settings', () => {
 		const uploadRadio = page.locator('input[name=avatarProvider][value=upload]')
 		await expect(uploadRadio).toBeVisible({timeout: 5000})
 		await uploadRadio.click()
+		await page.getByRole('checkbox', {name: /^Crop to a square before choosing the upload format/}).check()
 
-		const fileInput = page.locator('input[type=file]')
+		const fileInput = page.getByRole('main').locator('input[type=file]')
 		const uploadButton = page.locator('[data-cy="uploadAvatar"]')
 		const headerAvatar = page.locator('.username-dropdown-trigger img.avatar')
 		const notification = page.locator('.global-notification')
+		const confirmUpload = page.getByRole('dialog', {name: 'Choose how to upload images'})
+			.getByRole('button', {name: 'Upload images', exact: true})
 
 		// Upload first avatar (image.jpg)
 		await fileInput.setInputFiles('tests/fixtures/image.jpg')
@@ -62,6 +107,7 @@ test.describe('User Settings', () => {
 			response.url().includes('avatar') && response.request().method() === 'PUT',
 		)
 		await uploadButton.click()
+		await confirmUpload.click()
 		const firstResponse = await firstUploadPromise
 		expect(firstResponse.ok()).toBe(true)
 		await expect(notification).toContainText('Success', {timeout: 10000})
@@ -81,6 +127,7 @@ test.describe('User Settings', () => {
 			response.url().includes('avatar') && response.request().method() === 'PUT',
 		)
 		await uploadButton.click()
+		await confirmUpload.click()
 		const secondResponse = await secondUploadPromise
 		expect(secondResponse.ok()).toBe(true)
 		await expect(notification).toContainText('Success', {timeout: 10000})

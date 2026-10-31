@@ -23,7 +23,13 @@
 			@saved="onSaved"
 			@cancel="editingEntry = null"
 		/>
+		<LoadError
+			v-if="isError && !hasData"
+			class="mbs-4"
+			:retry="() => refetch()"
+		/>
 		<TimeEntryList
+			v-else-if="settled"
 			class="mbs-4"
 			:entries="entries"
 			:card="false"
@@ -48,6 +54,7 @@ import {ref, computed, watch} from 'vue'
 import PaginationEmit from '@/components/misc/PaginationEmit.vue'
 import TimeEntryForm from '@/components/time-tracking/TimeEntryForm.vue'
 import TimeEntryList from '@/components/time-tracking/TimeEntryList.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 
 import {useTimeEntries} from '@/composables/useTimeTracking'
 import {useDeleteTimeEntryMutation} from '@/client/queries/timeEntries'
@@ -59,7 +66,16 @@ const props = defineProps<{
 }>()
 
 const currentPage = ref(1)
-const {entries, totalPages} = useTimeEntries(() => `task_id = ${props.taskId}`, {page: currentPage})
+const {
+	entries,
+	totalPages,
+	hasData,
+	isFetching,
+	isError,
+	refetch,
+} = useTimeEntries(() => `task_id = ${props.taskId}`, {page: currentPage})
+// "No time tracked" and the implicit form only once the entries are known, not while they load.
+const settled = computed(() => hasData.value || (!isFetching.value && !isError.value))
 const deleteMutation = useDeleteTimeEntryMutation()
 const editingEntry = ref<ITimeEntry | null>(null)
 const showForm = ref(false)
@@ -69,7 +85,9 @@ watch(() => props.taskId, () => {
 })
 
 // Like related tasks: the form is implicit when empty, otherwise behind the +.
-const formVisible = computed(() => entries.value.length === 0 || showForm.value || editingEntry.value !== null)
+const formVisible = computed(() => (settled.value && entries.value.length === 0)
+	|| showForm.value
+	|| editingEntry.value !== null)
 
 function onSaved() {
 	editingEntry.value = null

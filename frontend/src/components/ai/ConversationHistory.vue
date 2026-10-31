@@ -6,8 +6,16 @@ import {useI18n} from 'vue-i18n'
 import {faThumbtack} from '@fortawesome/free-solid-svg-icons'
 import {conversationsQuery} from '@/client/queries/tcyConversations'
 import type {ConversationSummary} from '@/client/generated'
+import LoadError from '@/components/misc/state/LoadError.vue'
 import ConversationMenu from './ConversationMenu.vue'
-defineProps<{selected: string, disabled?: boolean}>()
+withDefaults(defineProps<{
+	selected: string,
+	disabled?: boolean,
+	showCreate?: boolean,
+}>(), {
+	disabled: false,
+	showCreate: true,
+})
 const emit = defineEmits<{select: [id: string], create: [], close: [], action: [action: string, conversation: ConversationSummary]}>()
 const {t} = useI18n({useScope: 'global'})
 const search = ref('')
@@ -38,15 +46,18 @@ defineExpose({focusSearch: () => searchInput.value?.focus()})
 <template>
 	<div class="history-panel">
 		<div class="history-header">
-			<strong>{{ t('chat.conversations') }}</strong><button
+			<h2>{{ t('chat.conversations') }}</h2><button
 				type="button"
+				class="history-icon-button"
 				:aria-label="t('chatHistory.close')"
+				:title="t('chatHistory.close')"
 				@click="emit('close')"
 			>
 				<Icon icon="times" />
 			</button>
 		</div>
 		<button
+			v-if="showCreate"
 			class="history-new"
 			type="button"
 			:disabled="disabled"
@@ -83,14 +94,11 @@ defineExpose({focusSearch: () => searchInput.value?.focus()})
 		>
 			{{ t('misc.loading') }}
 		</p>
-		<div
-			v-else-if="sessions.isError.value"
-			class="history-empty"
-		>
-			<p>{{ t('chat.loadFailed') }}</p><button @click="sessions.refetch()">
-				{{ t('chat.retry') }}
-			</button>
-		</div>
+		<LoadError
+			v-else-if="sessions.isError.value && !sessions.data.value"
+			class="history-error"
+			:retry="() => sessions.refetch()"
+		/>
 		<p
 			v-else-if="!groups.length"
 			role="status"
@@ -119,7 +127,16 @@ defineExpose({focusSearch: () => searchInput.value?.focus()})
 						:title="session.title || t('chat.untitled')"
 						@click="emit('select', session.id!)"
 					>
-						<span>{{ session.title || t('chat.untitled') }}</span><small v-if="session.running">{{ t('chat.running') }}</small><small v-else-if="session.archived && !archived">{{ t('chatHistory.archived') }}</small>
+						<span class="history-title">{{ session.title || t('chat.untitled') }}</span><small
+							v-if="session.running"
+							class="history-badge is-running"
+						><span
+							class="badge-dot"
+							aria-hidden="true"
+						/>{{ t('chat.running') }}</small><small
+							v-else-if="session.archived && !archived"
+							class="history-badge"
+						>{{ t('chatHistory.archived') }}</small>
 					</button>
 					<Icon
 						v-if="session.pinned"
@@ -135,22 +152,31 @@ defineExpose({focusSearch: () => searchInput.value?.focus()})
 				</li>
 			</ul>
 		</section>
-		<div
+		<nav
 			v-if="(sessions.data.value?.total_pages ?? 0) > 1"
 			class="history-pages"
+			:aria-label="t('chat.conversations')"
 		>
 			<button
+				type="button"
+				class="history-icon-button"
+				:aria-label="t('chatHistory.previousPage')"
+				:title="t('chatHistory.previousPage')"
 				:disabled="page === 1 || sessions.isFetching.value"
 				@click="page--"
 			>
-				{{ t('tour.back') }}
+				<Icon icon="angle-left" />
 			</button><span>{{ page }} / {{ sessions.data.value?.total_pages }}</span><button
+				type="button"
+				class="history-icon-button"
+				:aria-label="t('chatHistory.nextPage')"
+				:title="t('chatHistory.nextPage')"
 				:disabled="page >= (sessions.data.value?.total_pages ?? 1) || sessions.isFetching.value"
 				@click="page++"
 			>
-				{{ t('tour.next') }}
+				<Icon icon="angle-right" />
 			</button>
-		</div>
+		</nav>
 		<p class="history-note">
 			{{ t('chatHistory.archiveHint') }}
 		</p>
@@ -158,155 +184,255 @@ defineExpose({focusSearch: () => searchInput.value?.focus()})
 </template>
 
 <style scoped lang="scss">
-.history-panel { min-inline-size: 0;
+.history-panel {
+	min-inline-size: 0;
 }
-.history-header { display: flex;
-align-items: center;
-justify-content: space-between;
-margin-block-end: .6rem;
-font-size: .9rem;
-}
-.history-header button { display: inline-flex;
-align-items: center;
-justify-content: center;
-inline-size: 36px;
-block-size: 40px;
-border-radius: .6rem;
-}
-button { color: var(--text);
-background: transparent;
-border: 0;
-cursor: pointer;
-font: inherit;
-}
-button:disabled { opacity: .5;
-cursor: not-allowed;
-}
-.history-new { display: flex;
-align-items: center;
-gap: .65rem;
-inline-size: 100%;
-min-block-size: 40px;
-padding: .7rem;
-text-align: start;
-border-radius: .6rem;
-font-size: .9rem;
-}
-.history-new:hover, .history-header button:hover { background: var(--grey-200);
-}
-.history-search { display: flex;
-align-items: center;
-gap: .5rem;
-padding: .5rem .65rem;
-border: 1px solid var(--grey-200);
-border-radius: .7rem;
-background: var(--scheme-main);
-color: var(--text-muted);
-margin-block: .5rem;
-}
-.history-search input { inline-size: 100%;
-min-inline-size: 0;
-background: transparent;
-color: var(--text);
-border: 0;
-outline: none;
-font-size: .85rem;
-}
-.history-search:focus-within { outline: 2px solid var(--primary);
-outline-offset: 1px;
-}
-.history-filters { display: flex;
-gap: .3rem;
-margin-block: .6rem;
-}
-.history-filters button { display: inline-flex;
-flex: 1;
-align-items: center;
-justify-content: center;
-gap: .4rem;
-min-block-size: 38px;
-border-radius: .6rem;
-font-size: .8rem;
-}
-.history-filters button:hover { background: var(--grey-100);
-}
-.history-filters button[aria-pressed='true'] { background: var(--grey-200);
-font-weight: 600;
-}
-h3 { font-size: .75rem;
-font-weight: 600;
-color: var(--text-muted);
-margin: 1.1rem .65rem .3rem;
-}
-ul { list-style: none;
-margin: 0;
-padding: 0;
-}
-li { position: relative;
-display: flex;
-align-items: center;
-border-radius: .65rem;
-min-inline-size: 0;
-transition: background-color .12s ease;
-}
-li:hover, li:focus-within { background: var(--grey-200);
-}
-// Selection is a tinted row plus a bar, so it stays distinct from hover and does not rely on colour alone.
-li.is-selected { background: hsla(var(--primary-hsl), .12);
-}
-li.is-selected:hover, li.is-selected:focus-within { background: hsla(var(--primary-hsl), .18);
-}
-li.is-selected::before { content: '';
-position: absolute;
-inset-block: .45rem;
-inset-inline-start: 0;
-inline-size: 3px;
-border-radius: 3px;
-background: var(--primary);
-}
-.history-link { flex: 1;
-min-inline-size: 0;
-text-align: start;
-padding: .65rem;
-min-block-size: 44px;
-}
-.history-link span { display: block;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-font-size: .85rem;
-}
-li.is-selected .history-link span { font-weight: 600;
-}
-.history-link small { display: block;
-font-size: .75rem;
-color: var(--text-muted);
-margin-block-start: .25rem;
-}
-.pin-mark { inline-size: .65rem;
-color: var(--text-muted);
-flex-shrink: 0;
-}
-.history-empty, .history-note { font-size: .8rem;
-color: var(--text-muted);
-line-height: 1.6;
-padding: .5rem;
-}
-.history-pages { display: flex;
-justify-content: space-between;
-align-items: center;
-font-size: .8rem;
-margin-block-start: .7rem;
-}
-.history-pages button { min-block-size: 44px;
-}
-@media (pointer: coarse) {
-	.history-header button { inline-size: 44px;
-	block-size: 44px;
-	}
-	.history-new, .history-filters button { min-block-size: 44px;
+
+.history-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-block-end: var(--space-2);
+
+	h2 {
+		margin: 0;
+		color: var(--text-primary);
+		font-size: var(--text-md);
+		font-weight: var(--weight-semibold);
 	}
 }
-@media (prefers-reduced-motion: reduce) { li { transition: none;
-} }
+
+button {
+	border: 0;
+	background: transparent;
+	color: var(--text-primary);
+	font: inherit;
+	cursor: pointer;
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+
+	&:disabled {
+		opacity: .5;
+		cursor: not-allowed;
+	}
+}
+
+.history-icon-button {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--control-height);
+	block-size: var(--control-height);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+
+	&:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+}
+
+.history-new {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	inline-size: 100%;
+	min-block-size: var(--control-height);
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-md);
+	text-align: start;
+
+	&:hover:not(:disabled) {
+		background: var(--surface-hover);
+	}
+}
+
+.history-search {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-block-size: var(--control-height);
+	margin-block: var(--space-2);
+	padding-inline: var(--space-2);
+	border: 1px solid var(--input-border-color);
+	border-radius: $radius;
+	background: var(--surface);
+	color: var(--text-tertiary);
+
+	&:focus-within {
+		@include focus-ring;
+	}
+
+	input {
+		inline-size: 100%;
+		min-inline-size: 0;
+		border: 0;
+		outline: none;
+		background: transparent;
+		color: var(--text-primary);
+		font-size: var(--text-md);
+
+		&::placeholder {
+			color: var(--text-tertiary);
+		}
+	}
+}
+
+.history-filters {
+	display: flex;
+	gap: var(--space-1);
+	margin-block: var(--space-2);
+	padding: 2px;
+	border-radius: var(--radius-md);
+	background: var(--surface-active);
+
+	button {
+		display: inline-flex;
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-1);
+		min-block-size: var(--control-height-sm);
+		border-radius: var(--radius-sm);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+
+		&:hover {
+			color: var(--text-primary);
+		}
+
+		&[aria-pressed='true'] {
+			background: var(--surface-raised);
+			box-shadow: var(--elevation-1);
+			color: var(--text-primary);
+			font-weight: var(--weight-semibold);
+		}
+	}
+}
+
+h3 {
+	margin: var(--space-4) var(--space-2) var(--space-1);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+}
+
+ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+li {
+	position: relative;
+	display: flex;
+	align-items: center;
+	min-inline-size: 0;
+	border-radius: var(--radius-sm);
+
+	&:hover,
+	&:focus-within {
+		background: var(--surface-hover);
+	}
+
+	// Selection is a tint plus a leading bar, so it differs from hover without relying on colour alone.
+	&.is-selected {
+		background: var(--surface-selected);
+
+		&::before {
+			content: '';
+			position: absolute;
+			inset-block: var(--space-2);
+			inset-inline-start: 0;
+			inline-size: 3px;
+			border-radius: var(--radius-full);
+			background: var(--primary);
+		}
+
+		.history-title {
+			color: var(--accent-text);
+			font-weight: var(--weight-semibold);
+		}
+	}
+}
+
+.history-link {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: var(--space-2);
+	min-inline-size: 0;
+	min-block-size: var(--control-height);
+	padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+	border-radius: var(--radius-sm);
+	text-align: start;
+
+	&:focus-visible {
+		outline-offset: -2px;
+	}
+}
+
+.history-title {
+	flex: 1;
+	min-inline-size: 0;
+	overflow: hidden;
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.history-badge {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+
+	&.is-running {
+		color: var(--text-secondary);
+	}
+}
+
+.badge-dot {
+	inline-size: .4rem;
+	block-size: .4rem;
+	border-radius: 50%;
+	background: var(--success);
+}
+
+.pin-mark {
+	flex-shrink: 0;
+	inline-size: .65rem;
+	color: var(--text-tertiary);
+}
+
+.history-empty,
+.history-note {
+	padding: var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+	line-height: var(--leading-normal);
+}
+
+.history-error {
+	margin-block: var(--space-2);
+	font-size: var(--text-sm);
+}
+
+.history-pages {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-block-start: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
 </style>

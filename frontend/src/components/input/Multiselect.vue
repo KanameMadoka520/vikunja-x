@@ -81,7 +81,7 @@
 			<div
 				v-if="searchResultsVisible"
 				:id="listboxId"
-				class="search-results"
+				class="search-results popover-surface"
 				:class="{'search-results-inline': inline}"
 				role="listbox"
 				:aria-label="accessibleName"
@@ -596,13 +596,12 @@ function focus() {
 
 .input-wrapper {
 	padding: 0;
-	background: var(--white);
-	border-color: var(--grey-200);
+	background: var(--input-background-color);
 	flex-wrap: wrap;
 	block-size: auto;
 
 	&:hover {
-		border-color: var(--grey-300) !important;
+		border-color: var(--input-hover-border-color);
 	}
 
 	.input {
@@ -613,6 +612,7 @@ function focus() {
 		border: none !important;
 		background: transparent;
 		block-size: auto;
+		min-block-size: 0;
 
 		&::placeholder {
 			font-style: normal !important;
@@ -628,8 +628,16 @@ function focus() {
 	}
 
 	&:focus-within {
-		border-color: var(--primary) !important;
-		background: var(--white) !important;
+		border-color: var(--input-focus-border-color);
+	}
+
+	// The search input inside carries focus; the ring belongs on the whole field.
+	.user-is-tabbing &:focus-within {
+		@include focus-ring;
+	}
+
+	.user-is-tabbing & .input:focus {
+		outline: none;
 	}
 
 	// doesn't seem to be used. maybe inside the slot?
@@ -639,47 +647,42 @@ function focus() {
 }
 
 .has-search-results .input-wrapper {
-	border-radius: $radius $radius 0 0;
-	border-color: var(--primary) !important;
-	background: var(--white) !important;
-
-	&, &:focus-within {
-		border-block-end-color: var(--grey-200) !important;
-	}
+	border-color: var(--input-focus-border-color);
 }
 
+// A detached listbox; .popover-surface paints it.
 .search-results {
-	background: var(--white);
-	border-radius: 0 0 $radius $radius;
-	border: 1px solid var(--primary);
-	border-block-start: none;
+	padding: var(--space-1);
+	margin-block-start: var(--space-1);
 
 	max-block-size: 50vh;
 	overflow: hidden auto;
 	position: absolute;
-	z-index: 100;
+	z-index: var(--layer-dropdown);
 	inset-inline: 0;
 	inline-size: 100%;
 	box-sizing: border-box;
-	clip-path: inset(0);
 }
 
 .search-results-inline {
 	position: static;
+	box-shadow: none;
 }
 
 .search-result-button {
 	background: transparent;
 	text-align: start;
 	box-shadow: none;
-	border-radius: 0;
+	border-radius: var(--radius-sm);
 	text-transform: none;
 	font-family: $family-sans-serif;
-	font-weight: normal;
-	padding: .5rem;
+	font-size: var(--text-md);
+	font-weight: var(--weight-regular);
+	min-block-size: 2rem;
+	padding: 0 var(--space-2);
 	border: none;
 	cursor: pointer;
-	color: var(--grey-800);
+	color: var(--text-primary);
 
 	display: flex;
 	align-items: center;
@@ -694,18 +697,26 @@ function focus() {
 		flex: 1 1 auto;
 	}
 
-	&:focus,
-	&:hover {
-		background: var(--grey-100);
-		box-shadow: none !important;
+	&:hover,
+	&:focus {
+		background-color: var(--surface-hover);
 
 		.hint-text {
-			color: var(--text);
+			opacity: 1;
 		}
 	}
 
+	// Focus moves through the options, so keyboard users get the ring inside the list.
+	&:focus-visible {
+		outline-offset: -2px;
+	}
+
 	&:active {
-		background: var(--grey-200);
+		background-color: var(--surface-active);
+	}
+
+	@media (pointer: coarse) {
+		min-block-size: var(--target-min);
 	}
 }
 
@@ -713,18 +724,19 @@ function focus() {
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	overflow: hidden;
-	padding: .5rem .75rem;
+	padding: var(--space-1) var(--space-1);
 }
 
-
 .hint-text {
-	font-size: .75rem;
-	color: transparent;
-	transition: color $transition;
-	padding-inline-start: .5rem;
+	flex-shrink: 0;
+	font-size: var(--text-xs);
+	color: var(--text-tertiary);
+	opacity: 0;
+	transition: opacity var(--motion-fast) var(--ease-standard);
+	padding-inline-start: var(--space-2);
 
 	&.is-always-visible {
-		color: var(--grey-500);
+		opacity: 1;
 	}
 }
 
@@ -735,15 +747,15 @@ function focus() {
 }
 
 .search-result-hint {
-	padding: .5rem .75rem;
-	color: var(--grey-500);
-	font-size: .85rem;
+	padding: var(--space-2) var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 }
 
 .create-icon {
 	color: var(--success);
-	margin-inline-end: .25rem;
-	font-size: .75rem;
+	margin-inline-end: var(--space-1);
+	font-size: var(--text-xs);
 }
 
 .has-removal-button {
@@ -752,7 +764,17 @@ function focus() {
 
 .removal-button {
 	position: absolute;
-	inset-inline-end: .5rem;
-	color: var(--danger);
+	inset-inline-end: var(--space-2);
+	display: inline-grid;
+	place-items: center;
+	min-inline-size: 1.5rem;
+	min-block-size: 1.5rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--danger-text);
+	}
 }
 </style>

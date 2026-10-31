@@ -24,8 +24,8 @@ const stats = computed(() => {
 	>
 		<template v-if="stats.measured">
 			<span>{{ t('cacheEfficiency.hitRate') }}: <strong>{{ stats.rate == null ? '—' : `${stats.rate}%` }}</strong></span>
-			<span>{{ t('cacheEfficiency.read') }}: {{ stats.cached.toLocaleString() }} / {{ stats.input.toLocaleString() }} tokens</span>
-			<span>{{ t('cacheEfficiency.uncached') }}: <strong>{{ stats.uncached.toLocaleString() }}</strong> tokens</span>
+			<span>{{ t('cacheEfficiency.read') }}: {{ stats.cached.toLocaleString() }} / {{ t('cacheEfficiency.tokens', {value: stats.input.toLocaleString()}) }}</span>
+			<span>{{ t('cacheEfficiency.uncached') }}: <strong>{{ t('cacheEfficiency.tokens', {value: stats.uncached.toLocaleString()}) }}</strong></span>
 			<small>{{ t('cacheEfficiency.explanation') }}<template v-if="stats.partial"> {{ t('cacheEfficiency.partial', {reported: stats.measured, total: usages.length}) }}</template></small>
 		</template>
 		<span v-else>{{ t('cacheEfficiency.unreported') }}</span>
@@ -36,14 +36,21 @@ const stats = computed(() => {
 .cache-usage {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .25rem .85rem;
-	font-size: .8rem;
+	gap: var(--space-1) var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
 	font-variant-numeric: tabular-nums;
 	overflow-wrap: anywhere;
 
+	strong {
+		color: var(--text-primary);
+		font-weight: var(--weight-semibold);
+	}
+
 	small {
 		flex-basis: 100%;
-		color: var(--grey-600);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 }
 </style>

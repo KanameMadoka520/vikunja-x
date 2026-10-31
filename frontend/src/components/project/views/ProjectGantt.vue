@@ -5,44 +5,38 @@
 		:project-id
 		:view-id
 	>
-		<template #default>
-			<Card :has-content="false">
-				<div class="gantt-options">
-					<FormField
-						id="range"
-						:label="$t('misc.dateRange')"
-					>
-						<template #default="{ id }">
-							<DateRangeInput
-								:id="id"
-								v-model="dateRange"
-								:placeholder="$t('misc.dateRange')"
-							/>
-						</template>
-					</FormField>
-					<div
-						v-if="!hasDefaultFilters"
-						class="field"
-					>
-						<span
-							class="label"
-							aria-hidden="true"
-						>{{ $t('tcymc.reset') }}</span>
-						<div class="control">
-							<XButton @click="setDefaultFilters">
-								{{ $t('tcymc.reset') }}
-							</XButton>
-						</div>
-					</div>
-					<FancyCheckbox
-						v-model="filters.showTasksWithoutDates"
-						is-block
-					>
-						{{ $t('task.show.noDates') }}
-					</FancyCheckbox>
+		<template #header>
+			<div class="filter-container gantt-options">
+				<div class="gantt-options__range">
+					<label
+						class="is-sr-only"
+						:for="rangeInputId"
+					>{{ $t('misc.dateRange') }}</label>
+					<DateRangeInput
+						:id="rangeInputId"
+						v-model="dateRange"
+						:placeholder="$t('misc.dateRange')"
+					/>
 				</div>
-			</Card>
+				<XButton
+					v-if="!hasDefaultFilters"
+					variant="tertiary"
+					:shadow="false"
+					icon="undo"
+					@click="setDefaultFilters"
+				>
+					{{ $t('tcymc.reset') }}
+				</XButton>
+				<FancyCheckbox
+					v-model="filters.showTasksWithoutDates"
+					class="gantt-options__no-dates"
+				>
+					{{ $t('task.show.noDates') }}
+				</FancyCheckbox>
+			</div>
+		</template>
 
+		<template #default>
 			<div class="gantt-chart-container">
 				<Card
 					:has-content="false"
@@ -59,6 +53,7 @@
 					/>
 					<TaskForm
 						v-if="canWrite"
+						class="gantt-task-form"
 						@createTask="addGanttTask"
 					/>
 				</Card>
@@ -68,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, toRefs} from 'vue'
+import {computed, toRefs, useId} from 'vue'
 import type {RouteLocationNormalized} from 'vue-router'
 
 import {useCurrentProject} from '@/composables/useCurrentProject'
@@ -77,7 +72,6 @@ import DateRangeInput from '@/components/input/DateRangeInput.vue'
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import TaskForm from '@/components/tasks/TaskForm.vue'
-import FormField from '@/components/input/FormField.vue'
 
 import GanttChart from '@/components/gantt/GanttChart.vue'
 import {useGanttFilters} from '../../../views/project/helpers/useGanttFilters'
@@ -99,6 +93,8 @@ const canWrite = computed(() =>
 	typeof currentProject.value?.max_permission === 'number' &&
 	currentProject.value.max_permission > PERMISSIONS.READ,
 )
+
+const rangeInputId = useId()
 
 const {route, projectId, viewId} = toRefs(props)
 const {
@@ -143,59 +139,38 @@ const dateRange = computed({
 
 <style lang="scss" scoped>
 .gantt-chart-container {
-	padding-block-end: 1rem;
 	position: relative;
-	z-index: 0;
+	padding-block-end: var(--space-4);
 }
 
 .gantt-options {
 	display: flex;
-	justify-content: space-between;
+	flex-wrap: wrap;
 	align-items: center;
-	margin-block-end: 1rem;
-
-	@media screen and (max-width: $tablet) {
-		flex-direction: column;
-	}
+	justify-content: flex-end;
+	gap: var(--space-2) var(--space-3);
 }
 
-:global(.link-share-view:not(.has-background)) .gantt-options {
-	border: none;
-	box-shadow: none;
+.gantt-options__range {
+	min-inline-size: 0;
 
-	.card-content {
-		padding: .5rem;
-	}
-}
-
-.field {
-	margin-block-end: 0;
-	inline-size: 33%;
-
-	&:not(:last-child) {
-		padding-inline-end: .5rem;
-	}
-
-	@media screen and (max-width: $tablet) {
-		inline-size: 100%;
-		max-inline-size: 100%;
-		margin-block-start: .5rem;
-		padding-inline-end: 0 !important;
-	}
-
-	&, .input {
-		font-size: .8rem;
-	}
-
-	.select,
-	.select select {
+	:deep(.date-range-input__trigger) {
+		min-block-size: var(--control-height);
 		block-size: auto;
-		inline-size: 100%;
-		font-size: .8rem;
+		padding-block: 0;
+		font-size: var(--text-md);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
+}
 
-	.label {
-		font-size: .9rem;
-	}
+.gantt-options__no-dates {
+	font-size: var(--text-md);
+	white-space: nowrap;
+}
+
+.gantt-chart-container .gantt-task-form {
+	padding: var(--space-3);
+	border-block-start: 1px solid var(--border-subtle);
 }
 </style>

@@ -88,6 +88,15 @@ const SUBSCRIBE_SWEEP_KEYS = [
 ]
 
 // Only collections that already hold the task can have gone stale; its own detail key is invalidated anyway.
+// Invalidating a query whose first read is still in flight only joins that read, which may predate the
+// event and would then be committed as fresh. Cancel such reads (nothing is on screen yet) and refetch.
+async function refetchComments(client: QueryClient, taskId: number): Promise<void> {
+	await Promise.all(client.getQueryCache().findAll({queryKey: commentKeys.task(taskId)})
+		.filter(query => query.state.fetchStatus === 'fetching' && query.state.data === undefined)
+		.map(query => client.cancelQueries({queryKey: query.queryKey, exact: true})))
+	await client.invalidateQueries({queryKey: commentKeys.task(taskId)})
+}
+
 async function invalidateCachedTask(client: QueryClient, taskId: number | undefined): Promise<void> {
 	if (!taskId) return
 	const heldByCollection = taskQueryKeys(client, taskId).some(key => !isTaskDetailKey(key))
@@ -118,7 +127,7 @@ export function serverCacheEventMutationOptions() {
 				return Promise.all([
 					client.invalidateQueries({queryKey: notificationKeys.all}),
 					...(taskId === undefined ? [] : [
-						client.invalidateQueries({queryKey: commentKeys.task(taskId)}),
+						refetchComments(client, taskId),
 						invalidateCachedTask(client, taskId),
 					]),
 				])

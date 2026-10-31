@@ -1,20 +1,48 @@
 <template>
 	<div class="heading">
-		<div class="tw:flex tw:items-center md:tw:items-stretch tw:flex-col tw:gap-1 task-properties">
-			<div class="tw:flex tw:items-center tw:gap-2">
-				<ColorBubble
-					v-if="task.hex_color !== ''"
-					:color="getHexColor(task.hex_color)"
+		<div class="task-properties">
+			<ColorBubble
+				v-if="task.hex_color !== ''"
+				:color="getHexColor(task.hex_color)"
+			/>
+			<BaseButton
+				v-tooltip="$t('task.detail.copyLink')"
+				class="task-id-chip"
+				@click="copyUrl"
+			>
+				<span class="title task-id">
+					{{ textIdentifier }}
+				</span>
+				<Icon
+					icon="link"
+					class="task-id-chip__icon"
 				/>
-				<BaseButton @click="copyUrl">
-					<span class="title task-id">
-						{{ textIdentifier }}
-					</span>
-				</BaseButton>
-			</div>
+				<span class="is-sr-only">{{ $t('task.detail.copyLink') }}</span>
+			</BaseButton>
 			<Done
 				:is-done="task.done"
 			/>
+			<span
+				class="heading__save-status"
+				role="status"
+			>
+				<CustomTransition name="fade">
+					<span
+						v-if="loading && saving"
+						class="heading__save-state"
+					>
+						<span class="loader is-inline-block" />
+						{{ $t('misc.saving') }}
+					</span>
+					<span
+						v-else-if="!loading && showSavedMessage"
+						class="heading__save-state has-text-success"
+					>
+						<Icon icon="check" />
+						{{ $t('misc.saved') }}
+					</span>
+				</CustomTransition>
+			</span>
 			<BaseButton
 				v-if="hasClose"
 				:aria-label="$t('task.detail.closeTaskDetail')"
@@ -24,44 +52,24 @@
 				<Icon icon="times" />
 			</BaseButton>
 		</div>
+		<!-- The text is written by showServerTitle, so a title being typed survives a re-render. -->
 		<h1
+			ref="titleElement"
 			class="title input"
 			:class="{'disabled': !canWrite}"
 			:contenteditable="canWrite ? true : undefined"
 			:tabindex="canWrite ? 0 : undefined"
-			:aria-label="canWrite ? $t('task.attributes.title') : undefined"
 			:spellcheck="false"
 			@input="handleTitleInput"
 			@blur="save($event.target as HTMLElement)"
 			@keydown.enter.prevent.stop="!$event.isComposing && ($event.target as HTMLInputElement).blur()"
 			@keydown.esc.prevent.stop="!$event.isComposing && cancel($event.target as HTMLInputElement)"
-		>
-			{{ (task.title ?? '').trim() }}
-		</h1>
-		<CustomTransition name="fade">
-			<span
-				v-if="loading && saving"
-				class="is-inline-flex is-align-items-center"
-			>
-				<span class="loader is-inline-block mie-2" />
-				{{ $t('misc.saving') }}
-			</span>
-			<span
-				v-else-if="!loading && showSavedMessage"
-				class="has-text-success is-inline-flex is-align-content-center"
-			>
-				<Icon
-					icon="check"
-					class="mie-2"
-				/>
-				{{ $t('misc.saved') }}
-			</span>
-		</CustomTransition>
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount, watch} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, useTemplateRef, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 
@@ -130,10 +138,20 @@ onBeforeUnmount(() => {
 	window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
-// Reset titleHasChanges when the task changes
+const titleElement = useTemplateRef<HTMLElement>('titleElement')
+
+// A title being typed keeps its text; otherwise the heading shows the latest server title.
+function showServerTitle() {
+	const element = titleElement.value
+	if (!element || titleHasChanges.value) return
+	const title = (props.task.title ?? '').trim()
+	if (element.textContent !== title) element.textContent = title
+}
+
 watch(() => props.task.id, () => {
 	titleHasChanges.value = false
 })
+watch([() => props.task.id, () => props.task.title, titleElement], showServerTitle, {flush: 'post'})
 
 function handleTitleInput(event: Event) {
 	const target = event.target as HTMLInputElement
@@ -141,12 +159,18 @@ function handleTitleInput(event: Event) {
 }
 
 async function save(element: HTMLElement) {
+	// An untouched heading has nothing to save, even if the server title changed while it had focus.
+	if (!titleHasChanges.value) {
+		showServerTitle()
+		return
+	}
+
 	const title = element.textContent ?? ''
 
 	// An empty title would be discarded by the api, so revert and tell the user instead of failing silently.
 	if (title.trim() === '') {
-		element.textContent = props.task.title ?? ''
 		titleHasChanges.value = false
+		showServerTitle()
 		error({message: t('task.detail.titleRequired')})
 		return
 	}
@@ -154,30 +178,37 @@ async function save(element: HTMLElement) {
 	// We only want to save if the title was actually changed.
 	// so we only continue if the task title changed.
 	if (title === props.task.title) {
+		titleHasChanges.value = false
 		return
 	}
 
+	const taskId = props.task.id!
 	try {
 		saving.value = true
+		// Only the title: the rest of this copy may be older than what the server holds.
 		const newTask = await updateTask.mutateAsync({
-			...props.task,
-			id: props.task.id!,
+			id: taskId,
 			title,
 		})
+		if (props.task.id !== taskId) return
 		emit('update:task', newTask)
-		titleHasChanges.value = false
+		// The heading picks up the saved title once the cache update reaches the task prop.
+		if (element.textContent === title) titleHasChanges.value = false
+		if (props.task.title === newTask.title) showServerTitle()
 		showSavedMessage.value = true
 		setTimeout(() => {
 			showSavedMessage.value = false
 		}, 2000)
+	} catch {
+		// The mutation already reported the failure; the typed title stays for another try.
 	} finally {
 		saving.value = false
 	}
 }
 
 async function cancel(element: HTMLInputElement) {
-	element.textContent = props.task.title ?? ''
 	titleHasChanges.value = false
+	showServerTitle()
 	element.blur()
 }
 </script>
@@ -185,13 +216,105 @@ async function cancel(element: HTMLInputElement) {
 <style lang="scss" scoped>
 .heading {
 	display: flex;
-	justify-content: flex-start;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-inline-size: 0;
 	text-transform: none;
-	align-items: center;
+}
 
-	@media screen and (max-width: $tablet) {
-		flex-direction: column;
-		align-items: start;
+.task-properties {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	min-block-size: var(--target-min);
+}
+
+.color-bubble {
+	block-size: .625rem;
+	inline-size: .625rem;
+	flex-shrink: 0;
+}
+
+.task-id-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: var(--target-min);
+	padding-inline: var(--space-2);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+	color: var(--text-secondary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		border-color: var(--border-strong);
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+		color: var(--text-primary);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
+.title.task-id {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-medium);
+	line-height: 1;
+	color: inherit;
+	white-space: nowrap;
+}
+
+.task-id-chip__icon {
+	font-size: var(--text-2xs);
+	color: var(--text-tertiary);
+}
+
+// Done.vue paints a large solid block for lists; the heading only needs a status chip.
+.task-properties :deep(.is-done) {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: var(--target-min);
+	padding: 0 var(--space-2);
+	border: 1px solid hsla(var(--success-h), var(--success-s), var(--success-l), .45);
+	border-radius: var(--radius-full);
+	background: var(--tint-success);
+	color: var(--text-primary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	line-height: 1;
+
+	&::before {
+		content: '';
+		inline-size: .5rem;
+		block-size: .5rem;
+		border-radius: var(--radius-full);
+		background: color-mix(in srgb, var(--success) 70%, var(--text-primary));
+	}
+}
+
+.heading__save-status {
+	display: inline-flex;
+	font-size: var(--text-xs);
+	color: var(--text-secondary);
+}
+
+.heading__save-state {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+
+	.loader {
+		inline-size: .75rem;
+		block-size: .75rem;
 	}
 }
 
@@ -200,42 +323,62 @@ async function cancel(element: HTMLInputElement) {
 }
 
 .title.input {
-	// 1.8rem is the font-size, 1.125 is the line-height, .3rem padding everywhere, 1px border around the whole thing.
-	min-block-size: calc(1.8rem * 1.125 + .6rem + 2px);
-	margin-inline-end: 0;
+	block-size: auto;
+	min-block-size: calc(var(--text-2xl) * var(--leading-tight) + var(--space-2) + 2px);
+	margin: 0 calc(-1 * var(--space-2));
+	padding: var(--space-1) var(--space-2);
+	border: 1px solid transparent;
+	border-radius: $radius;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-primary);
+	font-size: var(--text-2xl);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+	overflow-wrap: anywhere;
+	white-space: normal;
+	cursor: text;
+	transition: border-color var(--motion-fast) var(--ease-standard);
+
+	&:not(.disabled):hover {
+		border-color: var(--border-default);
+	}
+
+	// The keyboard ring comes from the global .user-is-tabbing .input:focus rule.
+	&:focus {
+		border-color: var(--input-border-color);
+		box-shadow: none;
+	}
+
+	&.disabled {
+		cursor: default;
+	}
 
 	@media screen and (max-width: $tablet) {
-		margin: 0 -.3rem .5rem; // the title has 0.3rem padding - this make the text inside of it align with the rest
+		font-size: var(--text-xl);
+		min-block-size: calc(var(--text-xl) * var(--leading-tight) + var(--space-2) + 2px);
 	}
-}
-
-.title.task-id {
-	color: var(--grey-400);
-	white-space: nowrap;
-}
-
-.color-bubble {
-	block-size: .75rem;
-	inline-size: .75rem;
 }
 
 // Modal renders its own fixed close button from $tablet up
 .close {
 	display: none;
-	font-size: 2rem;
-	line-height: 1;
-	position: absolute;
-	inset-inline-end: 1.25rem;
-	inset-block-start: 1.1rem;
+	margin-inline-start: auto;
+	align-items: center;
+	justify-content: center;
+	inline-size: max(2.25rem, var(--target-min));
+	block-size: max(2.25rem, var(--target-min));
+	border-radius: $radius;
+	color: var(--text-secondary);
+	font-size: var(--text-xl);
 
-	@media screen and (max-width: $tablet) {
-		display: block;
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
-}
 
-.task-properties {
 	@media screen and (max-width: $tablet) {
-		flex-direction: row;
+		display: inline-flex;
 	}
 }
 </style>

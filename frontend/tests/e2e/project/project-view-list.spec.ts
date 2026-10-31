@@ -65,10 +65,15 @@ test.describe('Project View List', () => {
 		await expect(page.locator('.tasks')).toContainText('Sub multi task')
 
 		await page.reload()
-		await expect(page.locator('ul.tasks > div > .single-task')).toBeVisible()
-		await expect(page.locator('ul.tasks > div > .single-task').first()).toContainText('Parent multi task')
-		await expect(page.locator('ul.tasks > div > .subtask-nested')).toBeVisible()
-		await expect(page.locator('.subtask-nested')).toContainText('Sub multi task')
+		// The subtask is nested in its parent's branch instead of being listed on its own.
+		const topLevelTasks = page.locator('ul.tasks > [data-task-id]')
+		await expect(topLevelTasks).toHaveCount(1)
+		const parentRow = topLevelTasks.locator(':scope > .single-task')
+		await expect(parentRow).toBeVisible()
+		await expect(parentRow).toContainText('Parent multi task')
+		const subtask = topLevelTasks.locator(':scope > .subtask-branch > .subtask-nested')
+		await expect(subtask).toBeVisible()
+		await expect(subtask.locator(':scope > .single-task')).toContainText('Sub multi task')
 	})
 
 	test('Should navigate to the task when the title is clicked', async ({authenticatedPage: page}) => {
@@ -200,17 +205,18 @@ test.describe('Project View List', () => {
 			project_id: projects[0].id,
 		}, false)
 
-		// Make task 2 a subtask of task 1
+		// Make task 2 a subtask of task 1: task 1 lists 2 as its subtask, task 2 lists 1 as its parent.
+		// (The rows used to be the other way round, which the old flat selector could not tell apart.)
 		await TaskRelationFactory.create(1, {
 			id: 1,
-			task_id: 2,
-			other_task_id: 1,
+			task_id: 1,
+			other_task_id: 2,
 			relation_kind: 'subtask',
 		}, false)
 		await TaskRelationFactory.create(1, {
 			id: 2,
-			task_id: 1,
-			other_task_id: 2,
+			task_id: 2,
+			other_task_id: 1,
 			relation_kind: 'parenttask',
 		}, false)
 
@@ -219,8 +225,14 @@ test.describe('Project View List', () => {
 		await expect(page.locator('.tasks')).toContainText('Parent Task')
 		await expect(page.locator('.tasks')).toContainText('Subtask Same Project')
 
-		await expect(page.locator('ul.tasks > div > .single-task')).toBeVisible()
-		await expect(page.locator('ul.tasks > div > .subtask-nested')).toBeVisible()
+		const topLevelTasks = page.locator('ul.tasks > [data-task-id]')
+		await expect(topLevelTasks).toHaveCount(1)
+		const parentTask = page.locator('ul.tasks > [data-task-id="1"]')
+		await expect(parentTask.locator(':scope > .single-task')).toBeVisible()
+		await expect(parentTask.locator(':scope > .single-task')).toContainText('Parent Task')
+		const subtask = parentTask.locator(':scope > .subtask-branch > .subtask-nested[data-task-id="2"]')
+		await expect(subtask).toBeVisible()
+		await expect(subtask).toContainText('Subtask Same Project')
 	})
 
 	test('Should respect filter query parameter from URL', async ({authenticatedPage: page}) => {

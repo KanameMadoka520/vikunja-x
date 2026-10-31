@@ -21,6 +21,6 @@ const {perspective = 'others'} = defineProps<{
 	text-align: start;
 	margin-inline-start: 0;
 	margin-block-start: 0;
-	padding-inline-start: 1.25rem;
+	padding-inline-start: var(--space-5);
 }
 </style>

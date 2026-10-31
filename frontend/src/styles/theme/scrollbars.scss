@@ -1,6 +1,6 @@
 $scrollbar-height: 8px;
-$scrollbar-track-color: var(--grey-200);
-$scrollbar-thumb-color: var(--grey-300);
+$scrollbar-track-color: transparent;
+$scrollbar-thumb-color: var(--border-strong);
 $scrollbar-hover-color: var(--grey-500);
 
 // Chrome
@@ -17,7 +17,6 @@ $scrollbar-hover-color: var(--grey-500);
 ::-webkit-scrollbar-thumb {
   border-radius: .5rem;
   background: $scrollbar-thumb-color;
-  transition: all $transition;
 
   &:hover {
     background: $scrollbar-hover-color;

@@ -66,7 +66,8 @@
 		"scope": "Last model response: {model}. Tool execution, search and earlier model requests are excluded. Tokens are not characters.",
 		"streamHelp": "(Reported output tokens − 1) ÷ seconds from the first streamed text or reasoning delta to the end of this model response. Output tokens may include reasoning, as reported by the provider. This is an observed streaming rate, not a hardware benchmark.",
 		"visibleHelp": "Reasoning was not streamed. Subtract the separately reported reasoning tokens, then calculate (visible output tokens − 1) ÷ seconds from the first visible text delta to response completion.",
-		"requestHelp": "Non-streaming response: reported output tokens ÷ total time for this model request. Includes waiting, prompt processing and any reasoning; it is not the streaming generation rate."
+		"requestHelp": "Non-streaming response: reported output tokens ÷ total time for this model request. Includes waiting, prompt processing and any reasoning; it is not the streaming generation rate.",
+		"rate": "{rate} tokens/s"
 	},
 	"modelSettings": {
 		"tabs": "Model settings sections",
@@ -77,7 +78,21 @@
 		"saveRoles": "Save feature defaults",
 		"saved": "Saved",
 		"saveConnectionFirst": "Save a connection before assigning it to a feature. Other connection drafts are kept separate.",
-		"removeConfirm": "Remove this saved connection? Features using it will be disabled. Other connections will be kept."
+		"removeConfirm": "Remove this saved connection? Features using it will be disabled. Other connections will be kept.",
+		"chipContext": "{tokens} context",
+		"chipOutput": "{tokens} output",
+		"chipNonStreaming": "Non-streaming",
+		"usedBy": "Used by {features}",
+		"keyPending": "New key not saved",
+		"keyStored": "Key stored",
+		"keyMissing": "No key",
+		"statusDraft": "Not saved yet",
+		"statusEdited": "Unsaved changes",
+		"statusTested": "Test passed",
+		"statusTestFailed": "Test failed",
+		"statusSaved": "Saved, not tested",
+		"edit": "Edit",
+		"collapse": "Collapse"
 	},
 	"modelPicker": {
 		"browse": "Browse available models",
@@ -178,7 +193,8 @@
   "uploadFailed": "Upload did not finish. Completed uploads remain in the draft. Check upload status and retry.",
   "imageModelRequired": "This model has not declared image support. Switch to an image-capable model or verify its input capabilities in settings.",
   "fileInputHint": "Images are sent to the model with your message. Plain text gets a labeled preview; other files are stored for download and export only.",
-  "defaultPrompt": "Please look at the attached files and help me understand their contents."
+  "defaultPrompt": "Please look at the attached files and help me understand their contents.",
+  "dropToAttach": "Drop to attach"
 },
   "screenshot": {
     "short": "Privacy",
@@ -367,7 +383,12 @@
       "registrationConfirmEmail": "Your account was created successfully! Please check your inbox and click the link in the confirmation email before logging in.",
       "inviteInvalid": "This invite link is invalid or expired.",
       "inviteLoadFailed": "Could not load this invitation. Please try again.",
-      "inviteTeams": "You will join: {teams}"
+      "inviteTeams": "You will join: {teams}",
+      "or": "or",
+      "hero": {
+        "register": "Plan your work in one calm place.",
+        "reset": "Let's get you back in."
+      }
     },
     "settings": {
       "bots": {
@@ -451,7 +472,8 @@
           "12h": "12-hour (AM/PM)",
           "24h": "24-hour (HH:mm)"
         },
-        "externalUserNameChange": "Your name is managed by your login provider ({provider}). To change it, please update it there instead."
+        "externalUserNameChange": "Your name is managed by your login provider ({provider}). To change it, please update it there instead.",
+        "description": "Your name, defaults for projects and tasks, language, time and appearance."
       },
       "sections": {
         "personalInformation": "Personal Information",
@@ -480,7 +502,9 @@
         "enterPassword": "Please Enter Your Password",
         "disable": "Disable two factor authentication",
         "confirmSuccess": "You've successfully enabled two factor authentication!",
-        "disableSuccess": "Two factor authentication was successfully disabled."
+        "disableSuccess": "Two factor authentication was successfully disabled.",
+        "description": "Require a code from an authenticator app when you log in.",
+        "qrAlt": "QR code for your authenticator app"
       },
       "caldav": {
         "title": "CalDAV",
@@ -495,14 +519,20 @@
         "wontSeeItAgain": "Write it down or save it securely — you will not be able to see it again.",
         "mustUseToken": "You need to create a CalDAV token to use CalDAV with any third-party client. Enter the token in the password field of your client.",
         "usernameIs": "Your username for CalDAV is: {0}",
-        "apiTokenHint": "You can also use an API token with CalDAV permission. Create one in {link}."
+        "apiTokenHint": "You can also use an API token with CalDAV permission. Create one in {link}.",
+        "description": "Sync your tasks with calendar and reminder apps.",
+        "delete": {
+          "header": "Delete this CalDAV token",
+          "text": "Clients that use this token will stop syncing. This cannot be undone."
+        }
       },
       "feeds": {
         "title": "Atom Feed",
         "howTo": "You can subscribe to your Vikunja notifications from any Atom-compatible feed reader. Use the following URL:",
         "usernameIs": "Your username for the feed is: {0}",
         "apiTokenHint": "Authenticate with an API token that has the {scope} permission. Create one in {link}.",
-        "tokenTitle": "Atom feed"
+        "tokenTitle": "Atom feed",
+        "description": "Follow your notifications in any feed reader."
       },
       "avatar": {
         "title": "Avatar",
@@ -514,7 +544,9 @@
         "statusUpdateSuccess": "Avatar status was updated successfully!",
         "setSuccess": "The avatar has been set successfully!",
         "ldap": "Your avatar is automagically synced from your organization's directory service (LDAP). You can ask your IT team for information on how to change it.",
-        "openid": "Your avatar is automagically synced from your login provider ({provider}). To change it, please update it there instead."
+        "openid": "Your avatar is automagically synced from your login provider ({provider}). To change it, please update it there instead.",
+        "description": "Choose how your picture appears to others.",
+        "provider": "Avatar source"
       },
       "quickAddMagic": {
         "title": "Quick Add Magic Mode",
@@ -631,7 +663,29 @@
         }
       },
       "currentEmail": "Current receiving email",
-      "currentEmailHelp": "Account messages are sent here. A new address takes effect after confirmation. Manage reminder preferences in"
+      "currentEmailHelp": "Account messages are sent here. A new address takes effect after confirmation. Manage reminder preferences in",
+      "groups": {
+        "account": "Account",
+        "security": "Security",
+        "notifications": "Notifications",
+        "ai": "AI & voice",
+        "integrations": "Integrations",
+        "data": "Data",
+        "site": "Site administration",
+        "links": "More"
+      },
+      "scope": {
+        "siteBadge": "Site-wide",
+        "aiAccount": "Only for your account. Keys stay on the server and are never shown again.",
+        "siteMail": "Site-wide setting: changes affect email for every user of this site.",
+        "publicPage": "Visible to anyone with the link once published."
+      },
+      "saveBar": {
+        "clean": "All changes are saved.",
+        "discard": "Discard changes"
+      },
+      "emailDescription": "Change the address used for sign-in and notifications.",
+      "passwordDescription": "Use a long password you do not use anywhere else."
     },
     "deletion": {
       "title": "Delete your Vikunja Account",
@@ -744,7 +798,6 @@
       "share": "Share",
       "links": {
         "title": "Share Links",
-        "what": "What is a share link?",
         "explanation": "Share Links allow you to easily share a project with other users who don't have an account on Vikunja.",
         "create": "Create a link share",
         "name": "Name (optional)",
@@ -820,25 +873,17 @@
       "day": "Day",
       "hour": "Hour",
       "chartLabel": "Project Gantt Chart",
-      "taskBarsForRow": "Task bars for row {rowId}",
-      "taskBarLabel": "Task: {task}. From {startDate} to {endDate}. {dateType}. Click to edit, drag to move.",
+      "taskBarLabel": "Task: {task}. From {startDate} to {endDate}. {dateType}. Double-click or press Enter to open; drag or use the arrow keys to move.",
       "scheduledDates": "Scheduled dates",
       "estimatedDates": "Estimated dates",
-      "resizeStartDate": "Resize start date for task {task}",
-      "resizeEndDate": "Resize end date for task {task}",
-      "timelineHeader": "Timeline header with months and days",
-      "monthsRow": "Months row",
-      "daysRow": "Days row",
-      "monthLabel": "Month: {month}",
-      "dayLabel": "Day: {date}, {weekday}",
-      "dayLabelToday": "Today: {date}, {weekday}",
       "taskAriaLabel": "Task: {task}",
       "taskAriaLabelById": "Task {id}",
       "partialDatesStart": "Start date only (open-ended)",
       "partialDatesEnd": "End date only (open-ended)",
       "expandGroup": "Expand group: {task}",
       "collapseGroup": "Collapse group: {task}",
-      "toggleRelationArrows": "Toggle relation arrows"
+      "toggleRelationArrows": "Toggle relation arrows",
+      "taskBarsFor": "Timeline of {task}"
     },
     "table": {
       "title": "Table",
@@ -869,7 +914,14 @@
       "bucketLimitSavedSuccess": "The bucket limit been saved successfully.",
       "collapse": "Collapse this bucket",
       "bucketLimitReached": "You have reached the bucket limit. Remove tasks or increase the limit to add new tasks.",
-      "bucketOptions": "Bucket options"
+      "bucketOptions": "Bucket options",
+      "expand": "Expand this bucket",
+      "expandBucket": "Expand {title}",
+      "rename": "Rename",
+      "limitFull": "limit reached",
+      "limitLabel": "Task limit for this bucket",
+      "limitReachedShort": "Limit reached. Move a task out or raise the limit to add more.",
+      "refreshFailed": "The change made elsewhere was saved, but this board could not be refreshed. It may be out of date until it reloads."
     },
     "pseudo": {
       "favorites": {
@@ -911,7 +963,12 @@
       "deleteText": "Are you sure you want to remove this view? It will no longer be possible to use it to view tasks in this project. This action won't delete any tasks. This cannot be undone!",
       "deleteSuccess": "The view was deleted successfully.",
       "onlyAdminsCanEdit": "Only project admins can edit views.",
-      "updateSuccess": "The view was updated successfully."
+      "updateSuccess": "The view was updated successfully.",
+      "switcherLabel": "Project views",
+      "moveUp": "Move {view} up",
+      "moveDown": "Move {view} down",
+      "dragHandle": "Drag to reorder",
+      "removeBucketConfig": "Remove bucket {title}"
     }
   },
   "filters": {
@@ -994,7 +1051,8 @@
           "priorityOneOrTwoPastDue": "Matches tasks with priority level 1 or 2 and a due date in the past"
         }
       }
-    }
+    },
+    "applied": "(active)"
   },
   "sorting": {
     "manually": "Manually",
@@ -1101,7 +1159,10 @@
       "titlePlaceholder": "The label title goes here…",
       "description": "Description",
       "color": "Color"
-    }
+    },
+    "listDescription": "Open a label to see its open tasks. You can edit the labels you created; all labels on tasks you can access are available to use.",
+    "editNamed": "Edit label {label}",
+    "notEditable": "Created by someone else"
   },
   "sharing": {
     "authenticating": "Authenticating…",
@@ -1111,7 +1172,8 @@
     "accessDenied": "Access denied. Please check your permissions and try again.",
     "serverError": "Server error occurred. Please try again later.",
     "projectLoadError": "Failed to load project information.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "sharedProject": "Shared project"
   },
   "navigation": {
     "overview": "Overview",
@@ -1128,7 +1190,9 @@
       "daily": "Daily work",
       "records": "Records & review",
       "organize": "Organize"
-    }
+    },
+    "resizeSidebar": "Resize sidebar",
+    "search": "Search"
   },
   "misc": {
     "loading": "Loading…",
@@ -1176,7 +1240,10 @@
     "sortBy": "Sort by",
     "dateRange": "Date range",
     "notSet": "Not set",
-    "user": "User"
+    "user": "User",
+    "loadError": "Could not load this. Please try again.",
+    "retry": "Retry",
+    "gotoPage": "Goto page {page}"
   },
   "input": {
     "projectColor": "Project color",
@@ -1432,7 +1499,13 @@
         "delete": "Delete",
         "favorite": "Add to Favorites",
         "unfavorite": "Remove from Favorites"
-      }
+      },
+      "copyLink": "Copy link to this task",
+      "quickActions": "Task quick actions",
+      "actionsLabel": "Task properties and actions",
+      "moreActions": "More actions",
+      "deletedNotice": "This task was deleted.",
+      "deletedGoBack": "Go back"
     },
     "attributes": {
       "assignees": "Assignees",
@@ -1510,7 +1583,8 @@
       "sortOldestFirst": "Oldest first",
       "reply": "Reply",
       "jumpToOriginal": "Jump to original comment",
-      "deletedComment": "deleted comment"
+      "deletedComment": "deleted comment",
+      "sortLabel": "Sort: {order}"
     },
     "mention": {
       "noUsersFound": "No users found"
@@ -1590,7 +1664,8 @@
       "onStartDate": "On the start date",
       "onEndDate": "On the end date",
       "custom": "Custom",
-      "dateAndTime": "Date and time"
+      "dateAndTime": "Date and time",
+      "periodAmount": "Amount"
     },
     "repeat": {
       "everyDay": "Every Day",
@@ -1672,7 +1747,9 @@
         "text2": "You will lose access to all projects this team has access to. If you change your mind you'll need a team admin to add you again.",
         "cleanupText": "On projects you lose access to, the following will also be deleted:",
         "success": "You have successfully left the team."
-      }
+      },
+      "role": "Role",
+      "dangerZone": "Leave or delete"
     },
     "attributes": {
       "name": "Team Name",
@@ -1790,7 +1867,8 @@
     "subscribeFeed": "Subscribe to notifications via Atom feed",
     "clearAll": "Clear notifications",
     "clearAllSuccess": "All notifications have been cleared.",
-    "loadMore": "Load older notifications"
+    "loadMore": "Load older notifications",
+    "unreadCount": "{count} unread"
   },
   "quickActions": {
     "title": "Search and quick actions",
@@ -2008,7 +2086,8 @@
       "licenseLastCheckFailed": "last check failed",
       "licenseFeatures": "Features",
       "licenseInstance": "Instance ID",
-      "licenseManage": "Manage"
+      "licenseManage": "Manage",
+      "description": "Usage and license status for this Vikunja instance."
     },
     "searchUsersPlaceholder": "Search by username or email…",
     "users": {
@@ -2256,8 +2335,11 @@
       "page_not_published_or_temporarily_unavailable": "Page not published or temporarily unavailable",
       "page_title": "Page title",
       "preview_public_page": "Preview public page",
-      "add_model_connection": "＋ Add model connection",
-      "welcome_to_my_schedule_here_are_the_plans": "# Welcome to my schedule\n\nHere are the plans I want to share.\n\n## Upcoming schedule\n\n{'{'}{'{'}schedule{'}'}{'}'}\n\n## Available times\n\n{'{'}{'{'}availability{'}'}{'}'}\n\n## Current projects\n\n{'{'}{'{'}projects{'}'}{'}'}"
+      "add_model_connection": "Add model connection",
+      "welcome_to_my_schedule_here_are_the_plans": "# Welcome to my schedule\n\nHere are the plans I want to share.\n\n## Upcoming schedule\n\n{'{'}{'{'}schedule{'}'}{'}'}\n\n## Available times\n\n{'{'}{'{'}availability{'}'}{'}'}\n\n## Current projects\n\n{'{'}{'{'}projects{'}'}{'}'}",
+      "content_format": "Content format",
+      "available_weekdays": "Available weekdays",
+      "preview_to_enable_publishing": "Preview the current draft to enable publishing."
     },
     "projectID": "Project #{id}",
     "stopRecording": "Stop recording · {seconds}s",
@@ -2271,7 +2353,6 @@
     "currentVersion": "Current page version: {version}",
     "apiKey": "API key",
     "pagination": "Pagination",
-    "mainNavigation": "Main navigation",
     "noResult": "No results found",
     "bot": "Bot",
     "reset": "Reset",
@@ -2577,11 +2658,13 @@
       "assign_task": "Assign user",
       "unassign_task": "Unassign user",
       "relate_tasks": "Relate tasks",
-      "unrelate_tasks": "Remove task relation"
+      "unrelate_tasks": "Remove task relation",
+      "list_project_timeline": "List project timeline"
     },
     "fromTask": "Work on this task with AI",
     "currentTask": "Current task context:",
-    "overallLimit": "The overall ceiling of 200 rounds or 1000 operations has been reached. Stop this turn and inspect completed records before starting a new request."
+    "overallLimit": "The overall ceiling of 200 rounds or 1000 operations has been reached. Stop this turn and inspect completed records before starting a new request.",
+    "destructiveWarning": "This permanently deletes the target. It cannot be undone."
   },
   "flow": {
     "audioConverting": "Converting audio on this device…",
@@ -2715,7 +2798,13 @@
       "drive_confirm": "Please review the usages and complete the confirmation.",
       "drive_purge_retry": "The file is marked for permanent deletion, but storage cleanup failed. Please retry from the recycle bin."
     },
-    "retryPurge": "Retry permanent deletion"
+    "retryPurge": "Retry permanent deletion",
+    "layout": "Layout",
+    "grid": "Grid",
+    "size": "Size",
+    "type": "Type",
+    "uploadedOn": "Uploaded",
+    "trashedOn": "Recycled"
   },
   "assistantUI": {
     "applied": "Applied to the next message. Running or paused requests keep their original settings.",
@@ -2790,7 +2879,9 @@
         "name": "Organize in bulk",
         "description": "More room for multi-step or cross-project work. Review every write. 24 rounds / 80 operations / 300 seconds."
       }
-    }
+    },
+    "messages": "Messages",
+    "tokenCount": "{count} tokens"
   },
   "settingsDraft": {
     "unsaved": "You have unsaved changes.",
@@ -2840,7 +2931,8 @@
   "uncached": "Input not read from cache",
   "explanation": "Weighted by provider-reported input tokens. Non-read input may include cache writes; it is not the new message size or a cost estimate.",
   "partial": "Includes {reported}/{total} requests with cache data; unreported requests are not counted as zero hits.",
-  "unreported": "The provider has not reported cache usage; a hit rate is unavailable."
+  "unreported": "The provider has not reported cache usage; a hit rate is unavailable.",
+  "tokens": "{value} tokens"
 },
   "chatHistory": {
     "options": "Options for {title}",
@@ -2864,11 +2956,13 @@
     "archiveHint": "Archive finished chats to keep this list tidy. You can restore them here anytime.",
     "archivedNotice": "This chat is archived. Its messages remain available.",
     "title": "Chat title",
-    "deleteHint": "This permanently deletes the chat and its unshared chat attachments. It cannot be undone. Tasks and projects already changed by Arona, and files still used by other chats, are kept."
+    "deleteHint": "This permanently deletes the chat and its unshared chat attachments. It cannot be undone. Tasks and projects already changed by Arona, and files still used by other chats, are kept.",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
   },
   "projectHistory": {
-    "title": "Project year in review",
-    "subtitle": "A place for the projects you have finished and archived.",
+    "title": "Project timeline",
+    "subtitle": "When each project's tasks are scheduled, how much of that time has run (until done or today), and how far the work actually is.",
     "year": "Year",
     "previousYear": "Previous year",
     "nextYear": "Next year",
@@ -2939,7 +3033,8 @@
     "loadError": "Your projects could not be loaded right now.",
     "emptyTitle": "No projects yet",
     "emptyText": "A project collects related tasks, like \"Home\" or \"Thesis\". Create one to get started.",
-    "overlapHint": "{count} project is both completed and archived, so it counts under both. | {count} projects are both completed and archived, so they count under both."
+    "overlapHint": "{count} project is both completed and archived, so it counts under both. | {count} projects are both completed and archived, so they count under both.",
+    "description": "Search, filter by status and open a project to work in it."
   },
   "workspace": {
     "title": "Workspace",
@@ -2971,7 +3066,106 @@
       "heading": "Plan and look back",
       "aronaHint": "Plan, split up or tidy tasks by just asking",
       "upcomingHint": "Tasks due in the coming days",
-      "historyHint": "Projects you finished or archived, by date"
-    }
+      "historyHint": "Scheduled spans, deadlines and progress by project"
+    },
+    "refreshError": "Your tasks could not be refreshed. The list below may be out of date.",
+    "groupOnPage": "{count} on this page"
+  },
+  "projectTimeline": {
+    "tabs": {
+      "label": "Project history views",
+      "timeline": "Timeline",
+      "lifecycle": "Status changes"
+    },
+    "status": {
+      "label": "Project status",
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "stats": {
+      "label": "Year summary",
+      "projects": "Projects with scheduled work",
+      "scheduledDays": "Scheduled days",
+      "elapsedDays": "Counted as passed (until done or today)",
+      "tasksDone": "Scheduled tasks done",
+      "overdue": "Overdue scheduled tasks",
+      "daysValue": "{n} day | {n} days",
+      "doneValue": "{done} of {total}"
+    },
+    "missing": {
+      "excluded": "{n} task is not on the timeline: it needs a start date and an end or due date. | {n} tasks are not on the timeline: each needs a start date and an end or due date.",
+      "invalid": "{n} task is left out: its end or due date is before its start, or a date is outside 1970–9998. | {n} tasks are left out: the end or due date is before the start, or a date is outside 1970–9998.",
+      "scope": "Counted across all years for the current filters."
+    },
+    "occupancy": {
+      "heading": "Scheduled coverage in {year}",
+      "monthHeading": "Scheduled coverage in {month}",
+      "wholeYear": "Whole year",
+      "showMonth": "Zoom to {month}",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "help": "Arrow keys move between days, Page Up and Page Down jump a month, Enter selects a day."
+    },
+    "day": {
+      "label": "{date}: {details}",
+      "separator": ", ",
+      "none": "nothing scheduled",
+      "projects": "{n} project scheduled | {n} projects scheduled",
+      "elapsed": "already passed",
+      "planned": "still ahead",
+      "deadlines": "{n} deadline | {n} deadlines",
+      "today": "today",
+      "unelapsed": "scheduled but not counted as passed (not started yet, or finished before its planned end)"
+    },
+    "legend": {
+      "elapsed": "Already passed",
+      "planned": "Still ahead",
+      "deadline": "Deadline",
+      "overdue": "Earliest overdue deadline",
+      "today": "Today",
+      "progress": "Progress = average current progress of the project's scheduled tasks in the selected year (done tasks count as 100%), not time passed",
+      "note": "Shading counts projects with scheduled work that day. It shows calendar coverage, not hours worked.",
+      "unelapsed": "Scheduled, not counted as passed"
+    },
+    "lanes": {
+      "heading": "Projects with scheduled work in {year}",
+      "dayHeading": "Projects scheduled on {date}",
+      "clearDay": "Show all days",
+      "count": "{n} project | {n} projects",
+      "progress": "{percent}% average progress",
+      "progressName": "Average current progress of {title}",
+      "tasks": "{done} of {total} scheduled tasks in {year} done",
+      "overdue": "{n} overdue",
+      "nextDeadline": "Next due {date}",
+      "overdueSince": "Overdue since {date}",
+      "lastDeadline": "Last due {date}",
+      "range": "{start} – {end}",
+      "days": "{elapsed} of {scheduled} scheduled days in {year} counted as passed",
+      "spanTitle": "Scheduled {range}",
+      "outside": "Nothing scheduled in {month}",
+      "focus": "Show only {title}",
+      "legendDeadline": "Next or last deadline"
+    },
+    "empty": {
+      "year": "No scheduled work in {year}.",
+      "otherYears": "Scheduled tasks exist between {first} and {last}.",
+      "goTo": "Go to {year}",
+      "none": "No scheduled tasks yet.",
+      "noneHelp": "Give a task a start date and an end or due date; its project then appears here as a span.",
+      "day": "No project is scheduled on this day.",
+      "filters": "No projects match these filters in {year}.",
+      "clearFilters": "Clear filters",
+      "otherYear": "Scheduled tasks exist only in {year}."
+    },
+    "loadError": "Could not load the timeline.",
+    "loading": "Loading the timeline…",
+    "pagination": "Timeline pages",
+    "pageOf": "Page {page} of {total}",
+    "explanation": "How is this calculated?",
+    "explanationSpans": "A task counts when it has a start date and an end date (or, without an end date, a due date). Its project is shown across those days; separate tasks with a gap between them stay separate spans. Tasks in sub-projects belong to their own project, not the parent.",
+    "explanationElapsed": "“Counted as passed” covers scheduled days up to today, or up to the day a task was marked done; days after an early completion are not counted. It is not a record of hours worked.",
+    "explanationProgress": "Progress is the current average completion of the project's scheduled tasks in this year (done tasks count as 100%). It is not a history of past progress."
   }
 }

@@ -1,36 +1,46 @@
 <template>
-	<div class="content">
-		<h1>{{ $t('user.export.downloadTitle') }}</h1>
-		<template v-if="isLocalUser">
-			<p>{{ $t('user.export.descriptionPasswordRequired') }}</p>
-			<FormField
-				id="currentPasswordDataExport"
-				ref="passwordInput"
-				v-model="password"
-				:label="$t('user.settings.currentPassword')"
-				:class="{'is-danger': errPasswordRequired}"
-				:placeholder="$t('user.settings.currentPasswordPlaceholder')"
-				type="password"
-				:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
-				@keyup="() => errPasswordRequired = password === ''"
-			/>
-		</template>
-
-		<XButton
-			v-focus
-			:loading="downloadMutation.isPending.value"
-			class="mbs-4 mie-4"
-			@click="download()"
-		>
-			{{ $t('misc.download') }}
-		</XButton>
-		<XButton
-			class="mbs-4"
-			:to="{name:'user.settings.data-export'}"
-			variant="tertiary"
-		>
-			{{ $t('user.export.requestNew') }}
-		</XButton>
+	<div class="settings-page data-export-download">
+		<PageHeader
+			:title="$t('user.export.downloadTitle')"
+			:description="isLocalUser ? $t('user.export.descriptionPasswordRequired') : ''"
+		/>
+		<Card>
+			<form
+				v-if="isLocalUser"
+				@submit.prevent="download()"
+			>
+				<FormField
+					id="currentPasswordDataExport"
+					ref="passwordInput"
+					v-model="password"
+					:label="$t('user.settings.currentPassword')"
+					:class="{'is-danger': errPasswordRequired}"
+					:placeholder="$t('user.settings.currentPasswordPlaceholder')"
+					type="password"
+					autocomplete="current-password"
+					:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
+					@keyup="() => errPasswordRequired = password === ''"
+				/>
+			</form>
+			<template #footer>
+				<div class="data-export-download__actions">
+					<XButton
+						v-focus
+						:loading="downloadMutation.isPending.value"
+						icon="download"
+						@click="download()"
+					>
+						{{ $t('misc.download') }}
+					</XButton>
+					<XButton
+						:to="{name:'user.settings.data-export'}"
+						variant="tertiary"
+					>
+						{{ $t('user.export.requestNew') }}
+					</XButton>
+				</div>
+			</template>
+		</Card>
 	</div>
 </template>
 
@@ -38,6 +48,8 @@
 import {ref, computed} from 'vue'
 import {useDownloadExportMutation} from '@/client/queries/dataExport'
 import FormField from '@/components/input/FormField.vue'
+import Card from '@/components/misc/Card.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import {useAuthStore} from '@/stores/auth'
 
 const downloadMutation = useDownloadExportMutation()
@@ -58,3 +70,11 @@ function download() {
 	downloadMutation.mutate(password.value)
 }
 </script>
+
+<style lang="scss" scoped>
+.data-export-download__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+</style>

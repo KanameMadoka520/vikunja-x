@@ -1,79 +1,89 @@
 <template>
-	<Card
+	<div
 		v-if="isLocalUser"
-		:title="$t('user.settings.updateEmailTitle')"
+		class="settings-page"
 	>
-		<div
-			class="mbe-4"
-			data-cy="current-email"
-		>
-			<strong>{{ $t('user.settings.currentEmail') }}</strong>
-			<p>{{ authStore.info?.email }}</p>
-			<p>
-				{{ $t('user.settings.currentEmailHelp') }} <RouterLink :to="{name: 'user.settings.general'}">
-					{{ $t('user.settings.general.title') }}
-				</RouterLink>
-			</p>
-		</div>
-		<Message
-			v-if="pendingEmail"
-			variant="warning"
-			role="status"
-			class="mbe-4"
-		>
-			<p>{{ $t('user.settings.updateEmailPending', {email: pendingEmail}) }}</p>
-			<div class="buttons mbs-2">
-				<XButton
-					variant="secondary"
-					:loading="pendingAction === 'resend'"
-					:disabled="pendingAction !== null"
-					@click="resendConfirmation"
-				>
-					{{ $t('user.settings.updateEmailResend') }}
-				</XButton>
-				<XButton
-					variant="tertiary"
-					:loading="pendingAction === 'cancel'"
-					:disabled="pendingAction !== null"
-					@click="cancelEmailUpdate"
-				>
-					{{ $t('user.settings.updateEmailCancel') }}
-				</XButton>
+		<PageHeader
+			:title="$t('user.settings.updateEmailTitle')"
+			:description="$t('user.settings.emailDescription')"
+		/>
+		<Card>
+			<div
+				class="current-email"
+				data-cy="current-email"
+			>
+				<strong>{{ $t('user.settings.currentEmail') }}</strong>
+				<p class="current-email__address">
+					{{ authStore.info?.email }}
+				</p>
+				<p class="current-email__help">
+					{{ $t('user.settings.currentEmailHelp') }} <RouterLink :to="{name: 'user.settings.general'}">
+						{{ $t('user.settings.general.title') }}
+					</RouterLink>
+				</p>
 			</div>
-		</Message>
-		<form @submit.prevent="updateEmail">
-			<FormField
-				id="newEmail"
-				v-model="emailUpdate.new_email"
-				:label="$t('user.settings.updateEmailNew')"
-				:placeholder="$t('user.auth.emailPlaceholder')"
-				type="email"
-				name="email"
-				autocomplete="email"
-				@keyup.enter="updateEmail"
-			/>
-			<FormField
-				id="currentPasswordEmail"
-				v-model="emailUpdate.password"
-				:label="$t('user.settings.currentPassword')"
-				:placeholder="$t('user.settings.currentPasswordPlaceholder')"
-				type="password"
-				name="current-password"
-				autocomplete="current-password"
-				@keyup.enter="updateEmail"
-			/>
-		</form>
-
-		<XButton
-			:loading="pendingAction === 'save'"
-			:disabled="pendingAction !== null"
-			class="is-fullwidth mbs-4"
-			@click="updateEmail"
-		>
-			{{ $t('misc.save') }}
-		</XButton>
-	</Card>
+			<Message
+				v-if="pendingEmail"
+				variant="warning"
+				role="status"
+				class="mbe-4"
+			>
+				<p>{{ $t('user.settings.updateEmailPending', {email: pendingEmail}) }}</p>
+				<div class="buttons mbs-2">
+					<XButton
+						variant="secondary"
+						:loading="pendingAction === 'resend'"
+						:disabled="pendingAction !== null && pendingAction !== 'resend'"
+						@click="resendConfirmation"
+					>
+						{{ $t('user.settings.updateEmailResend') }}
+					</XButton>
+					<XButton
+						variant="tertiary"
+						:loading="pendingAction === 'cancel'"
+						:disabled="pendingAction !== null && pendingAction !== 'cancel'"
+						@click="cancelEmailUpdate"
+					>
+						{{ $t('user.settings.updateEmailCancel') }}
+					</XButton>
+				</div>
+			</Message>
+			<form @submit.prevent="updateEmail">
+				<FormField
+					id="newEmail"
+					v-model="emailUpdate.new_email"
+					:label="$t('user.settings.updateEmailNew')"
+					:placeholder="$t('user.auth.emailPlaceholder')"
+					type="email"
+					name="email"
+					autocomplete="email"
+					@keyup.enter="updateEmail"
+				/>
+				<FormField
+					id="currentPasswordEmail"
+					v-model="emailUpdate.password"
+					:label="$t('user.settings.currentPassword')"
+					:placeholder="$t('user.settings.currentPasswordPlaceholder')"
+					type="password"
+					name="current-password"
+					autocomplete="current-password"
+					@keyup.enter="updateEmail"
+				/>
+			</form>
+			<template #footer>
+				<XButton
+					:loading="pendingAction === 'save'"
+					:disabled="pendingAction !== null && pendingAction !== 'save'"
+					@click="updateEmail"
+				>
+					{{ $t('misc.save') }}
+				</XButton>
+			</template>
+		</Card>
+	</div>
 </template>
+
+
 
 
 <script setup lang="ts">
@@ -83,6 +93,7 @@ import {useI18n} from 'vue-i18n'
 import {useUpdateEmailMutation, useCancelEmailUpdateMutation, useResendEmailConfirmationMutation} from '@/client/queries/email'
 import FormField from '@/components/input/FormField.vue'
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import {useTitle} from '@/composables/useTitle'
 import {useAuthStore} from '@/stores/auth'
 import {AUTH_TYPES} from '@/constants/auth'
@@ -148,3 +159,23 @@ function cancelEmailUpdate() {
 	})
 }
 </script>
+
+<style lang="scss" scoped>
+.current-email {
+	display: grid;
+	gap: var(--space-1);
+	margin-block-end: var(--space-5);
+	padding-block-end: var(--space-4);
+	border-block-end: 1px solid var(--border-subtle);
+}
+
+.current-email__address {
+	font-size: var(--text-base);
+	overflow-wrap: anywhere;
+}
+
+.current-email__help {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+</style>

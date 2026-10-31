@@ -1,9 +1,11 @@
 import {hashKey, type QueryClient, type QueryKey} from '@tanstack/vue-query'
 import type {Task} from '@/client/generated'
+import {captureClientRequestContext, isClientRequestContextCurrent, type ClientRequestContext} from '@/client/requestContext'
 import {mapTasksDeep, mergeTask, removeTask} from '@/helpers/task'
 import {normalizeTask, taskKeys, type PaginatedTaskResponse, type TaskResponse} from './tasks'
 import {kanbanKeys, type BoardData} from './kanban'
 import {totalPagesFor} from './pagination'
+import {projectTimelineKeys} from './projectTimeline'
 
 // Applies `update` to every cached copy of task `id` (detail, lists, boards, nested relations),
 // so a mutation response patches all mounted views without refetching them.
@@ -127,6 +129,116 @@ export function replaceTaskEverywhere(client: QueryClient, updated: Task) {
 	mapTaskEverywhere(client, updated.id, current => normalizeTask(mergeTask(current, updated)))
 }
 
+function collectTaskCopies(tasks: readonly Task[], id: number, found: Task[]) {
+	for (const task of tasks) {
+		if (task.id === id) found.push(task)
+		for (const children of Object.values(task.related_tasks ?? {})) collectTaskCopies(children ?? [], id, found)
+	}
+}
+
+/**
+ * True when a cached copy of the task was updated after `task` was: a late receipt or a delayed response
+ * must not overwrite a newer write. Without timestamps nothing can be compared, so it is not stale.
+ */
+export function isStaleTask(client: QueryClient, task: Task): boolean {
+	const incoming = Date.parse(task.updated ?? '')
+	if (task.id === undefined || Number.isNaN(incoming)) return false
+	const copies: Task[] = []
+	for (const [, detail] of client.getQueriesData<TaskResponse>({queryKey: taskKeys.details})) {
+		if (detail) collectTaskCopies([detail], task.id, copies)
+	}
+	for (const [, tasks] of client.getQueriesData<TaskResponse[]>({queryKey: taskKeys.allLists})) {
+		if (tasks) collectTaskCopies(tasks, task.id, copies)
+	}
+	for (const [, list] of client.getQueriesData<PaginatedTaskResponse>({queryKey: taskKeys.lists})) {
+		if (list) collectTaskCopies(list.items, task.id, copies)
+	}
+	for (const [, board] of client.getQueriesData<BoardData>({queryKey: kanbanKeys.all})) {
+		for (const bucket of board?.buckets ?? []) collectTaskCopies(bucket.tasks, task.id, copies)
+	}
+	return copies.some(copy => Date.parse(copy.updated ?? '') > incoming)
+}
+
+export class TaskDeletedError extends Error {
+	// Shaped like the API's 404 so views that handle a missing task treat it the same way.
+	readonly status = 404
+
+	constructor(readonly taskId: number) {
+		super(`Task ${taskId} was deleted`)
+		this.name = 'TaskDeletedError'
+	}
+}
+
+// Ids only mean something for one account on one API: another login or server starts a fresh record.
+type ServerWrite = {updated: number, sequence: number}
+type ServerChangeRecord = {context: ClientRequestContext, deleted: Set<number>, written: Map<number, ServerWrite>}
+const serverChanges = new WeakMap<QueryClient, ServerChangeRecord>()
+// Orders server writes against the start of local saves, independent of timestamp precision.
+let serverWriteSequence = 0
+
+function serverChangeRecord(client: QueryClient): ServerChangeRecord {
+	let record = serverChanges.get(client)
+	if (!record || !isClientRequestContextCurrent(record.context)) {
+		record = {context: captureClientRequestContext(), deleted: new Set(), written: new Map()}
+		serverChanges.set(client, record)
+	}
+	return record
+}
+
+function deletedTaskIds(client: QueryClient): Set<number> {
+	return serverChangeRecord(client).deleted
+}
+
+/** Remembers that a change made elsewhere (an Arona receipt) wrote this version of a task. */
+export function recordServerTaskWrite(client: QueryClient, task: Task) {
+	const updated = Date.parse(task.updated ?? '')
+	if (task.id === undefined || Number.isNaN(updated)) return
+	const written = serverChangeRecord(client).written
+	written.set(task.id, {updated: Math.max(written.get(task.id)?.updated ?? updated, updated), sequence: ++serverWriteSequence})
+}
+
+/** Taken when a local save starts; pass it to isOvertakenByServerWrite with the save's answer. */
+export function serverWriteMark(): number {
+	return serverWriteSequence
+}
+
+/**
+ * Whether a change made elsewhere after `since` (the save's start) wrote a newer version than this
+ * answer to a local save, e.g. a receipt that arrived while the PATCH was in flight. Versions that were
+ * already cached or recorded when the save started never count: their timestamps can be finer than the
+ * answer's whole seconds and would wrongly win over the user's later save.
+ */
+export function isOvertakenByServerWrite(client: QueryClient, task: Task, since: number): boolean {
+	const updated = Date.parse(task.updated ?? '')
+	if (task.id === undefined || Number.isNaN(updated)) return false
+	const write = serverChangeRecord(client).written.get(task.id)
+	return write !== undefined && write.sequence > since && write.updated > updated
+}
+
+/** Whether a server change said this task is gone, so a pending draft must not try to save it. */
+export function isTaskDeleted(client: QueryClient, id: number): boolean {
+	return deletedTaskIds(client).has(id)
+}
+
+/**
+ * Puts mounted detail queries of a task deleted elsewhere into an error state. Removing a query from the
+ * cache does not reach an observer that already holds it, which would leave a stale, editable detail open.
+ */
+export function failTaskDetails(client: QueryClient, id: number) {
+	deletedTaskIds(client).add(id)
+	for (const query of client.getQueryCache().findAll({queryKey: [...taskKeys.details, id]})) {
+		if (!query.getObserversCount()) continue
+		query.setState({
+			...query.state,
+			data: undefined,
+			status: 'error',
+			fetchStatus: 'idle',
+			error: new TaskDeletedError(id),
+			errorUpdatedAt: Date.now(),
+		})
+	}
+}
+
 export function removeTaskEverywhere(client: QueryClient, id: number) {
 	removeTaskFromCollections(client, id, {kind: 'delete'})
 	client.removeQueries({queryKey: [...taskKeys.details, id]})
@@ -146,5 +258,25 @@ export async function invalidateTaskMembership(
 		// Refetching a board returns only the first page per bucket, so mutations patch it instead of refetching.
 		client.invalidateQueries({queryKey: kanbanKeys.all, refetchType: 'none'}),
 		...(id === undefined ? [] : [client.invalidateQueries({queryKey: [...taskKeys.details, id], refetchType})]),
+		// Dates, progress and completion feed the timeline; only a mounted timeline refetches.
+		client.invalidateQueries({queryKey: projectTimelineKeys.all}),
 	])
+}
+
+/** Every cached copy of a task (details, lists, boards and nested relations), read without touching the cache. */
+export function cachedTaskCopies(client: QueryClient, id: number): Task[] {
+	const copies: Task[] = []
+	for (const [, detail] of client.getQueriesData<TaskResponse>({queryKey: taskKeys.details})) {
+		if (detail) collectTaskCopies([detail], id, copies)
+	}
+	for (const [, tasks] of client.getQueriesData<TaskResponse[]>({queryKey: taskKeys.allLists})) {
+		if (tasks) collectTaskCopies(tasks, id, copies)
+	}
+	for (const [, list] of client.getQueriesData<PaginatedTaskResponse>({queryKey: taskKeys.lists})) {
+		if (list) collectTaskCopies(list.items, id, copies)
+	}
+	for (const [, board] of client.getQueriesData<BoardData>({queryKey: kanbanKeys.all})) {
+		for (const bucket of board?.buckets ?? []) collectTaskCopies(bucket.tasks, id, copies)
+	}
+	return copies
 }

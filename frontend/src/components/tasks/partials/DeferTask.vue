@@ -122,7 +122,7 @@ $defer-task-max-width: 350px + 100px;
 
 	.bottom-sheet & {
 		max-inline-size: none;
-		padding: 0 1rem 1rem;
+		padding: 0 var(--space-4) var(--space-4);
 
 		> .label {
 			display: none;
@@ -133,8 +133,9 @@ $defer-task-max-width: 350px + 100px;
 .defer-days {
 	justify-content: space-between;
 	display: flex;
-	gap: .5rem;
-	margin: .5rem 0;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block: var(--space-2);
 
 	.bottom-sheet & {
 		margin-block-start: 0;

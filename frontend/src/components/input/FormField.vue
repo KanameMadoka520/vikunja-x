@@ -154,19 +154,34 @@ defineExpose({
 </template>
 
 <style lang="scss" scoped>
+// Label and control share the row while each half has room for ~13rem; narrower (phones up to
+// ~430px) the control wraps under its label instead of squeezing both.
 label.two-col {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-1) var(--space-3);
+}
+
+label.two-col > span {
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-medium);
 }
 
 label.two-col > span,
-label.two-col :deep(input),
-label.two-col :deep(.input),
-label.two-col :deep(.select),
-label.two-col :deep(.timezone-select),
-label.two-col :deep(.multiselect) {
-	flex: 0 0 50%;
+label.two-col > :deep(input),
+label.two-col > :deep(.input),
+label.two-col > :deep(.select),
+label.two-col > :deep(.timezone-select),
+label.two-col > :deep(.multiselect) {
+	flex: 1 1 calc(50% - var(--space-3));
+	min-inline-size: min(100%, 13rem);
 	box-sizing: border-box;
+}
+
+// A slotted control's own error message takes a full row under it.
+label.two-col > :deep(.help) {
+	flex-basis: 100%;
 }
 </style>

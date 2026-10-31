@@ -13,7 +13,7 @@ const {t} = useI18n({useScope: 'global'})
 const preferences = useQuery(assistantPreferencesQuery())
 const settings = useQuery(aiSettingsQuery())
 const save = useSaveAssistantPreferences()
-const {projectsArray} = useProjects()
+const projectList = useProjects()
 // A modal deliberately edits a snapshot; cancel must not change the parent.
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
 const draft = ref(normalizeOptions(props.options))
@@ -27,7 +27,7 @@ const saved = ref(false)
 const dialog = ref<HTMLDialogElement>()
 const previousFocus = document.activeElement as HTMLElement | null
 const custom = computed(() => preferences.data.value?.profiles ?? [])
-const unavailable = computed(() => draft.value.write_project_ids.filter(id => !projectsArray.some(p => p.id === id && !p.is_archived)))
+const unavailable = computed(() => draft.value.write_project_ids.filter(id => !projectList.projectsArray.some(p => p.id === id && !p.is_archived)))
 const valid = computed(() => validOptions(draft.value))
 const models = computed(() => settings.data.value?.connections.filter(c => c.kind === 'chat') ?? [])
 const defaultID = computed(() => preferences.data.value?.default_profile || 'ask')
@@ -162,11 +162,11 @@ onBeforeUnmount(() => {dialog.value?.close(); previousFocus?.focus()})
 							v-model.number="draft.project_id"
 							class="input"
 						><option :value="0">{{ t('tcymc.text.all_accessible_projects') }}</option><option
-							v-for="p in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
+							v-for="p in projectList.projectsArray.filter(p => p.id > 0 && !p.is_archived)"
 							:key="p.id"
 							:value="p.id"
 						>{{ p.title }}</option><option
-							v-if="draft.project_id && !projectsArray.some(p => p.id === draft.project_id && !p.is_archived)"
+							v-if="draft.project_id && !projectList.projectsArray.some(p => p.id === draft.project_id && !p.is_archived)"
 							:value="draft.project_id"
 						>#{{ draft.project_id }} · {{ t('assistantUI.unavailableProject') }}</option></select><small>{{ t('assistantUI.contextHelp') }}</small></label>
 						<label>{{ t('tcymc.text.working_mode') }}<select
@@ -192,7 +192,7 @@ onBeforeUnmount(() => {dialog.value?.close(); previousFocus?.focus()})
 								{{ t('agent.scopeHelp') }}
 							</p><div class="project-checks">
 								<label
-									v-for="p in projectsArray.filter(p => p.id > 0 && !p.is_archived)"
+									v-for="p in projectList.projectsArray.filter(p => p.id > 0 && !p.is_archived)"
 									:key="p.id"
 									class="checkbox"
 								><input
@@ -296,173 +296,280 @@ onBeforeUnmount(() => {dialog.value?.close(); previousFocus?.focus()})
 
 <style scoped lang="scss">
 .assistant-preferences {
-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-color: var(--text);
-background: var(--white);
-border: 1px solid var(--grey-200);
-border-radius: 1.25rem;
-padding: 0;
-inline-size: min(44rem, calc(100vw - 2rem));
-max-block-size: calc(100dvh - 2rem);
-overscroll-behavior: contain;
-overflow: hidden;
-box-shadow: 0 24px 80px #00000033;
+	inline-size: min(44rem, calc(100vw - 2rem));
+	max-block-size: calc(100dvh - 2rem);
+	padding: 0;
+	overflow: hidden;
+	overscroll-behavior: contain;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+	font-family: var(--font-ui);
+
+	&::backdrop {
+		background: var(--scrim);
+	}
 }
-.assistant-preferences::backdrop {
-background: #00000066;
-}
+
 .preferences-body {
- display: flex;
- flex-direction: column;
- max-block-size: calc(100dvh - 2rem - 2px);
- padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-block-size: calc(100dvh - 2rem - 2px);
+	padding: 0;
 }
+
 .preferences-scroll {
- flex: 1;
- min-block-size: 0;
- overflow-y: auto;
- padding: 0 1.5rem 1rem;
- overscroll-behavior: contain;
+	flex: 1;
+	min-block-size: 0;
+	padding: 0 var(--space-6) var(--space-4);
+	overflow-y: auto;
+	overscroll-behavior: contain;
 }
+
 header {
- flex-shrink: 0;
- padding: 1.25rem 1.5rem .5rem;
-display: flex;
-justify-content: space-between;
-gap: 1rem;
+	display: flex;
+	flex-shrink: 0;
+	justify-content: space-between;
+	gap: var(--space-4);
+	padding: var(--space-5) var(--space-6) var(--space-2);
 }
+
 h2 {
-font-family: inherit;
-font-size: 1.35rem;
-margin: 0 0 .5rem;
+	margin: 0 0 var(--space-1);
+	font-size: var(--text-xl);
+	font-weight: var(--weight-semibold);
 }
+
 h3 {
-font-size: 1rem;
-margin: 0 0 .75rem;
+	margin: 0 0 var(--space-3);
+	font-size: var(--text-base);
+	font-weight: var(--weight-semibold);
 }
-header p, .help, small {
-font-size: .8rem;
-color: var(--text-light);
-line-height: 1.6;
+
+header p,
+.help,
+small {
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-regular);
+	line-height: var(--leading-normal);
 }
-section, .advanced {
-margin-block: 1.25rem;
-}
-label {
-display: flex;
-flex-direction: column;
-gap: .5rem;
-font-size: .9rem;
-min-inline-size: 0;
-}
-.checkbox {
-flex-direction: row;
-align-items: center;
-}
-button {
-cursor: pointer;
-font: inherit;
-color: inherit;
-background: var(--grey-100);
-border: 1px solid transparent;
-border-radius: .65rem;
-padding: .6rem .8rem;
-}
-button:disabled {
-opacity: .45;
-cursor: default;
-}
-button:hover:not(:disabled) {
-background: var(--grey-200);
-}
-button:focus-visible {
-outline: 2px solid var(--primary);
-outline-offset: 2px;
-}
-.preset-grid, .option-grid {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 1rem;
-}
-.preset {
-display: flex;
-flex-direction: column;
-gap: .5rem;
-text-align: start;
-background: transparent;
-border-color: var(--grey-200);
-}
-.preset.selected {
-border-color: var(--text);
-background: var(--grey-100);
-}
-.preset span {
-font-size: .8rem;
-line-height: 1.6;
-color: var(--text-light);
-}
-.template-actions {
-display: flex;
-gap: .5rem;
-margin-block-start: .75rem;
-}
-.project-scope {
-grid-column: 1 / -1;
-padding: 0;
-border: 0;
-}
-.project-checks {
-display: flex;
-flex-wrap: wrap;
-gap: .75rem 1.25rem;
-max-block-size: 10rem;
-overflow-y: auto;
-}
+
+section,
 .advanced {
-padding-block: 1rem;
-border-block: 1px solid var(--grey-200);
+	margin-block: var(--space-5);
 }
+
+label {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-inline-size: 0;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+}
+
+.input {
+	font-weight: var(--weight-regular);
+}
+
+.checkbox {
+	flex-direction: row;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-regular);
+}
+
+legend {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+}
+
+button {
+	min-block-size: var(--control-height);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--border-default);
+	border-radius: $radius;
+	background: var(--surface);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: var(--text-md);
+	cursor: pointer;
+
+	&:hover:not(:disabled) {
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+
+	&:disabled {
+		opacity: .45;
+		cursor: not-allowed;
+	}
+}
+
+.preset-grid,
+.option-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-3);
+}
+
+.preset {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	border-color: var(--border-subtle);
+	border-radius: var(--radius-md);
+	text-align: start;
+
+	strong {
+		font-weight: var(--weight-semibold);
+	}
+
+	span {
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		line-height: var(--leading-normal);
+	}
+
+	small {
+		color: var(--accent-text);
+		font-weight: var(--weight-semibold);
+	}
+
+	&.selected {
+		border-color: var(--primary);
+		background: var(--surface-selected);
+
+		strong {
+			color: var(--accent-text);
+		}
+	}
+}
+
+.template-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block-start: var(--space-3);
+}
+
+.project-scope {
+	grid-column: 1 / -1;
+	padding: 0;
+	border: 0;
+}
+
+.project-checks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2) var(--space-5);
+	max-block-size: 10rem;
+	overflow-y: auto;
+}
+
+.advanced {
+	padding-block: var(--space-3);
+	border-block: 1px solid var(--border-subtle);
+}
+
 summary {
-cursor: pointer;
+	color: var(--text-primary);
+	font-weight: var(--weight-semibold);
+	cursor: pointer;
 }
+
 .save-template {
-display: flex;
-align-items: end;
-flex-wrap: wrap;
-gap: .75rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: var(--space-3);
+
+	label {
+		flex: 1;
+	}
+
+	small {
+		flex-basis: 100%;
+	}
 }
-.save-template label {
-flex: 1;
+
+[role='alert'] {
+	padding: var(--space-2) var(--space-3);
+	border-inline-start: 3px solid var(--danger);
+	border-radius: var(--radius-sm);
+	background: var(--tint-danger);
+	color: var(--text-primary);
+	font-size: var(--text-md);
 }
-.save-template small {
-flex-basis: 100%;
+
+[role='status'] {
+	color: var(--text-secondary);
+	font-size: var(--text-md);
 }
+
 footer {
- display: flex;
- align-items: center;
- gap: .75rem;
- flex-wrap: wrap;
- flex-shrink: 0;
- padding: 1rem 1.5rem;
- background: var(--white);
- border-block-start: 1px solid var(--grey-200);
+	display: flex;
+	flex-shrink: 0;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-6);
+	border-block-start: 1px solid var(--border-subtle);
+	background: var(--surface-sunken);
+
+	a {
+		margin-inline-end: auto;
+		font-size: var(--text-sm);
+	}
 }
-footer a {
-margin-inline-end: auto;
-font-size: .8rem;
-}
+
 .apply-button {
-background: var(--text);
-color: var(--white);
+	border-color: transparent;
+	background: var(--primary);
+	color: var(--text-on-accent);
+	font-weight: var(--weight-semibold);
 }
+
 .close-button {
-align-self: start;
-background: transparent;
+	align-self: start;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--control-height);
+	padding: 0;
+	border-color: transparent;
+	background: transparent;
+	color: var(--text-secondary);
 }
+
 @media (width <= 540px) {
- .option-grid, .preset-grid { grid-template-columns: 1fr; }
- .preferences-scroll { padding-inline: 1rem; }
- header, footer { padding-inline: 1rem; }
- footer a { flex-basis: 100%; }
+	.option-grid,
+	.preset-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.preferences-scroll {
+		padding-inline: var(--space-4);
+	}
+
+	header,
+	footer {
+		padding-inline: var(--space-4);
+	}
+
+	footer a {
+		flex-basis: 100%;
+	}
 }
 </style>

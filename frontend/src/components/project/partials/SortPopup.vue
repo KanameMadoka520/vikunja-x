@@ -2,12 +2,18 @@
 	<Popup
 		placement="bottom-end"
 		:anchor="triggerEl"
+		sheet-on-mobile
+		:sheet-title="$t('project.list.sort')"
 	>
-		<template #trigger="{toggle}">
+		<template #trigger="{toggle, isOpen}">
 			<XButton
 				ref="trigger"
 				variant="secondary"
 				icon="sort"
+				class="sort-popup-trigger"
+				:class="{'is-custom-sort': !isManual}"
+				aria-haspopup="dialog"
+				:aria-expanded="isOpen"
 				@click.prevent.stop="toggle()"
 			>
 				{{ $t('project.list.sort') }}
@@ -15,7 +21,7 @@
 		</template>
 		<template #content="{close}">
 			<Card class="sort-popup">
-				<p class="sort-description has-text-grey is-size-7">
+				<p class="sort-description">
 					{{ $t('sorting.description') }}
 				</p>
 				<div class="field">
@@ -71,6 +77,10 @@ const triggerEl = computed<HTMLElement | null>(() => trigger.value?.$el ?? null)
 
 const MANUAL = 'position:asc'
 const selected = ref<string>(MANUAL)
+const isManual = computed(() => {
+	const key = Object.keys(props.modelValue)[0]
+	return !key || key === 'position'
+})
 
 watch(() => props.modelValue, (val) => {
 	const key = Object.keys(val)[0]
@@ -116,9 +126,15 @@ function applySort(close: () => void) {
 </script>
 
 <style scoped lang="scss">
+// A sort other than manual order turns drag reordering off; the accent tells why rows do not move.
+.button.sort-popup-trigger.is-custom-sort {
+	border-color: var(--accent-text);
+	color: var(--accent-text);
+}
+
 .sort-popup {
 	margin: 0;
-	min-inline-size: 18rem;
+	min-inline-size: min(18rem, calc(100vw - 2 * var(--space-4)));
 
 	:deep(.card-content .content) {
 		display: flex;
@@ -126,17 +142,19 @@ function applySort(close: () => void) {
 	}
 
 	.sort-description {
-		margin-block-end: 1rem;
+		margin-block-end: var(--space-3);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
 	}
 
 	.field {
-		margin-block-end: 1rem;
+		margin-block-end: var(--space-3);
 	}
 
 	.actions {
 		display: flex;
 		justify-content: flex-end;
-		gap: .5rem;
+		gap: var(--space-2);
 	}
 }
 </style>

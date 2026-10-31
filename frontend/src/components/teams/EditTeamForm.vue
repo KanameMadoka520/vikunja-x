@@ -37,25 +37,13 @@
 				/>
 			</FormField>
 
-			<div class="field has-addons mbs-4">
-				<div class="control is-fullwidth">
-					<XButton
-						:loading="loading"
-						class="is-fullwidth"
-						type="submit"
-					>
-						{{ $t('misc.save') }}
-					</XButton>
-				</div>
-				<div class="control">
-					<XButton
-						:loading="loading"
-						danger
-						icon="trash-alt"
-						:aria-label="$t('team.edit.delete.header')"
-						@click="emit('delete')"
-					/>
-				</div>
+			<div class="edit-team-form__actions">
+				<XButton
+					:loading="loading"
+					type="submit"
+				>
+					{{ $t('misc.save') }}
+				</XButton>
 			</div>
 		</form>
 	</Card>
@@ -78,7 +66,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	save: [team: Required<TeamWritable>]
-	delete: []
 }>()
 
 const configStore = useConfigStore()
@@ -93,3 +80,10 @@ function save() {
 }
 </script>
 
+<style lang="scss" scoped>
+.edit-team-form__actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-block-start: var(--space-4);
+}
+</style>

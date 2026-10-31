@@ -1,17 +1,18 @@
-.field.has-addons.no-input-mobile {
-  .control:first-child {
-    width: 100%;
+// Link-share frame (ContentLinkShare). The project picture sits on a fixed layer behind the page:
+// background-attachment: fixed on the scrolling container repaints the whole image on every scroll
+// on phones. ContentLinkShare passes the image in --link-share-background.
+.link-share-container.has-background {
+  isolation: isolate;
 
-		@media screen and (max-width: $tablet) {
-				display: none;
-		}
-  }
-
-  .button {
-    height: 40px;
-
-		@media screen and (max-width: $tablet) {
-			border-radius: $radius !important;
-		}
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image: var(--link-share-background);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    pointer-events: none;
   }
 }

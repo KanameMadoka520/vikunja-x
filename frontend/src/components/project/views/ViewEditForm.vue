@@ -266,20 +266,14 @@ function handleBubbleSave(event: FocusEvent) {
 			</FancyCheckbox>
 		</div>
 
-		<div
+		<fieldset
 			v-if="view.view_kind === 'kanban'"
 			class="field"
 		>
-			<label
-				class="label"
-				for="configMode"
-			>
+			<legend class="label">
 				{{ $t('project.views.bucketConfigMode') }}
-			</label>
-			<div
-				id="configMode"
-				class="control"
-			>
+			</legend>
+			<div class="control">
 				<label class="radio">
 					<input
 						v-model="view.bucket_configuration_mode"
@@ -299,7 +293,7 @@ function handleBubbleSave(event: FocusEvent) {
 					{{ $t('project.views.filter') }}
 				</label>
 			</div>
-		</div>
+		</fieldset>
 
 		<div
 			v-if="view.view_kind === 'kanban' && view.bucket_configuration_mode === 'filter'"
@@ -315,7 +309,9 @@ function handleBubbleSave(event: FocusEvent) {
 					class="filter-bucket"
 				>
 					<button
+						type="button"
 						class="is-danger"
+						:aria-label="$t('project.views.removeBucketConfig', {title: b.title || index + 1})"
 						@click.prevent="() => view.bucket_configuration.splice(index, 1)"
 					>
 						<Icon icon="trash-alt" />
@@ -381,23 +377,48 @@ function handleBubbleSave(event: FocusEvent) {
 </template>
 
 <style scoped lang="scss">
+fieldset.field {
+	min-inline-size: 0;
+	margin-inline: 0;
+	padding: 0;
+	border: 0;
+}
+
 .filter-bucket {
 	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
 
 	button {
-		background: transparent;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--control-height-sm);
+		min-block-size: var(--control-height-sm);
+		margin-block-start: var(--space-2);
+		padding: 0;
 		border: none;
-		color: var(--danger);
-		padding-inline-end: .75rem;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--danger-text);
 		cursor: pointer;
+
+		&:hover {
+			background: var(--tint-danger);
+		}
+
+		&:focus-visible {
+			@include focus-ring;
+		}
 	}
 
 	&-form {
-		margin-block-end: .5rem;
-		padding: .5rem;
-		border: 1px solid var(--grey-200);
-		border-radius: $radius;
 		inline-size: 100%;
+		margin-block-end: var(--space-2);
+		padding: var(--space-3);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
 	}
 }
 

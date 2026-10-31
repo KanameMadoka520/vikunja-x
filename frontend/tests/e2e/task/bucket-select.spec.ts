@@ -266,6 +266,7 @@ test.describe('Task Bucket Select', () => {
 		await expect(page.locator('.global-notification')).toContainText('Success')
 
 		// Action buttons should still be visible
-		await expect(page.locator('.task-view .action-buttons .button').filter({hasText: 'Done'})).toBeVisible()
+		await expect(page.locator('.task-view .task-primary-actions .button--mark-done')).toBeVisible()
+		await expect(page.locator('.task-view .action-buttons .button').filter({hasText: 'Set Due Date'})).toBeVisible()
 	})
 })

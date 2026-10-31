@@ -1,7 +1,28 @@
-import {computed, defineAsyncComponent, h, shallowRef, type VNode, type AsyncComponentLoader, watchEffect} from 'vue'
+import {
+	computed,
+	defineAsyncComponent,
+	h,
+	shallowRef,
+	watchEffect,
+	type AsyncComponentLoader,
+	type Component,
+	type VNode,
+} from 'vue'
 import {useRoute, useRouter, type RouteLocationNormalizedGeneric} from 'vue-router'
 import {useBaseStore} from '@/stores/base'
 import {useProjects} from '@/composables/useProjects'
+
+// One wrapper per lazy route component: a new wrapper is a new component type, so every hash or query
+// change while the modal is open would remount it and drop its drafts, scroll and focus.
+const asyncRouteComponents = new WeakMap<AsyncComponentLoader, Component>()
+
+function asyncRouteComponent(loader: AsyncComponentLoader): Component {
+	const cached = asyncRouteComponents.get(loader)
+	if (cached) return cached
+	const component = defineAsyncComponent(loader)
+	asyncRouteComponents.set(loader, component)
+	return component
+}
 
 export function useRouteWithModal() {
 	const router = useRouter()
@@ -49,7 +70,7 @@ export function useRouteWithModal() {
 		let component = route.matched[0]?.components?.default
 
 		if (typeof component === 'function') {
-			component = defineAsyncComponent(component as AsyncComponentLoader)
+			component = asyncRouteComponent(component as AsyncComponentLoader)
 		}
 
 		if (!component) {

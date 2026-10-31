@@ -72,41 +72,53 @@ const label = computed(() => t('task.hierarchy.children', {done: children.value.
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
-	gap: .35rem .6rem;
-	font-size: .78rem;
-	font-weight: 400;
-	line-height: 1.5;
-	margin-block: .3rem;
+	gap: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-regular);
+	line-height: var(--leading-normal);
+	margin-block: var(--space-1);
 	min-inline-size: 0;
 }
 .parent-task-link, .subtasks-toggle, .subtasks-preview summary {
 	display: inline-flex;
 	align-items: center;
-	gap: .35rem;
-	padding: .2rem .45rem;
-	border-radius: .45rem;
-	background: var(--grey-100);
-	color: var(--text);
+	gap: var(--space-1);
+	min-block-size: var(--target-min);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-secondary);
 	max-inline-size: 100%;
 	overflow-wrap: anywhere;
 	cursor: pointer;
+
+	&:hover {
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+		color: var(--text-primary);
+	}
 }
-.parent-task-link svg, .subtasks-toggle svg { flex-shrink: 0; }
+.parent-task-link svg, .subtasks-toggle svg, .subtasks-preview summary svg {
+	flex-shrink: 0;
+	color: var(--text-tertiary);
+}
 .subtasks-preview { max-inline-size: 100%; }
 .subtasks-preview ul {
-	margin: .4rem 0 0 .5rem;
-	padding-inline-start: .75rem;
-	border-inline-start: 2px solid var(--grey-300);
+	margin-block: var(--space-1) 0;
+	margin-inline: var(--space-2) 0;
+	padding-inline-start: var(--space-3);
+	border-inline-start: 2px solid var(--border-default);
+	list-style: none;
 }
 .subtasks-preview li {
 	display: flex;
-	gap: .4rem;
+	gap: var(--space-2);
 	align-items: baseline;
-	margin-block: .3rem;
+	margin-block: var(--space-1);
 }
 .subtasks-preview a { overflow-wrap: anywhere; }
 .child-done {
 	text-decoration: line-through;
-	opacity: .7;
+	color: var(--text-tertiary);
 }
 </style>

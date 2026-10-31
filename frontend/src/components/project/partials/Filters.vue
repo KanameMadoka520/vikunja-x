@@ -13,9 +13,9 @@
 			class="mbe-2"
 			@update:modelValue="() => change('modelValue')"
 		/>
-		<div 
+		<div
 			v-if="filterFromView"
-			class="tw:text-sm mbe-2"
+			class="filters-from-view"
 		>
 			{{ $t('filters.fromView') }}
 			<code>{{ filterFromView }}</code><br>
@@ -198,3 +198,18 @@ defineExpose({
 	focusFilterInput,
 })
 </script>
+
+<style lang="scss" scoped>
+.filters-from-view {
+	margin-block-end: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	code {
+		overflow-wrap: anywhere;
+	}
+}
+</style>

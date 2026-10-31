@@ -5,9 +5,11 @@ import {useI18n} from 'vue-i18n'
 import {barkQuery, useSaveBark, useTestBark} from '@/client/queries/bark'
 import type {BarkSaveData} from '@/client/generated'
 import {useTitle} from '@/composables/useTitle'
+import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 defineOptions({name: 'BarkSettingsPage'})
 const {t} = useI18n({useScope: 'global'})
-useTitle(() => t('bark.title'))
+useTitle(() => `${t('bark.title')} - ${t('user.settings.title')}`)
 const query = useQuery(barkQuery())
 const draft = ref<BarkSaveData['body']>()
 const baseline = ref('')
@@ -35,165 +37,356 @@ const endpoint = computed(() => (draft.value?.server_url ?? '').replace(/\/+$/, 
 </script>
 
 <template>
-	<Card :title="t('bark.title')">
-		<p>{{ t('bark.intro') }}</p>
-		<p class="notification">
-			{{ t('bark.reminderHint') }}
-		</p>
-		<p
-			v-if="query.isError.value"
-			role="alert"
-		>
-			{{ t('bark.loadFailed') }}
-		</p>
-		<form
-			v-if="draft"
-			class="bark-settings"
-			@submit.prevent="submit"
-		>
-			<fieldset :disabled="save.isPending.value || test.isPending.value">
-				<label><input
-					v-model="draft.enabled"
-					type="checkbox"
-				> {{ t('bark.enabled') }}</label>
-				<label>{{ t('bark.server') }}<input
-					v-model="draft.server_url"
-					class="input"
-					type="url"
-					required
-					placeholder="https://api.day.app"
-					autocomplete="off"
-				></label>
-				<label>{{ t('bark.key') }}<input
-					v-model="draft.device_key"
-					class="input"
-					type="password"
-					autocomplete="new-password"
-					:placeholder="t(query.data.value?.settings?.has_key ? 'bark.keySaved' : 'bark.keyEmpty')"
-				></label>
-				<p class="help">
-					{{ t('bark.keyHelp') }}
-				</p>
-				<label>{{ t('bark.scope') }}<select
-					v-model="draft.scope"
-					class="select"
-				><option value="reminders">{{ t('bark.reminders') }}</option><option value="all">{{ t('bark.all') }}</option></select></label>
-				<label>{{ t('bark.level') }}<select
-					v-model="draft.level"
-					class="select"
-				><option value="timeSensitive">{{ t('bark.timeSensitive') }}</option><option value="active">{{ t('bark.active') }}</option><option value="passive">{{ t('bark.passive') }}</option></select></label>
-				<label>{{ t('bark.language') }}<select
-					v-model="draft.language"
-					class="select"
-				><option value="zh-CN">简体中文</option><option value="en">English</option></select></label>
-				<label><input
-					v-model="draft.preview"
-					type="checkbox"
-				> {{ t('bark.preview') }}</label>
-				<p class="help">
-					{{ t('bark.privacy') }}
-				</p>
-				<p>{{ t('bark.endpoint') }}<code>{{ endpoint }}</code></p>
-				<div class="bark-actions">
-					<XButton
-						type="submit"
-						:loading="save.isPending.value"
+	<div class="settings-page">
+		<PageHeader
+			:title="t('bark.title')"
+			:description="t('bark.intro')"
+		/>
+		<div class="settings-sections">
+			<Card>
+				<Message class="mbe-4">
+					{{ t('bark.reminderHint') }}
+				</Message>
+				<Message
+					v-if="query.isError.value"
+					variant="danger"
+					class="mbe-4"
+				>
+					{{ t('bark.loadFailed') }}
+				</Message>
+				<form
+					v-if="draft"
+					class="bark-settings"
+					@submit.prevent="submit"
+				>
+					<fieldset :disabled="save.isPending.value || test.isPending.value">
+						<label class="check-row">
+							<input
+								v-model="draft.enabled"
+								type="checkbox"
+							>
+							<span>{{ t('bark.enabled') }}</span>
+						</label>
+						<div class="field-grid">
+							<label class="settings-field">
+								<span class="settings-field__label">{{ t('bark.server') }}</span>
+								<input
+									v-model="draft.server_url"
+									class="input"
+									type="url"
+									required
+									placeholder="https://api.day.app"
+									autocomplete="off"
+								>
+							</label>
+							<div class="settings-field">
+								<label class="settings-field">
+									<span class="settings-field__label">{{ t('bark.key') }}</span>
+									<input
+										v-model="draft.device_key"
+										class="input"
+										type="password"
+										autocomplete="new-password"
+										aria-describedby="bark-key-help"
+										:placeholder="t(query.data.value?.settings?.has_key ? 'bark.keySaved' : 'bark.keyEmpty')"
+									>
+								</label>
+								<p
+									id="bark-key-help"
+									class="settings-field__hint"
+								>
+									{{ t('bark.keyHelp') }}
+								</p>
+							</div>
+							<label class="settings-field">
+								<span class="settings-field__label">{{ t('bark.scope') }}</span>
+								<span class="select is-fullwidth">
+									<select v-model="draft.scope">
+										<option value="reminders">{{ t('bark.reminders') }}</option>
+										<option value="all">{{ t('bark.all') }}</option>
+									</select>
+								</span>
+							</label>
+							<label class="settings-field">
+								<span class="settings-field__label">{{ t('bark.level') }}</span>
+								<span class="select is-fullwidth">
+									<select v-model="draft.level">
+										<option value="timeSensitive">{{ t('bark.timeSensitive') }}</option>
+										<option value="active">{{ t('bark.active') }}</option>
+										<option value="passive">{{ t('bark.passive') }}</option>
+									</select>
+								</span>
+							</label>
+							<label class="settings-field">
+								<span class="settings-field__label">{{ t('bark.language') }}</span>
+								<span class="select is-fullwidth">
+									<select v-model="draft.language">
+										<option value="zh-CN">简体中文</option>
+										<option value="en">English</option>
+									</select>
+								</span>
+							</label>
+						</div>
+						<div>
+							<label class="check-row">
+								<input
+									v-model="draft.preview"
+									type="checkbox"
+									aria-describedby="bark-privacy-help"
+								>
+								<span>{{ t('bark.preview') }}</span>
+							</label>
+							<p
+								id="bark-privacy-help"
+								class="settings-field__hint"
+							>
+								{{ t('bark.privacy') }}
+							</p>
+						</div>
+						<dl class="bark-endpoint">
+							<dt>{{ t('bark.endpoint') }}</dt>
+							<dd><code>{{ endpoint }}</code></dd>
+						</dl>
+					</fieldset>
+					<div class="bark-actions">
+						<XButton
+							type="submit"
+							icon="save"
+							:loading="save.isPending.value"
+						>
+							{{ t('bark.save') }}
+						</XButton>
+						<XButton
+							variant="secondary"
+							icon="bell"
+							:disabled="dirty || !query.data.value?.settings?.has_key"
+							:loading="test.isPending.value"
+							@click="sendTest"
+						>
+							{{ t('bark.test') }}
+						</XButton>
+						<p
+							v-if="dirty"
+							class="settings-field__hint"
+						>
+							{{ t('bark.saveFirst') }}
+						</p>
+					</div>
+					<Message
+						v-if="error"
+						variant="danger"
 					>
-						{{ t('bark.save') }}
-					</XButton><XButton
-						variant="secondary"
-						:disabled="dirty || !query.data.value?.settings?.has_key"
-						:loading="test.isPending.value"
-						@click="sendTest"
+						{{ error }}
+					</Message>
+				</form>
+				<details class="bark-guide">
+					<summary>{{ t('bark.guide') }}</summary>
+					<ol>
+						<li>{{ t('bark.step1') }}</li>
+						<li>{{ t('bark.step2') }}</li>
+						<li>{{ t('bark.step3') }}</li>
+					</ol>
+					<p>{{ t('bark.deliveryHint') }}</p>
+					<a
+						href="https://github.com/Finb/Bark/blob/master/docs/tutorial.md"
+						target="_blank"
+						rel="noopener noreferrer"
+					>{{ t('bark.docs') }}</a>
+				</details>
+			</Card>
+
+			<Card :title="t('bark.recent')">
+				<p class="settings-field__hint mbe-3">
+					{{ t('bark.acceptedHint') }}
+				</p>
+				<p
+					v-if="!query.data.value?.deliveries?.length"
+					class="bark-empty"
+				>
+					{{ t('bark.empty') }}
+				</p>
+				<ul
+					v-else
+					class="bark-deliveries"
+				>
+					<li
+						v-for="(delivery, index) in query.data.value.deliveries"
+						:key="`${delivery.notification_id}-${index}`"
 					>
-						{{ t('bark.test') }}
-					</XButton>
-				</div>
-			</fieldset>
-			<p
-				v-if="dirty"
-				class="help"
-			>
-				{{ t('bark.saveFirst') }}
-			</p>
-			<p
-				v-if="error"
-				role="alert"
-			>
-				{{ error }}
-			</p>
-		</form>
-		<details class="bark-guide">
-			<summary>{{ t('bark.guide') }}</summary><ol><li>{{ t('bark.step1') }}</li><li>{{ t('bark.step2') }}</li><li>{{ t('bark.step3') }}</li></ol><p>{{ t('bark.deliveryHint') }}</p><a
-				href="https://github.com/Finb/Bark/blob/master/docs/tutorial.md"
-				target="_blank"
-				rel="noopener noreferrer"
-			>{{ t('bark.docs') }}</a>
-		</details>
-		<h3>{{ t('bark.recent') }}</h3>
-		<p>{{ t('bark.acceptedHint') }}</p>
-		<p v-if="!query.data.value?.deliveries?.length">
-			{{ t('bark.empty') }}
-		</p>
-		<ul
-			v-else
-			class="bark-deliveries"
-		>
-			<li
-				v-for="(delivery, index) in query.data.value.deliveries"
-				:key="`${delivery.notification_id}-${index}`"
-			>
-				<strong>{{ delivery.notification_id ? t('bark.notification', {id: delivery.notification_id}) : t('bark.testDelivery') }} · {{ t(`bark.status_${delivery.status}`) }}</strong>
-				<span>{{ new Date(delivery.updated!).toLocaleString() }} · {{ t('bark.attempts', {count: delivery.attempts}) }}</span>
-				<span v-if="delivery.error">{{ t('bark.errorCode') }}: <code>{{ delivery.error }}</code></span>
-				<span v-if="delivery.status === 'pending' && delivery.attempts">{{ t('bark.next') }}: {{ new Date(delivery.next!).toLocaleString() }}</span>
-			</li>
-		</ul>
-	</Card>
+						<strong>
+							{{ delivery.notification_id
+								? t('bark.notification', {id: delivery.notification_id})
+								: t('bark.testDelivery') }}
+							· {{ t(`bark.status_${delivery.status}`) }}
+						</strong>
+						<span class="bark-deliveries__meta">
+							{{ new Date(delivery.updated!).toLocaleString() }} ·
+							{{ t('bark.attempts', {count: delivery.attempts}) }}
+						</span>
+						<span
+							v-if="delivery.error"
+							class="bark-deliveries__meta"
+						>{{ t('bark.errorCode') }}: <code>{{ delivery.error }}</code></span>
+						<span
+							v-if="delivery.status === 'pending' && delivery.attempts"
+							class="bark-deliveries__meta"
+						>{{ t('bark.next') }}: {{ new Date(delivery.next!).toLocaleString() }}</span>
+					</li>
+				</ul>
+			</Card>
+		</div>
+	</div>
 </template>
 
+
 <style scoped lang="scss">
-.bark-settings fieldset {
-	border: 0;
-	padding: 0;
-	margin: 1rem 0;
+.settings-sections {
 	display: grid;
-	gap: 1rem;
+	gap: var(--space-5);
+
+	> .card {
+		margin-block-end: 0;
+	}
+}
+
+.bark-settings {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.bark-settings fieldset {
+	display: grid;
+	gap: var(--space-4);
+	margin: 0;
+	padding: 0;
+	border: 0;
 	min-inline-size: 0;
+}
+
+.field-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-3) var(--space-4);
+
+	@media screen and (max-width: $tablet) {
+		grid-template-columns: minmax(0, 1fr);
 	}
-.bark-settings label {
-	display: block;
+}
+
+.settings-field {
+	display: grid;
+	align-content: start;
+	gap: var(--space-1);
+	min-inline-size: 0;
+}
+
+.settings-field__label {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+}
+
+.settings-field__hint {
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	line-height: var(--leading-normal);
+}
+
+.check-row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	cursor: pointer;
+
+	input {
+		flex-shrink: 0;
+		inline-size: 1rem;
+		block-size: 1rem;
+		margin-block-start: .2rem;
+		accent-color: var(--primary);
 	}
-.bark-settings .input, .bark-settings .select {
-	display: block;
-	inline-size: 100%;
-	max-inline-size: 36rem;
-	margin-block-start: .35rem;
+}
+
+.bark-endpoint {
+	display: grid;
+	gap: var(--space-1);
+	margin: 0;
+	font-size: var(--text-sm);
+
+	dt {
+		color: var(--text-secondary);
+		font-weight: var(--weight-medium);
 	}
-.bark-settings code {
-	display: block;
-	overflow-wrap: anywhere;
+
+	dd {
+		margin: 0;
 	}
+
+	code {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		overflow-wrap: anywhere;
+	}
+}
+
 .bark-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .75rem;
-	}
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	padding-block-start: var(--space-4);
+	border-block-start: 1px solid var(--border-subtle);
+}
+
 .bark-guide {
-	margin-block: 1.5rem;
+	margin-block-start: var(--space-5);
+	font-size: var(--text-md);
+
+	summary {
+		cursor: pointer;
+		font-weight: var(--weight-semibold);
+		border-radius: var(--radius-xs);
+
+		&:focus-visible {
+			@include focus-ring;
+		}
 	}
-.bark-guide summary {
-	cursor: pointer;
+
+	ol {
+		margin-block: var(--space-2);
+		padding-inline-start: var(--space-5);
 	}
+
+	p {
+		margin-block-end: var(--space-2);
+		color: var(--text-secondary);
+	}
+}
+
+.bark-empty {
+	color: var(--text-secondary);
+}
+
 .bark-deliveries {
-	list-style: none;
+	margin: 0;
 	padding: 0;
-	}
+	list-style: none;
+}
+
 .bark-deliveries li {
 	display: grid;
-	gap: .4rem;
-	padding-block: .75rem;
-	border-block-end: 1px solid var(--grey-200);
+	gap: var(--space-1);
+	padding-block: var(--space-3);
+	border-block-end: 1px solid var(--border-subtle);
 	overflow-wrap: anywhere;
+
+	&:last-child {
+		border-block-end: 0;
 	}
+}
+
+.bark-deliveries__meta {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
 </style>

@@ -1,7 +1,7 @@
 <template>
 	<p
 		v-if="rows.length === 0"
-		class="has-text-centered has-text-grey is-italic"
+		class="time-entry-list__empty"
 	>
 		{{ emptyText }}
 	</p>
@@ -216,20 +216,44 @@ function timeRange(entry: ITimeEntry): string {
 	white-space: nowrap;
 }
 
+.time-entry-list__empty {
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+
+.table {
+	th {
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+		font-weight: var(--weight-semibold);
+	}
+
+	td {
+		vertical-align: middle;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
 .entry-action {
-	color: var(--grey-400);
-	transition: color $transition;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: var(--target-min);
+	min-block-size: var(--target-min);
+	border-radius: $radius;
+	color: var(--text-tertiary);
 
 	& + & {
-		margin-inline-start: .5rem;
+		margin-inline-start: var(--space-1);
 	}
 
 	&:hover {
-		color: var(--primary);
+		background: var(--surface-hover);
+		color: var(--accent-text);
 	}
 }
 
 .entry-delete:hover {
-	color: var(--danger);
+	color: var(--danger-text);
 }
 </style>

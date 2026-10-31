@@ -8,6 +8,7 @@ import {useClampedPage} from '@/composables/useClampedPage'
 import XButton from '@/components/input/Button.vue'
 import FormField from '@/components/input/FormField.vue'
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import Pagination from '@/components/misc/Pagination.vue'
 import PaginationEmit from '@/components/misc/PaginationEmit.vue'
 import ApiTokenForm from '@/components/token/ApiTokenForm.vue'
@@ -26,7 +27,7 @@ const STATUS_ACTIVE = 0
 const STATUS_DISABLED = 2
 
 const {t} = useI18n({useScope: 'global'})
-useTitle(() => t('user.settings.bots.title'))
+useTitle(() => `${t('user.settings.bots.title')} - ${t('user.settings.title')}`)
 
 const page = useRouteQuery('page', '1', {transform: normalizePageNumber})
 const {data: botPage, isPlaceholderData} = useQuery(computed(() => botsQuery(page.value)))
@@ -67,6 +68,7 @@ const showDeleteModal = ref<boolean>(false)
 const botToDelete = ref<Bot>()
 
 async function createBot() {
+	if (createMutation.isPending.value) return
 	createError.value = null
 	const username = newBotUsername.value.startsWith('bot-') ? newBotUsername.value : `bot-${newBotUsername.value}`
 	const payload: Pick<BotUser, 'username' | 'name'> = {username}
@@ -149,188 +151,227 @@ async function deleteToken(token: ApiToken) {
 </script>
 
 <template>
-	<div
-		class="content loader-container"
-		:class="{'is-loading': isPlaceholderData}"
-	>
-		<h2>{{ $t('user.settings.bots.title') }}</h2>
-		<p>{{ $t('user.settings.bots.description') }}</p>
+	<div class="settings-page">
+		<PageHeader
+			:title="$t('user.settings.bots.title')"
+			:description="$t('user.settings.bots.description')"
+		>
+			<template
+				v-if="hasBots && !showCreateForm"
+				#actions
+			>
+				<XButton
+					icon="plus"
+					@click="showCreateForm = true"
+				>
+					{{ $t('user.settings.bots.create') }}
+				</XButton>
+			</template>
+		</PageHeader>
 
-		<div
+		<Card
 			v-if="!hasBots || showCreateForm"
-			class="create-form"
+			:title="$t('user.settings.bots.create')"
 		>
-			<FormField
-				:label="$t('user.auth.username')"
-				:error="createError"
+			<form
+				class="create-form"
+				@submit.prevent="createBot"
 			>
-				<template #default="{id}">
-					<input
-						:id="id"
-						v-model="newBotUsername"
-						class="input"
-						placeholder="bot-myassistant"
-					>
-				</template>
-			</FormField>
-			<FormField :label="$t('admin.users.nameLabel')">
-				<template #default="{id}">
-					<input
-						:id="id"
-						v-model="newBotName"
-						class="input"
-						:placeholder="$t('user.settings.bots.namePlaceholder')"
-					>
-				</template>
-			</FormField>
-			<XButton
-				:loading="createMutation.isPending.value"
-				@click="createBot"
-			>
-				{{ $t('user.settings.bots.create') }}
-			</XButton>
-		</div>
-		<XButton
-			v-else
-			icon="plus"
-			class="mbe-4"
-			@click="showCreateForm = true"
-		>
-			{{ $t('user.settings.bots.create') }}
-		</XButton>
+				<FormField
+					:label="$t('user.auth.username')"
+					:error="createError"
+				>
+					<template #default="{id}">
+						<input
+							:id="id"
+							v-model="newBotUsername"
+							class="input"
+							placeholder="bot-myassistant"
+						>
+					</template>
+				</FormField>
+				<FormField :label="$t('admin.users.nameLabel')">
+					<template #default="{id}">
+						<input
+							:id="id"
+							v-model="newBotName"
+							class="input"
+							:placeholder="$t('user.settings.bots.namePlaceholder')"
+						>
+					</template>
+				</FormField>
+			</form>
+			<template #footer>
+				<XButton
+					v-if="hasBots"
+					variant="tertiary"
+					@click="showCreateForm = false"
+				>
+					{{ $t('misc.cancel') }}
+				</XButton>
+				<XButton
+					:loading="createMutation.isPending.value"
+					@click="createBot"
+				>
+					{{ $t('user.settings.bots.create') }}
+				</XButton>
+			</template>
+		</Card>
 
 		<div
-			v-for="bot in bots"
-			:key="bot.id"
-			class="bot-card"
+			class="bot-list loader-container"
+			:class="{'is-loading': isPlaceholderData}"
 		>
-			<div class="bot-header">
-				<strong>{{ bot.username }}</strong>
-				<template v-if="editingName[bot.id]">
-					<span class="bot-name-edit">—</span>
-					<input
-						v-model="nameDraft[bot.id]"
-						v-focus
-						class="input bot-name-input"
-						:placeholder="$t('user.settings.bots.namePlaceholder')"
-						@keyup.enter="saveBotName(bot)"
-						@keyup.esc="cancelEditName(bot)"
-					>
+			<section
+				v-for="bot in bots"
+				:key="bot.id"
+				class="bot-card"
+				:aria-label="bot.username"
+			>
+				<div class="bot-header">
+					<strong class="bot-username">{{ bot.username }}</strong>
+					<template v-if="editingName[bot.id]">
+						<input
+							v-model="nameDraft[bot.id]"
+							v-focus
+							class="input bot-name-input"
+							:aria-label="$t('admin.users.nameLabel')"
+							:placeholder="$t('user.settings.bots.namePlaceholder')"
+							@keyup.enter="saveBotName(bot)"
+							@keyup.esc="cancelEditName(bot)"
+						>
+						<XButton
+							variant="secondary"
+							class="is-small"
+							@click="saveBotName(bot)"
+						>
+							{{ $t('misc.save') }}
+						</XButton>
+						<XButton
+							variant="tertiary"
+							class="is-small"
+							@click="cancelEditName(bot)"
+						>
+							{{ $t('misc.cancel') }}
+						</XButton>
+					</template>
+					<template v-else>
+						<span
+							v-if="bot.name"
+							class="bot-name"
+						>{{ bot.name }}</span>
+						<span
+							v-else
+							class="bot-name no-name"
+						>{{ $t('project.share.links.noName') }}</span>
+						<XButton
+							variant="tertiary"
+							icon="pencil-alt"
+							class="is-small"
+							@click="startEditName(bot)"
+						>
+							{{ $t('menu.edit') }}
+						</XButton>
+					</template>
+					<span
+						class="status"
+						:class="{'is-active': bot.status === STATUS_ACTIVE}"
+					>{{ bot.status === STATUS_ACTIVE ? $t('admin.users.statusActive') : $t('admin.users.statusDisabled') }}</span>
+				</div>
+				<div class="bot-actions">
 					<XButton
 						variant="secondary"
-						@click="saveBotName(bot)"
+						class="is-small"
+						@click="toggleBotStatus(bot)"
 					>
-						{{ $t('misc.save') }}
+						{{ bot.status === STATUS_ACTIVE ? $t('misc.disable') : $t('user.settings.bots.enable') }}
 					</XButton>
 					<XButton
 						variant="tertiary"
-						@click="cancelEditName(bot)"
+						class="is-danger is-small"
+						@click="() => {botToDelete = bot; showDeleteModal = true}"
 					>
-						{{ $t('misc.cancel') }}
+						{{ $t('misc.delete') }}
 					</XButton>
-				</template>
-				<template v-else>
-					<span v-if="bot.name">— {{ bot.name }}</span>
-					<span
-						v-else
-						class="no-name"
-					>{{ $t('project.share.links.noName') }}</span>
-					<XButton
-						variant="tertiary"
-						icon="pencil-alt"
-						@click="startEditName(bot)"
-					>
-						{{ $t('menu.edit') }}
-					</XButton>
-				</template>
-				<span class="status">{{ bot.status === STATUS_ACTIVE ? $t('admin.users.statusActive') : $t('admin.users.statusDisabled') }}</span>
-			</div>
-			<div class="bot-actions">
-				<XButton
-					variant="secondary"
-					@click="toggleBotStatus(bot)"
-				>
-					{{ bot.status === STATUS_ACTIVE ? $t('misc.disable') : $t('user.settings.bots.enable') }}
-				</XButton>
-				<XButton
-					variant="tertiary"
-					class="is-danger"
-					@click="() => {botToDelete = bot; showDeleteModal = true}"
-				>
-					{{ $t('misc.delete') }}
-				</XButton>
-			</div>
-
-			<div class="tokens">
-				<h4>{{ $t('user.settings.apiTokens.title') }}</h4>
-				<Message
-					v-if="newTokensByBot[bot.id]"
-					variant="warning"
-				>
-					{{ $t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
-					<code>{{ newTokensByBot[bot.id] }}</code>
-				</Message>
-				<div
-					v-if="(tokenPageByBot[bot.id]?.items ?? []).length > 0"
-					class="has-horizontal-overflow"
-				>
-					<table class="table">
-						<thead>
-							<tr>
-								<th>{{ $t('user.settings.apiTokens.attributes.title') }}</th>
-								<th>{{ $t('user.settings.apiTokens.attributes.expiresAt') }}</th>
-								<th>{{ $t('misc.created') }}</th>
-								<th class="has-text-end">
-									{{ $t('misc.actions') }}
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="token in tokenPageByBot[bot.id]?.items ?? []"
-								:key="token.id"
-							>
-								<td>{{ token.title }}</td>
-								<td>{{ formatDisplayDate(token.expires_at) }}</td>
-								<td>{{ formatDisplayDate(token.created) }}</td>
-								<td class="has-text-end">
-									<XButton
-										variant="secondary"
-										@click="deleteToken(token)"
-									>
-										{{ $t('misc.delete') }}
-									</XButton>
-								</td>
-							</tr>
-						</tbody>
-					</table>
 				</div>
-				<PaginationEmit
-					:total-pages="tokenPageByBot[bot.id]?.total_pages ?? 0"
-					:current-page="tokenPages[bot.id] ?? 1"
-					@pageChanged="(page: number) => tokenPages[bot.id] = page"
-				/>
-				<p
-					v-if="bot.status !== STATUS_ACTIVE"
-					class="help"
-				>
-					{{ $t('user.settings.bots.tokensInactive') }}
-				</p>
-				<ApiTokenForm
-					v-else-if="showTokenForm[bot.id]"
-					:owner-id="bot.id"
-					@created="(token: ApiToken) => onTokenCreated(bot, token)"
-					@cancel="showTokenForm[bot.id] = false"
-				/>
-				<XButton
-					v-else
-					icon="plus"
-					class="mbe-4"
-					@click="showTokenForm[bot.id] = true"
-				>
-					{{ $t('user.settings.apiTokens.createToken') }}
-				</XButton>
-			</div>
+
+				<div class="tokens">
+					<h3 class="tokens__title">
+						{{ $t('user.settings.apiTokens.title') }}
+					</h3>
+					<Message
+						v-if="newTokensByBot[bot.id]"
+						variant="warning"
+						class="mbe-3"
+					>
+						{{ $t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
+						<code>{{ newTokensByBot[bot.id] }}</code>
+					</Message>
+					<div
+						v-if="(tokenPageByBot[bot.id]?.items ?? []).length > 0"
+						class="has-horizontal-overflow"
+					>
+						<table class="table is-fullwidth">
+							<thead>
+								<tr>
+									<th>{{ $t('user.settings.apiTokens.attributes.title') }}</th>
+									<th>{{ $t('user.settings.apiTokens.attributes.expiresAt') }}</th>
+									<th>{{ $t('misc.created') }}</th>
+									<th class="has-text-end">
+										{{ $t('misc.actions') }}
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr
+									v-for="token in tokenPageByBot[bot.id]?.items ?? []"
+									:key="token.id"
+								>
+									<td>{{ token.title }}</td>
+									<td>{{ formatDisplayDate(token.expires_at) }}</td>
+									<td>{{ formatDisplayDate(token.created) }}</td>
+									<td class="has-text-end">
+										<XButton
+											variant="secondary"
+											danger
+											class="is-small"
+											@click="deleteToken(token)"
+										>
+											{{ $t('misc.delete') }}
+										</XButton>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<PaginationEmit
+						:total-pages="tokenPageByBot[bot.id]?.total_pages ?? 0"
+						:current-page="tokenPages[bot.id] ?? 1"
+						@pageChanged="(page: number) => tokenPages[bot.id] = page"
+					/>
+					<p
+						v-if="bot.status !== STATUS_ACTIVE"
+						class="help"
+					>
+						{{ $t('user.settings.bots.tokensInactive') }}
+					</p>
+					<ApiTokenForm
+						v-else-if="showTokenForm[bot.id]"
+						:owner-id="bot.id"
+						@created="(token: ApiToken) => onTokenCreated(bot, token)"
+						@cancel="showTokenForm[bot.id] = false"
+					/>
+					<XButton
+						v-else
+						icon="plus"
+						variant="secondary"
+						class="is-small"
+						@click="showTokenForm[bot.id] = true"
+					>
+						{{ $t('user.settings.apiTokens.createToken') }}
+					</XButton>
+				</div>
+			</section>
 		</div>
 
 		<Pagination
@@ -339,6 +380,7 @@ async function deleteToken(token: ApiToken) {
 		/>
 
 		<Modal
+			danger
 			:enabled="showDeleteModal"
 			@close="showDeleteModal = false"
 			@submit="deleteBot()"
@@ -358,51 +400,84 @@ async function deleteToken(token: ApiToken) {
 </template>
 
 <style lang="scss" scoped>
+.bot-list {
+	display: grid;
+	gap: var(--space-4);
+}
+
 .bot-card {
-	padding: 1rem;
-	margin-block-start: 1rem;
-	border: 1px solid var(--grey-200);
-	border-radius: 4px;
+	min-inline-size: 0;
+	padding: var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
 }
 
 .bot-header {
 	display: flex;
-	gap: .5rem;
+	flex-wrap: wrap;
 	align-items: center;
-	margin-block-end: .5rem;
+	gap: var(--space-2);
+	margin-block-end: var(--space-2);
+}
+
+.bot-username {
+	font-size: var(--text-base);
+	overflow-wrap: anywhere;
+}
+
+.bot-name {
+	color: var(--text-secondary);
+	overflow-wrap: anywhere;
 }
 
 .bot-name-input {
+	flex: 1 1 10rem;
 	max-inline-size: 16rem;
 }
 
 .no-name {
 	font-style: italic;
-	color: var(--grey-500);
+	color: var(--text-tertiary);
 }
 
 .status {
 	margin-inline-start: auto;
-	font-size: .85rem;
-	color: var(--grey-600);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	line-height: 1.6;
+
+	&.is-active {
+		border-color: transparent;
+		background: var(--tint-success);
+		color: var(--text-primary);
+	}
 }
 
 .bot-actions {
 	display: flex;
-	gap: .5rem;
-	margin-block-end: 1rem;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
 
 .tokens {
-	margin-block-start: 1rem;
-	padding-block-start: 1rem;
-	border-block-start: 1px solid var(--grey-200);
+	margin-block-start: var(--space-4);
+	padding-block-start: var(--space-4);
+	border-block-start: 1px solid var(--border-subtle);
+}
+
+.tokens__title {
+	margin-block-end: var(--space-2);
+	font-size: var(--text-md);
 }
 
 .create-form {
-	display: flex;
-	flex-direction: column;
-	gap: .5rem;
-	margin-block-end: 1rem;
+	display: grid;
+	gap: var(--space-2);
 }
 </style>

@@ -90,10 +90,10 @@ const pages = computed(() => createPagination(props.totalPages, props.currentPag
 .pagination {
 	align-items: center;
 	display: flex;
-	font-size: $size-normal;
+	font-size: var(--text-md);
 	justify-content: center;
-	margin: -0.25rem;
-	padding-block-end: 1rem;
+	margin: calc(-1 * var(--space-1));
+	padding-block-end: var(--space-4);
 	text-align: center;
 }
 
@@ -114,26 +114,19 @@ const pages = computed(() => createPagination(props.totalPages, props.currentPag
 }
 
 .pagination-ellipsis {
-	appearance: none;
 	align-items: center;
-	border: 1px solid transparent;
-	border-radius: $radius;
-	box-shadow: none;
 	display: inline-flex;
-	font-size: 1em;
-	block-size: 2.5em;
 	justify-content: center;
+	min-block-size: var(--control-height);
+	min-inline-size: var(--space-6);
+	margin: var(--space-1);
 	line-height: 1.5;
-	margin: 0.25rem;
-	padding: calc(0.5em - 1px) 0.5em;
-	position: relative;
-	text-align: center;
 	vertical-align: top;
 
 	-webkit-touch-callout: none;
 	user-select: none;
 
-	color: var(--grey-light);
+	color: var(--text-tertiary);
 	pointer-events: none;
 }
 

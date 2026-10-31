@@ -1,5 +1,9 @@
+// One field height for text inputs, selects and add-on buttons: Bulma's 2.25em (36px) on fine
+// pointers, the coarse --control-height (40px) on touch, so toolbars and add-on groups line up.
+$field-height: max(2.25rem, var(--control-height));
+
 .field.has-addons .button {
-  height: 2.5rem;
+  block-size: $field-height;
   margin-inline-start: 0 !important;
 }
 
@@ -7,10 +11,34 @@
   margin-inline-end: 0;
 }
 
+.label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+
+  &:not(:last-child) {
+    margin-block-end: var(--space-2);
+  }
+}
+
+.help {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+
+  &.is-danger {
+    color: var(--danger-text);
+  }
+}
+
 .input,
 .textarea {
-  transition: border-color $transition, background-color $transition, box-shadow $transition;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
   box-shadow: none;
+  border-radius: $radius;
 
   &.is-active,
   &.is-focused,
@@ -35,6 +63,12 @@
   }
 }
 
+@media (pointer: coarse) {
+  .input:not(.title) {
+    min-block-size: $field-height;
+  }
+}
+
 // :focus-visible matches mouse focus on text fields, so the ring is keyboard-gated via
 // the .user-is-tabbing class instead; the class also raises specificity over the :focus reset above.
 .user-is-tabbing .input:focus,
@@ -42,8 +76,16 @@
   @include focus-ring;
 }
 
-.select:after {
-  margin-block-start: -0.575rem;
+.select {
+  font-size: 1rem;
+
+  &:not(.is-multiple) {
+    block-size: $field-height;
+  }
+
+  &::after {
+    margin-block-start: -0.575rem;
+  }
 }
 
 .select select {
@@ -51,7 +93,7 @@
   border-width: $thickness;
 
   &:not([multiple]) {
-    height: calc(2.25rem + #{$thickness});
+    block-size: 100%;
   }
 
   &.is-active,
@@ -61,10 +103,6 @@
   &:focus:not(:active) {
     box-shadow: none;
   }
-}
-
-.field.has-addons .control .select select {
-  height: 100%;
 }
 
 // Buttons icons
@@ -77,9 +115,10 @@
 // - the <h2> in Kanban.vue
 // Contenteditable form
 .input.title {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-family: $vikunja-font;
-  font-weight: 400 !important;
+  font-weight: var(--weight-semibold) !important;
+  letter-spacing: -0.011em;
   background: transparent;
   border-color: transparent;
   margin: 0 .3rem;

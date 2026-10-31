@@ -1,23 +1,25 @@
-// FIXME: move to Loading.vue 
+// FIXME: move to Loading.vue
+// Busy overlay: the content stays visible but dimmed while a spinner sits on top of it.
 .loader-container.is-loading {
   position: relative;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: .55;
 
   &::after {
     @include loader;
+    --loader-border-color: var(--primary);
     position: absolute;
-    inset-block-start: calc(50% - 2.5rem);
-    inset-inline-start: calc(50% - 2.5rem);
-    width: 5rem;
-    height: 5rem;
-    border-width: 0.25rem;
+    inset-block-start: calc(50% - 1.25rem);
+    inset-inline-start: calc(50% - 1.25rem);
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border-width: 3px;
   }
 
   &.is-loading-small {
     &::after {
-      width: 1.5rem;
-      height: 1.5rem;
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
       inset-block-start: calc(50% - .75rem);
       inset-inline-start: calc(50% - .75rem);
       border-width: 2px;
@@ -25,16 +27,25 @@
   }
 }
 
-// FIXME: move to ShowTasks.vue 
+// FIXME: move to ShowTasks.vue
 .spinner.is-loading {
   pointer-events: none;
 
   &::after {
     @include loader;
-    width: 2rem;
-    height: 2rem;
+    --loader-border-color: var(--primary);
+    inline-size: 2rem;
+    block-size: 2rem;
     margin-inline-start: calc(50% - 1rem);
-    margin-block-start: 1rem;
-    border-width: 0.25rem;
+    margin-block-start: var(--space-4);
+    border-width: 3px;
+  }
+}
+
+// A spinner is the only cue that work is in progress, so it keeps turning, just slower.
+@media (prefers-reduced-motion: reduce) {
+  .loader-container.is-loading::after,
+  .spinner.is-loading::after {
+    animation-duration: 1.6s;
   }
 }

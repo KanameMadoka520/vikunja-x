@@ -1,13 +1,16 @@
 <template>
-	<Modal
-		variant="hint-modal"
-		@close="goBack()"
+	<CreateEdit
+		v-model:loading="loadingModel"
+		:title="$t('filters.create.title')"
+		:primary-label="$t('filters.create.action')"
+		:primary-disabled="showLoading || !titleValid"
+		@primary="create"
 	>
-		<Card
-			class="has-no-shadow"
-			:title="$t('filters.create.title')"
+		<form
+			class="filter-new"
+			@submit.prevent="create()"
 		>
-			<p>
+			<p class="filter-new__description">
 				{{ $t('filters.create.description') }}
 			</p>
 			<FormField
@@ -42,37 +45,31 @@
 					:change-immediately="true"
 				/>
 			</FormField>
-
-			<template #footer>
-				<XButton
-					:loading="isLoading"
-					:disabled="showLoading || !titleValid"
-					class="is-fullwidth"
-					@click="create()"
-				>
-					{{ $t('filters.create.action') }}
-				</XButton>
-			</template>
-		</Card>
-	</Modal>
+			<button
+				type="submit"
+				class="is-hidden"
+				tabindex="-1"
+			/>
+		</form>
+	</CreateEdit>
 </template>
 
 <script setup lang="ts">
+import {computed, nextTick, ref} from 'vue'
 import {useRouter} from 'vue-router'
 
 import Editor from '@/components/input/AsyncEditor'
+import CreateEdit from '@/components/misc/CreateEdit.vue'
 import FormField from '@/components/input/FormField.vue'
 import Filters from '@/components/project/partials/Filters.vue'
 
 import {getProjectIdFromSavedFilterId} from '@/client/queries/projects'
 import {useIsAlive} from '@/composables/useIsAlive'
-import {useGoBack} from '@/composables/useGoBack'
 import {useSavedFilterDraft} from '@/composables/useSavedFilter'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import {useCreateSavedFilterMutation} from '@/client/queries/savedFilters'
 
 const router = useRouter()
-const goBack = useGoBack()
 
 const alive = useIsAlive()
 
@@ -86,15 +83,32 @@ const createMutation = useCreateSavedFilterMutation(() => alive.value)
 const isLoading = createMutation.isPending
 const showLoading = useDelayedLoading(isLoading)
 
+// CreateEdit latches loading on click; the prop must toggle back on early return.
+const isSubmitting = ref(false)
+const loadingModel = computed({
+	get: () => isLoading.value || isSubmitting.value,
+	set(value: boolean) {
+		isSubmitting.value = value
+	},
+})
+
 async function create() {
-	if (isLoading.value) {
+	// The hidden submit button (Enter) bypasses CreateEdit's own click latch.
+	if (isLoading.value || isSubmitting.value) {
 		return
 	}
-	const payload = validate()
-	if (!payload) {
-		return
+	isSubmitting.value = true
+	let created
+	try {
+		const payload = validate()
+		if (!payload) {
+			await nextTick()
+			return
+		}
+		created = await createMutation.mutateAsync(payload).catch(() => undefined)
+	} finally {
+		isSubmitting.value = false
 	}
-	const created = await createMutation.mutateAsync(payload).catch(() => undefined)
 	if (!alive.value) {
 		return
 	}
@@ -106,3 +120,11 @@ async function create() {
 	}
 }
 </script>
+
+<style lang="scss" scoped>
+.filter-new__description {
+	margin-block-end: var(--space-4);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+</style>

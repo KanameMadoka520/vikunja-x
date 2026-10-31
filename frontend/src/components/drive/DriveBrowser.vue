@@ -1,173 +1,361 @@
 <template>
 	<section
+		ref="root"
 		class="drive-browser"
+		:class="{
+			'is-picker': picker,
+			'is-drop-target': isOverDropZone,
+		}"
 		:aria-label="t('drive.title')"
 	>
-		<header class="drive-heading">
-			<div><h2>{{ picker ? t('drive.choose') : t('drive.title') }}</h2><p>{{ t('drive.subtitle') }}</p></div>
-			<XButton
-				icon="cloud-upload-alt"
-				:loading="batchActive"
-				:disabled="busy"
-				@click="input?.click()"
-			>
-				{{ t('drive.upload') }}
-			</XButton>
-			<input
-				ref="input"
-				type="file"
-				multiple
-				hidden
-				:accept="images ? 'image/*' : undefined"
-				@change="uploadFiles"
-			>
-		</header>
-		<div class="drive-toolbar">
-			<input
-				v-model="search"
-				class="input"
-				type="search"
-				:placeholder="t('drive.search')"
-				:aria-label="t('drive.search')"
-			>
-			<select
-				v-model="category"
-				class="input"
-				:aria-label="t('drive.category')"
-			>
-				<option value="">
-					{{ t('drive.allCategories') }}
-				</option><option
-					v-for="c in query.data.value?.categories || []"
-					:key="c"
-				>
-					{{ c }}
-				</option>
-			</select>
-			<label><input
-				v-model="pinned"
-				type="checkbox"
-			> {{ t('drive.pinnedOnly') }}</label>
-			<XButton
-				v-if="!picker"
-				:variant="trash ? 'primary' : 'secondary'"
-				icon="trash-alt"
-				@click="trash = !trash"
-			>
-				{{ trash ? t('drive.backToFiles') : t('drive.trash') }}
-			</XButton>
-		</div>
-		<p
-			v-if="trash"
-			class="drive-note"
+		<PageHeader
+			v-if="!picker"
+			class="drive-heading"
+			:title="t('drive.title')"
+			:description="t('drive.subtitle')"
 		>
-			{{ t('drive.trashNote') }}
-		</p>
-		<p
-			v-if="batchTotal"
-			class="drive-upload-status"
-			role="status"
-		>
-			{{ t('drive.uploadCount', {count: batchUploaded, total: batchTotal}) }}
-			<XButton
-				v-if="batchActive"
-				variant="tertiary"
-				@click="uploadController?.abort()"
-			>
-				{{ t('misc.cancel') }}
-			</XButton>
-		</p>
-		<p class="drive-summary">
-			{{ t('drive.stats', {count: query.data.value?.total ?? 0, size: formatSize(query.data.value?.bytes ?? 0)}) }}
-		</p>
-		<p
-			v-if="query.isPending.value"
-			role="status"
-		>
-			{{ t('misc.loading') }}
-		</p>
-		<div
-			v-else-if="query.isError.value"
-			role="alert"
-		>
-			{{ t('drive.loadError') }} <XButton @click="query.refetch()">
-				{{ t('drive.retry') }}
-			</XButton>
-		</div>
-		<p
-			v-else-if="!query.data.value?.files?.length"
-			class="drive-empty"
-		>
-			{{ hasFilters ? t('drive.noMatches') : trash ? t('drive.emptyTrash') : t('drive.empty') }}
-			<XButton
-				v-if="hasFilters"
-				variant="secondary"
-				@click="clearFilters"
-			>
-				{{ t('drive.clearFilters') }}
-			</XButton>
-		</p>
-		<div class="drive-grid">
-			<article
-				v-for="file in query.data.value?.files || []"
-				:key="file.file_id"
-				class="drive-card"
-			>
-				<button
-					type="button"
-					class="drive-preview"
-					:aria-label="`${picker ? t('drive.choose') : t('drive.details')}: ${file.file?.name}`"
+			<template #actions>
+				<XButton
+					icon="cloud-upload-alt"
+					:loading="batchActive"
 					:disabled="busy"
-					@click="picker ? emit('select', file) : inspect(file)"
+					@click="input?.click()"
 				>
-					<DriveThumbnail :file="file" />
-				</button>
-				<div class="drive-card-body">
-					<strong :title="file.file?.name">{{ file.pinned ? '★ ' : '' }}{{ file.file?.name }}</strong>
-					<small>{{ formatSize(file.file?.size ?? 0) }}<span v-if="file.category"> · {{ file.category }}</span></small>
+					{{ t('drive.upload') }}
+				</XButton>
+			</template>
+		</PageHeader>
+		<input
+			ref="input"
+			type="file"
+			multiple
+			hidden
+			:accept="images ? 'image/*' : undefined"
+			@change="uploadChosenFiles"
+		>
+		<div class="drive-top">
+			<header
+				v-if="picker"
+				class="drive-picker-heading"
+			>
+				<h2>{{ t('drive.choose') }}</h2>
+				<p
+					class="drive-busy"
+					role="status"
+				>
+					<template v-if="busy">
+						{{ t('drive.applying') }}
+					</template>
+				</p>
+				<div class="drive-picker-actions">
+					<XButton
+						variant="secondary"
+						class="is-small"
+						icon="cloud-upload-alt"
+						:shadow="false"
+						:loading="batchActive"
+						:disabled="busy"
+						@click="input?.click()"
+					>
+						{{ t('drive.upload') }}
+					</XButton>
+					<slot name="picker-actions" />
+				</div>
+			</header>
+			<div class="drive-toolbar">
+				<div class="drive-search">
+					<input
+						v-model="search"
+						class="input"
+						type="search"
+						:placeholder="t('drive.search')"
+						:aria-label="t('drive.search')"
+					>
+					<Icon
+						icon="search"
+						class="drive-search-icon"
+					/>
+				</div>
+				<div class="select drive-category">
+					<select
+						v-model="category"
+						:aria-label="t('drive.category')"
+					>
+						<option value="">
+							{{ t('drive.allCategories') }}
+						</option>
+						<option
+							v-for="c in categories"
+							:key="c"
+						>
+							{{ c }}
+						</option>
+					</select>
+				</div>
+				<label
+					class="drive-toggle"
+					:class="{'is-active': pinned}"
+				>
+					<input
+						v-model="pinned"
+						type="checkbox"
+						class="drive-toggle-input"
+					>
+					<Icon :icon="pinned ? 'star' : ['far', 'star']" />
+					<span :class="{'is-sr-only': compact}">{{ t('drive.pinnedOnly') }}</span>
+				</label>
+				<XButton
+					v-if="!picker"
+					variant="secondary"
+					class="drive-trash-toggle"
+					:class="{'is-active': trash}"
+					:icon="trash ? 'arrow-left' : 'trash-alt'"
+					:icon-only="compact"
+					:shadow="false"
+					@click="trash = !trash"
+				>
+					{{ trash ? t('drive.backToFiles') : t('drive.trash') }}
+				</XButton>
+			</div>
+			<div class="drive-status">
+				<p
+					ref="summary"
+					class="drive-summary"
+					tabindex="-1"
+					aria-live="polite"
+				>
+					{{ t('drive.stats', {count: total, size: formatSize(query.data.value?.bytes ?? 0)}) }}
+				</p>
+				<div
+					class="drive-view-toggle"
+					role="group"
+					:aria-label="t('drive.layout')"
+				>
+					<button
+						v-for="option in viewOptions"
+						:key="option.value"
+						v-tooltip="option.label"
+						type="button"
+						class="drive-view-option"
+						:aria-label="option.label"
+						:aria-pressed="view === option.value"
+						@click="storedView = option.value"
+					>
+						<Icon :icon="option.icon" />
+					</button>
+				</div>
+			</div>
+		</div>
+		<div class="drive-body">
+			<p
+				v-if="trash"
+				class="drive-note"
+			>
+				<Icon
+					icon="circle-info"
+					class="drive-note-icon"
+				/>
+				<span>{{ t('drive.trashNote') }}</span>
+			</p>
+			<div
+				v-if="batchTotal"
+				class="drive-upload-status"
+				role="status"
+			>
+				<span>{{ t('drive.uploadCount', {count: batchUploaded, total: batchTotal}) }}</span>
+				<progress
+					class="drive-upload-progress"
+					:value="batchUploaded"
+					:max="batchTotal"
+					aria-hidden="true"
+				/>
+				<XButton
+					v-if="batchActive"
+					variant="tertiary"
+					class="is-small"
+					:shadow="false"
+					@click="uploadController?.abort()"
+				>
+					{{ t('misc.cancel') }}
+				</XButton>
+			</div>
+			<LoadError
+				v-if="query.isError.value"
+				:message="t('drive.loadError')"
+				:retry="() => query.refetch()"
+			/>
+			<div
+				v-if="query.isPending.value"
+				class="drive-files is-skeleton"
+				:class="`is-${view}`"
+				role="status"
+			>
+				<span class="is-sr-only">{{ t('misc.loading') }}</span>
+				<div
+					v-for="n in 8"
+					:key="n"
+					class="drive-skeleton"
+					aria-hidden="true"
+				>
+					<span class="drive-skeleton-thumb" />
+					<span class="drive-skeleton-line" />
+					<span class="drive-skeleton-line is-short" />
+				</div>
+			</div>
+			<EmptyState
+				v-else-if="query.data.value && !files.length"
+				:icon="trash ? 'trash-alt' : 'folder'"
+				:title="hasFilters ? t('drive.noMatches') : trash ? t('drive.emptyTrash') : t('drive.empty')"
+			>
+				<template
+					v-if="hasFilters || !trash"
+					#default
+				>
+					<XButton
+						v-if="hasFilters"
+						variant="secondary"
+						:shadow="false"
+						@click="clearFilters"
+					>
+						{{ t('drive.clearFilters') }}
+					</XButton>
+					<XButton
+						v-else
+						variant="secondary"
+						icon="cloud-upload-alt"
+						:shadow="false"
+						:disabled="busy || batchActive"
+						@click="input?.click()"
+					>
+						{{ t('drive.upload') }}
+					</XButton>
+				</template>
+			</EmptyState>
+			<div
+				v-else-if="files.length"
+				class="drive-files"
+				:class="[`is-${view}`, {'is-refreshing': query.isPlaceholderData.value || busy}]"
+				:aria-busy="query.isFetching.value || busy || undefined"
+			>
+				<article
+					v-for="file in files"
+					:key="file.file_id"
+					class="drive-card"
+				>
+					<!-- Mouse shortcut only: the labelled buttons below carry the same action for keyboards and screen readers. -->
+					<button
+						type="button"
+						class="drive-preview"
+						tabindex="-1"
+						aria-hidden="true"
+						@click="picker ? choose(file) : inspect(file)"
+					>
+						<DriveThumbnail
+							:file="file"
+							decorative
+						/>
+					</button>
+					<div class="drive-card-body">
+						<p class="drive-card-name">
+							<template v-if="file.pinned">
+								<span class="is-sr-only">{{ t('chatHistory.pinned') }}</span>
+								<span
+									class="drive-pin"
+									aria-hidden="true"
+								>{{ '★ ' }}</span>
+							</template>{{ file.file?.name }}
+						</p>
+						<p class="drive-card-meta">
+							<span class="drive-meta-size">{{ formatSize(file.file?.size ?? 0) }}</span>
+							<span
+								v-if="formatDay(cardDate(file))"
+								class="drive-meta-date"
+							>
+								<span
+									class="drive-meta-separator"
+									aria-hidden="true"
+								>·</span>
+								<span class="is-sr-only">{{ trash ? t('drive.trashedOn') : t('drive.uploadedOn') }}</span>
+								<time :datetime="cardDate(file)">{{ formatDay(cardDate(file)) }}</time>
+							</span>
+							<span
+								v-if="file.category"
+								class="drive-card-category"
+							>{{ file.category }}</span>
+						</p>
+					</div>
 					<div class="drive-card-actions">
 						<XButton
 							v-if="picker"
 							variant="secondary"
-							:disabled="busy"
-							@click="emit('select', file)"
+							class="is-small drive-choose"
+							:shadow="false"
+							:aria-disabled="busy || undefined"
+							@click="choose(file)"
 						>
 							{{ t('drive.choose') }}
 						</XButton>
-						<XButton
-							v-else
-							variant="tertiary"
-							@click="inspect(file)"
-						>
-							{{ t('drive.details') }}
-						</XButton>
-						<XButton
-							v-if="!picker"
-							variant="tertiary"
-							:loading="change.isPending.value"
-							@click="trash && !file.purging ? restore(file) : inspect(file, file.purging ? 'purge' : 'trash')"
-						>
-							{{ file.purging ? t('drive.retryPurge') : trash ? t('drive.restore') : t('drive.moveToTrash') }}
-						</XButton>
+						<template v-else>
+							<XButton
+								v-tooltip="t('drive.details')"
+								variant="tertiary"
+								class="is-small"
+								icon="circle-info"
+								icon-only
+								:shadow="false"
+								@click="inspect(file)"
+							>
+								{{ t('drive.details') }}
+							</XButton>
+							<XButton
+								v-tooltip="trashActionLabel(file)"
+								variant="tertiary"
+								class="is-small"
+								:icon="file.purging ? 'redo' : trash ? 'undo' : 'trash-alt'"
+								icon-only
+								:shadow="false"
+								:loading="pendingId === file.file_id"
+								:aria-disabled="change.isPending.value || undefined"
+								@click="trashAction(file)"
+							>
+								{{ trashActionLabel(file) }}
+							</XButton>
+						</template>
 					</div>
-				</div>
-			</article>
+				</article>
+			</div>
+			<div
+				v-if="total > PAGE_SIZE"
+				class="drive-pagination"
+			>
+				<XButton
+					variant="secondary"
+					class="is-small"
+					:shadow="false"
+					:aria-disabled="page <= 1 || undefined"
+					@click="goToPage(page - 1)"
+				>
+					{{ t('drive.previous') }}
+				</XButton>
+				<span class="drive-page">{{ t('projectTimeline.pageOf', {page, total: pageCount}) }}</span>
+				<XButton
+					variant="secondary"
+					class="is-small"
+					:shadow="false"
+					:aria-disabled="page >= pageCount || undefined"
+					@click="goToPage(page + 1)"
+				>
+					{{ t('drive.next') }}
+				</XButton>
+			</div>
 		</div>
 		<div
-			v-if="(query.data.value?.total ?? 0) > 60"
-			class="drive-pagination"
+			v-if="!picker"
+			class="drive-drop-hint"
+			aria-hidden="true"
 		>
-			<XButton
-				:disabled="page <= 1"
-				@click="page--"
-			>
-				{{ t('drive.previous') }}
-			</XButton><span>{{ page }}</span><XButton
-				:disabled="page * 60 >= (query.data.value?.total ?? 0)"
-				@click="page++"
-			>
-				{{ t('drive.next') }}
-			</XButton>
+			<Icon icon="cloud-upload-alt" />
+			<span>{{ t('task.attachment.drop') }}</span>
 		</div>
 		<Modal
 			class="drive-dialog"
@@ -186,358 +374,1330 @@
 						icon="times"
 						variant="tertiary"
 						:aria-label="t('misc.closeDialog')"
-						:disabled="change.isPending.value"
+						:aria-disabled="change.isPending.value || undefined"
 						@click="closeDetails"
 					/>
 				</header>
-				<div
-					v-if="!selected.purging"
-					class="drive-detail-preview"
-				>
-					<DriveThumbnail :file="selected" />
+				<div class="drive-details-body">
+					<div class="drive-details-file">
+						<div
+							v-if="!selected.purging"
+							class="drive-detail-preview"
+						>
+							<DriveThumbnail :file="selected" />
+						</div>
+						<dl class="drive-detail-meta">
+							<div>
+								<dt>{{ t('drive.size') }}</dt>
+								<dd>{{ formatSize(selected.file?.size ?? 0) }}</dd>
+							</div>
+							<div v-if="selected.file?.mime">
+								<dt>{{ t('drive.type') }}</dt>
+								<dd>{{ selected.file.mime }}</dd>
+							</div>
+							<div v-if="formatDay(selected.file?.created)">
+								<dt>{{ t('drive.uploadedOn') }}</dt>
+								<dd>
+									<time :datetime="selected.file?.created">{{ formatDay(selected.file?.created) }}</time>
+								</dd>
+							</div>
+							<div v-if="formatDay(selected.trashed_at)">
+								<dt>{{ t('drive.trashedOn') }}</dt>
+								<dd>
+									<time :datetime="selected.trashed_at">{{ formatDay(selected.trashed_at) }}</time>
+								</dd>
+							</div>
+						</dl>
+						<XButton
+							variant="secondary"
+							icon="download"
+							:shadow="false"
+							:loading="downloading"
+							:disabled="selected.purging"
+							@click="download(selected)"
+						>
+							{{ t('drive.download') }}
+						</XButton>
+					</div>
+					<div class="drive-details-main">
+						<label class="drive-field">
+							<span class="drive-field-label">{{ t('drive.name') }}</span>
+							<input
+								v-model="name"
+								class="input"
+								maxlength="255"
+								:disabled="trash"
+							>
+						</label>
+						<label class="drive-field">
+							<span class="drive-field-label">{{ t('drive.category') }}</span>
+							<input
+								v-model="editCategory"
+								class="input"
+								maxlength="120"
+								:disabled="trash"
+								:placeholder="t('drive.categoryHint')"
+								:list="categoryListId"
+							>
+							<datalist :id="categoryListId">
+								<option
+									v-for="c in categories"
+									:key="c"
+									:value="c"
+								/>
+							</datalist>
+						</label>
+						<label class="drive-check">
+							<input
+								v-model="editPinned"
+								type="checkbox"
+								:disabled="trash"
+							>
+							<span>{{ t('drive.pin') }}</span>
+						</label>
+						<section class="drive-usages-section">
+							<h3>{{ t('drive.usedIn') }}</h3>
+							<p
+								v-if="usages.isPending.value"
+								class="drive-muted"
+								role="status"
+							>
+								{{ t('misc.loading') }}
+							</p>
+							<LoadError
+								v-else-if="usages.isError.value"
+								:message="t('drive.loadError')"
+								:retry="() => usages.refetch()"
+							/>
+							<ul
+								v-else-if="usageCount"
+								class="drive-usages"
+							>
+								<li
+									v-for="(usage, index) in usages.data.value"
+									:key="index"
+								>
+									<span
+										v-if="usage.restricted"
+										class="drive-muted"
+									>{{ t('drive.restricted') }}</span>
+									<RouterLink
+										v-else
+										:to="usage.url || '/drive'"
+										@click="closeDetails"
+									>
+										{{ t(`drive.kinds.${usage.kind}`) }} · {{ usage.title }}
+									</RouterLink>
+								</li>
+							</ul>
+							<p
+								v-else
+								class="drive-muted"
+							>
+								{{ t('drive.unused') }}
+							</p>
+						</section>
+						<p
+							v-if="trash && usageCount"
+							class="drive-note"
+						>
+							<Icon
+								icon="circle-info"
+								class="drive-note-icon"
+							/>
+							<span>{{ t('drive.unlinkFirst') }}</span>
+						</p>
+						<div
+							v-if="action !== 'edit'"
+							:id="confirmId"
+							class="drive-confirm"
+							:class="{'is-danger': action === 'purge'}"
+						>
+							<p>{{ action === 'purge' ? t('drive.purgeWarning') : t('drive.trashWarning') }}</p>
+							<label
+								v-if="action === 'purge'"
+								class="drive-field"
+							>
+								<span class="drive-field-label">{{ t('drive.typeName') }}</span>
+								<input
+									v-model="confirmName"
+									class="input"
+									autocomplete="off"
+									:placeholder="selected.file?.name"
+								>
+							</label>
+							<label
+								v-else-if="usageCount"
+								class="drive-check"
+							>
+								<input
+									v-model="confirmed"
+									type="checkbox"
+								>
+								<span>{{ t('drive.confirmUsed') }}</span>
+							</label>
+						</div>
+					</div>
 				</div>
-				<label>{{ t('drive.name') }}<input
-					v-model="name"
-					class="input"
-					maxlength="255"
-					:disabled="trash"
-				></label>
-				<label>{{ t('drive.category') }}<input
-					v-model="editCategory"
-					class="input"
-					maxlength="120"
-					:disabled="trash"
-					:placeholder="t('drive.categoryHint')"
-					list="drive-categories"
-				><datalist id="drive-categories"><option
-					v-for="c in query.data.value?.categories || []"
-					:key="c"
-					:value="c"
-				/></datalist></label>
-				<label><input
-					v-model="editPinned"
-					type="checkbox"
-					:disabled="trash"
-				> {{ t('drive.pin') }}</label>
-				<h3>{{ t('drive.usedIn') }}</h3>
-				<p
-					v-if="usages.isPending.value"
-					role="status"
-				>
-					{{ t('misc.loading') }}
-				</p>
-				<p
-					v-else-if="usages.isError.value"
-					role="alert"
-				>
-					{{ t('drive.loadError') }} <XButton @click="usages.refetch()">
-						{{ t('drive.retry') }}
-					</XButton>
-				</p>
-				<ul
-					v-else-if="usages.data.value?.length"
-					class="drive-usages"
-				>
-					<li
-						v-for="(usage, index) in usages.data.value"
-						:key="index"
+				<footer class="drive-detail-actions">
+					<div
+						v-if="action === 'edit'"
+						class="drive-detail-actions-start"
 					>
-						<span v-if="usage.restricted">{{ t('drive.restricted') }}</span><RouterLink
+						<XButton
+							v-if="trash"
+							danger
+							:shadow="false"
+							:disabled="!usagesReady || usageCount > 0"
+							@click="action = 'purge'"
+						>
+							{{ t('drive.purge') }}
+						</XButton>
+						<XButton
 							v-else
-							:to="usage.url || '/drive'"
+							variant="secondary"
+							danger
+							icon="trash-alt"
+							:shadow="false"
+							@click="action = 'trash'"
+						>
+							{{ t('drive.moveToTrash') }}
+						</XButton>
+					</div>
+					<div class="drive-detail-actions-end">
+						<XButton
+							variant="secondary"
+							:shadow="false"
 							@click="closeDetails"
 						>
-							{{ t(`drive.kinds.${usage.kind}`) }} · {{ usage.title }}
-						</RouterLink>
-					</li>
-				</ul>
-				<p v-else>
-					{{ t('drive.unused') }}
-				</p>
-				<p
-					v-if="trash && usages.data.value?.length"
-					class="drive-note"
-				>
-					{{ t('drive.unlinkFirst') }}
-				</p>
-				<div
-					v-if="action !== 'edit'"
-					class="drive-confirm"
-				>
-					<p>{{ action === 'purge' ? t('drive.purgeWarning') : t('drive.trashWarning') }}</p>
-					<label v-if="action === 'purge'">{{ t('drive.typeName') }}<input
-						v-model="confirmName"
-						class="input"
-						autocomplete="off"
-						:placeholder="selected.file?.name"
-					></label>
-					<label v-else-if="usages.data.value?.length"><input
-						v-model="confirmed"
-						type="checkbox"
-					> {{ t('drive.confirmUsed') }}</label>
-				</div>
-				<div class="drive-detail-actions">
-					<XButton
-						variant="secondary"
-						:loading="downloading"
-						:disabled="selected.purging"
-						@click="download(selected)"
-					>
-						{{ t('drive.download') }}
-					</XButton>
-					<XButton
-						variant="secondary"
-						@click="closeDetails"
-					>
-						{{ t('misc.cancel') }}
-					</XButton>
-					<XButton
-						v-if="action === 'edit' && !trash"
-						:loading="change.isPending.value"
-						:disabled="!name.trim()"
-						@click="apply('edit')"
-					>
-						{{ t('misc.save') }}
-					</XButton>
-					<XButton
-						v-if="action === 'edit' && trash"
-						danger
-						:disabled="usages.isPending.value || usages.isError.value || !!usages.data.value?.length"
-						@click="action = 'purge'"
-					>
-						{{ t('drive.purge') }}
-					</XButton>
-					<XButton
-						v-if="action !== 'edit'"
-						danger
-						:loading="change.isPending.value"
-						:disabled="!canConfirm"
-						@click="apply(action)"
-					>
-						{{ action === 'purge' ? t('drive.purge') : t('drive.moveToTrash') }}
-					</XButton>
-				</div>
+							{{ t('misc.cancel') }}
+						</XButton>
+						<XButton
+							v-if="action === 'edit' && !trash"
+							:shadow="false"
+							:loading="change.isPending.value"
+							:disabled="!name.trim()"
+							@click="apply('edit')"
+						>
+							{{ t('misc.save') }}
+						</XButton>
+						<XButton
+							v-if="action !== 'edit'"
+							danger
+							:shadow="false"
+							:loading="change.isPending.value"
+							:disabled="!canConfirm"
+							:aria-describedby="confirmId"
+							@click="apply(action)"
+						>
+							{{ action === 'purge' ? t('drive.purge') : t('drive.moveToTrash') }}
+						</XButton>
+					</div>
+				</footer>
 			</div>
 		</Modal>
 	</section>
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch, onBeforeUnmount} from 'vue'
-import {runUploadQueue} from '@/helpers/uploadQueue'
+import {computed, nextTick, onBeforeUnmount, ref, useId, watch} from 'vue'
 import {useQuery, useQueryClient} from '@tanstack/vue-query'
 import {useI18n} from 'vue-i18n'
-import {refDebounced} from '@vueuse/core'
-import type {DriveEntry} from '@/client/queries/drive'
+import {refDebounced, useDropZone, useMediaQuery, useStorage} from '@vueuse/core'
+import type {IconProp} from '@fortawesome/fontawesome-svg-core'
+
 import type {DriveChangeWritable} from '@/client/generated'
-import {driveQuery, driveUsagesQuery, driveBlobQuery, useUploadDriveMutation, useChangeDriveMutation} from '@/client/queries/drive'
+import {
+	driveBlobQuery,
+	driveQuery,
+	driveUsagesQuery,
+	useChangeDriveMutation,
+	useUploadDriveMutation,
+	type DriveEntry,
+} from '@/client/queries/drive'
+import {runUploadQueue} from '@/helpers/uploadQueue'
 import {error} from '@/message'
 import Modal from '@/components/misc/Modal.vue'
+import EmptyState from '@/components/misc/state/EmptyState.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import DriveThumbnail from './DriveThumbnail.vue'
-const props = withDefaults(defineProps<{picker?: boolean, images?: boolean, busy?: boolean}>(), {picker: false, images: false, busy: false})
+
+type DriveView = 'grid' | 'list'
+type DetailAction = 'edit' | 'trash' | 'purge'
+
+const props = withDefaults(defineProps<{
+	picker?: boolean
+	images?: boolean
+	busy?: boolean
+}>(), {
+	picker: false,
+	images: false,
+	busy: false,
+})
 const emit = defineEmits<{select: [file: DriveEntry]}>()
-const {t} = useI18n()
+const PAGE_SIZE = 60
+const SIZE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB'] as const
+
+const {t, locale} = useI18n()
 const client = useQueryClient()
-const search = ref(''), category = ref(''), pinned = ref(false), trash = ref(false), page = ref(1)
+
+const search = ref('')
+const category = ref('')
+const pinned = ref(false)
+const trash = ref(false)
+const page = ref(1)
 const debouncedSearch = refDebounced(search, 250)
-watch([debouncedSearch, category, pinned, trash], () => {page.value = 1})
-const query = useQuery(computed(() => driveQuery({page: page.value, search: debouncedSearch.value, category: category.value, pinned: pinned.value, trash: trash.value, images: props.images})))
-watch(() => query.data.value?.total, total => {
-	if (total !== undefined) page.value = Math.min(page.value, Math.max(1, Math.ceil(total / 60)))
+watch([debouncedSearch, category, pinned, trash], () => {
+	page.value = 1
+})
+
+const query = useQuery(computed(() => driveQuery({
+	page: page.value,
+	search: debouncedSearch.value,
+	category: category.value,
+	pinned: pinned.value,
+	trash: trash.value,
+	images: props.images,
+})))
+const files = computed(() => query.data.value?.files ?? [])
+const categories = computed(() => query.data.value?.categories ?? [])
+const total = computed(() => query.data.value?.total ?? 0)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+watch(() => query.data.value?.total, value => {
+	if (value !== undefined) page.value = Math.min(page.value, Math.max(1, Math.ceil(value / PAGE_SIZE)))
 })
 const hasFilters = computed(() => Boolean(search.value || category.value || pinned.value))
-function clearFilters() {search.value = ''; category.value = ''; pinned.value = false; page.value = 1}
-const batchActive = ref(false), batchUploaded = ref(0), batchTotal = ref(0)
+
+function clearFilters() {
+	search.value = ''
+	category.value = ''
+	pinned.value = false
+	page.value = 1
+}
+
+function goToPage(target: number) {
+	if (target >= 1 && target <= pageCount.value) page.value = target
+}
+
+const storedView = useStorage<DriveView | ''>('tcymc-drive-view', '')
+const narrow = useMediaQuery('(max-width: 600px)')
+const compact = useMediaQuery('(max-width: 480px)')
+const view = computed<DriveView>(() => {
+	if (storedView.value === 'grid' || storedView.value === 'list') return storedView.value
+	return props.images || !narrow.value ? 'grid' : 'list'
+})
+const viewOptions = computed<{value: DriveView, label: string, icon: IconProp}[]>(() => [
+	{
+		value: 'grid',
+		label: t('drive.grid'),
+		icon: 'th',
+	},
+	{
+		value: 'list',
+		label: t('project.list.title'),
+		icon: 'list',
+	},
+])
+
+const numberFormat = computed(() => new Intl.NumberFormat(locale.value, {maximumFractionDigits: 1}))
+const dayFormat = computed(() => new Intl.DateTimeFormat(locale.value, {dateStyle: 'medium'}))
+
+function formatSize(bytes: number) {
+	let value = bytes
+	let unit = 0
+	while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+		value /= 1024
+		unit++
+	}
+	return `${numberFormat.value.format(value)} ${SIZE_UNITS[unit]}`
+}
+
+function formatDay(value?: string) {
+	const date = value ? new Date(value) : null
+	// Go serialises a missing time as year 1, which is not a real upload or recycle date.
+	return date && date.getTime() > 0 ? dayFormat.value.format(date) : ''
+}
+
+function cardDate(file: DriveEntry) {
+	return trash.value ? file.trashed_at : file.file?.created
+}
+
+const batchActive = ref(false)
+const batchUploaded = ref(0)
+const batchTotal = ref(0)
 let uploadController: AbortController | undefined
 onBeforeUnmount(() => uploadController?.abort())
-const upload = useUploadDriveMutation(), change = useChangeDriveMutation()
+const upload = useUploadDriveMutation()
+const change = useChangeDriveMutation()
 const input = ref<HTMLInputElement | null>(null)
-const selected = ref<DriveEntry | null>(null), name = ref(''), editCategory = ref(''), editPinned = ref(false)
-const action = ref<'edit' | 'trash' | 'purge'>('edit'), confirmed = ref(false), confirmName = ref(''), downloading = ref(false)
-const usages = useQuery(computed(() => ({...driveUsagesQuery(selected.value?.file_id ?? 0), enabled: selected.value !== null, staleTime: 0})))
-const canConfirm = computed(() => !usages.isPending.value && !usages.isError.value && (action.value === 'purge' ? !usages.data.value?.length && confirmName.value === selected.value?.file?.name : !usages.data.value?.length || confirmed.value))
-function formatSize(size: number) {return size < 1024 ? `${size} B` : size < 1048576 ? `${(size / 1024).toFixed(1)} KiB` : `${(size / 1048576).toFixed(1)} MiB`}
-function inspect(file: DriveEntry, mode: 'edit' | 'trash' | 'purge' = 'edit') {selected.value = file; name.value = file.file?.name ?? ''; editCategory.value = file.category; editPinned.value = file.pinned; action.value = mode; confirmed.value = false; confirmName.value = ''}
-function closeDetails() {if (!change.isPending.value) selected.value = null}
-async function uploadFiles() {
-	if (batchActive.value || props.busy) return
-	const files = Array.from(input.value?.files ?? [])
-	if (!files.length) return
+const root = ref<HTMLElement | null>(null)
+const summary = ref<HTMLElement | null>(null)
+
+async function uploadFiles(chosen: File[]) {
+	if (batchActive.value || props.busy || !chosen.length) return
 	uploadController = new AbortController()
-	batchActive.value = true; batchUploaded.value = 0; batchTotal.value = files.length
+	batchActive.value = true
+	batchUploaded.value = 0
+	batchTotal.value = chosen.length
 	try {
-		await runUploadQueue(files, uploadController.signal,
+		await runUploadQueue(chosen, uploadController.signal,
 			(file, signal) => upload.mutateAsync({file, signal}),
-			() => {batchUploaded.value++; clearFilters(); trash.value = false},
+			() => {
+				batchUploaded.value++
+				clearFilters()
+				trash.value = false
+			},
 		)
 	} finally {
 		batchActive.value = false
 		if (input.value) input.value.value = ''
 	}
 }
-async function restore(file: DriveEntry) {await change.mutateAsync({id: file.file_id, body: {revision: file.revision, action: 'restore', name: '', category: '', pinned: false, confirm: false, confirm_name: ''}}).catch(() => undefined)}
-async function apply(mode: DriveChangeWritable['action']) {
-	if (!selected.value) return
-	const result = await change.mutateAsync({id: selected.value.file_id, body: {revision: selected.value.revision, action: mode, name: name.value, category: editCategory.value, pinned: editPinned.value, confirm: confirmed.value || mode === 'purge', confirm_name: confirmName.value}}).catch(() => undefined)
-	if (result) selected.value = null
-	else if (selected.value) {selected.value = query.data.value?.files?.find(f => f.file_id === selected.value?.file_id) ?? null; confirmed.value = false; confirmName.value = ''}
+
+function uploadChosenFiles() {
+	void uploadFiles(Array.from(input.value?.files ?? []))
 }
+
+// Only the page accepts drops: inside the picker the task page's own attachment drop zone stays in charge.
+const {isOverDropZone} = useDropZone(() => props.picker ? null : root.value, {
+	checkValidity: items => Array.from(items).some(item => item.kind === 'file'),
+	onDrop: dropped => {
+		if (dropped?.length) void uploadFiles(dropped)
+	},
+})
+
+const selected = ref<DriveEntry | null>(null)
+const name = ref('')
+const editCategory = ref('')
+const editPinned = ref(false)
+const action = ref<DetailAction>('edit')
+const confirmed = ref(false)
+const confirmName = ref('')
+const downloading = ref(false)
+const pendingId = ref<number | null>(null)
+const categoryListId = useId()
+const confirmId = useId()
+const usages = useQuery(computed(() => ({
+	...driveUsagesQuery(selected.value?.file_id ?? 0),
+	enabled: selected.value !== null,
+	staleTime: 0,
+})))
+const usageCount = computed(() => usages.data.value?.length ?? 0)
+const usagesReady = computed(() => !usages.isPending.value && !usages.isError.value)
+const canConfirm = computed(() => {
+	if (!usagesReady.value) return false
+	if (action.value === 'purge') return usageCount.value === 0 && confirmName.value === selected.value?.file?.name
+	return usageCount.value === 0 || confirmed.value
+})
+
+function inspect(file: DriveEntry, mode: DetailAction = 'edit') {
+	selected.value = file
+	name.value = file.file?.name ?? ''
+	editCategory.value = file.category
+	editPinned.value = file.pinned
+	action.value = mode
+	confirmed.value = false
+	confirmName.value = ''
+}
+
+function closeDetails() {
+	if (!change.isPending.value) selected.value = null
+}
+
+function choose(file: DriveEntry) {
+	if (!props.busy) emit('select', file)
+}
+
+function trashActionLabel(file: DriveEntry) {
+	if (file.purging) return t('drive.retryPurge')
+	return trash.value ? t('drive.restore') : t('drive.moveToTrash')
+}
+
+function trashAction(file: DriveEntry) {
+	if (change.isPending.value) return
+	if (trash.value && !file.purging) void restore(file)
+	else inspect(file, file.purging ? 'purge' : 'trash')
+}
+
+async function restore(file: DriveEntry) {
+	pendingId.value = file.file_id
+	await change.mutateAsync({
+		id: file.file_id,
+		body: {
+			revision: file.revision,
+			action: 'restore',
+			name: '',
+			category: '',
+			pinned: false,
+			confirm: false,
+			confirm_name: '',
+		},
+	}).catch(() => undefined)
+	if (pendingId.value === file.file_id) pendingId.value = null
+	// The restored card leaves the recycle bin list; keep keyboard focus inside the page instead of on <body>.
+	await nextTick()
+	if (!document.activeElement || document.activeElement === document.body) summary.value?.focus()
+}
+
+async function apply(mode: DriveChangeWritable['action']) {
+	const file = selected.value
+	if (!file) return
+	const result = await change.mutateAsync({
+		id: file.file_id,
+		body: {
+			revision: file.revision,
+			action: mode,
+			name: name.value,
+			category: editCategory.value,
+			pinned: editPinned.value,
+			confirm: confirmed.value || mode === 'purge',
+			confirm_name: confirmName.value,
+		},
+	}).catch(() => undefined)
+	if (selected.value !== file) return
+	if (result) {
+		selected.value = null
+		return
+	}
+	selected.value = files.value.find(f => f.file_id === file.file_id) ?? null
+	confirmed.value = false
+	confirmName.value = ''
+}
+
 async function download(file: DriveEntry) {
 	downloading.value = true
-	try {const blob = await client.fetchQuery(driveBlobQuery(file.file_id)); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = file.file?.name ?? 'file'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)} catch (e) {error(e)} finally {downloading.value = false}
+	try {
+		const blob = await client.fetchQuery(driveBlobQuery(file.file_id))
+		const url = URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = file.file?.name ?? 'file'
+		link.click()
+		setTimeout(() => URL.revokeObjectURL(url), 1000)
+	} catch (cause) {
+		error(cause)
+	} finally {
+		downloading.value = false
+	}
 }
 </script>
 
 <style scoped lang="scss">
 .drive-browser {
-inline-size: 100%;
-min-inline-size: 0;
-text-align: start;
+	--drive-field-height: max(2.25rem, var(--control-height));
+
+	position: relative;
+	inline-size: 100%;
+	min-inline-size: 0;
+	text-align: start;
 }
-.drive-heading, .drive-toolbar, .drive-card-actions, .drive-detail-actions, .drive-pagination {
-display: flex;
-align-items: center;
-gap: .75rem;
-flex-wrap: wrap;
+
+.drive-top {
+	display: grid;
+	gap: var(--space-3);
+	padding-block-end: var(--space-3);
+
+	@media screen and (min-width: $tablet) {
+		.drive-browser:not(.is-picker) & {
+			position: sticky;
+			inset-block-start: var(--header-height);
+			z-index: var(--layer-sticky);
+			padding-block-start: var(--space-2);
+			background: var(--surface-app);
+		}
+	}
 }
-.drive-heading {
-justify-content: space-between;
-margin-block-end: 1.25rem;
+
+.drive-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+
+	.button {
+		min-block-size: var(--drive-field-height);
+	}
 }
-.drive-heading h2 {
-font-size: 1.5rem;
-font-weight: 600;
-margin-block-end: .35rem;
+
+.drive-search {
+	position: relative;
+	flex: 1 1 16rem;
+	min-inline-size: 0;
+
+	.input {
+		padding-inline-start: calc(var(--space-3) * 2 + 1em);
+	}
 }
-.drive-heading p, .drive-summary, small {
-color: var(--grey-600);
+
+.drive-search-icon {
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-start: var(--space-3);
+	transform: translateY(-50%);
+	color: var(--text-tertiary);
+	pointer-events: none;
 }
-.drive-toolbar > .input {
-flex: 1 1 12rem;
-inline-size: auto;
+
+.drive-category {
+	flex: 1 1 10rem;
+	min-inline-size: 0;
+	max-inline-size: 14rem;
+
+	select {
+		inline-size: 100%;
+	}
 }
-.drive-toolbar label {
-white-space: nowrap;
+
+.drive-toggle {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-block-size: var(--drive-field-height);
+	min-inline-size: var(--drive-field-height);
+	padding-inline: var(--space-3);
+	border: 1px solid var(--border-default);
+	border-radius: $radius;
+	background: var(--surface);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-medium);
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		border-color: var(--border-strong);
+		color: var(--text-primary);
+	}
+
+	&.is-active {
+		border-color: hsla(var(--primary-hsl), .5);
+		background: var(--surface-selected);
+		color: var(--accent-text);
+	}
+
+	&:has(:focus-visible) {
+		@include focus-ring;
+	}
 }
+
+// Visually hidden but still focusable: the chip around it shows the state and the focus ring.
+.drive-toggle-input {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.drive-toolbar .drive-trash-toggle.is-active {
+	border-color: hsla(var(--primary-hsl), .5);
+	background-color: var(--surface-selected);
+	color: var(--accent-text);
+}
+
+.drive-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+}
+
 .drive-summary {
-margin-block: 1rem;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
 }
-.drive-grid {
-display: grid;
-grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
-gap: 1rem;
+
+.drive-view-toggle {
+	display: inline-flex;
+	gap: 1px;
+	padding: 1px;
+	border: 1px solid var(--border-default);
+	border-radius: $radius;
+	background: var(--surface);
 }
+
+.drive-view-option {
+	display: inline-grid;
+	place-items: center;
+	inline-size: var(--control-height-sm);
+	block-size: var(--control-height-sm);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&[aria-pressed='true'] {
+		background: var(--surface-selected);
+		color: var(--accent-text);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
+.drive-body {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.drive-note,
+.drive-upload-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--tint-info);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+}
+
+.drive-note {
+	flex-wrap: nowrap;
+	align-items: baseline;
+}
+
+.drive-note-icon {
+	flex: none;
+	color: var(--accent-text);
+}
+
+.drive-upload-progress {
+	flex: 1 1 8rem;
+	block-size: .375rem;
+	min-inline-size: 6rem;
+	overflow: hidden;
+	border: 0;
+	border-radius: var(--radius-full);
+	background: var(--surface-active);
+	accent-color: var(--primary);
+	appearance: none;
+
+	&::-webkit-progress-bar {
+		background: var(--surface-active);
+	}
+
+	&::-webkit-progress-value {
+		background: var(--primary);
+	}
+
+	&::-moz-progress-bar {
+		background: var(--primary);
+	}
+}
+
+.drive-files {
+	container-type: inline-size;
+	transition: opacity var(--motion-fast) var(--ease-standard);
+
+	&.is-refreshing {
+		opacity: .6;
+	}
+
+	&.is-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.75rem), 1fr));
+		gap: var(--space-2);
+
+		@media screen and (min-width: $tablet) {
+			grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+			gap: var(--space-3);
+		}
+	}
+
+	&.is-list {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-1);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+		box-shadow: var(--elevation-1);
+	}
+}
+
 .drive-card {
-min-inline-size: 0;
-overflow: hidden;
-border: 1px solid var(--grey-200);
-border-radius: 1rem;
-background: var(--white);
-transition: transform .18s ease, box-shadow .18s ease;
+	min-inline-size: 0;
+	transition: border-color var(--motion-fast) var(--ease-standard);
 }
-.drive-card:hover {
-transform: translateY(-2px);
-box-shadow: 0 6px 20px rgb(0 0 0 / 8%);
-}
+
 .drive-preview {
-display: block;
-padding: 0;
-border: 0;
-inline-size: 100%;
-block-size: 8.5rem;
-background: var(--grey-100);
-cursor: pointer;
+	display: grid;
+	place-items: center;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	background: var(--surface-sunken);
+	cursor: pointer;
 }
+
 .drive-card-body {
-padding: .8rem;
+	min-inline-size: 0;
 }
-.drive-card-body strong {
-display: block;
-overflow: hidden;
-text-overflow: ellipsis;
-white-space: nowrap;
+
+.drive-card-name {
+	display: -webkit-box;
+	overflow: hidden;
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-medium);
+	line-height: var(--leading-tight);
+	overflow-wrap: anywhere;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 }
+
+.drive-pin {
+	color: var(--accent-text);
+}
+
+.drive-card-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	margin-block-start: var(--space-1);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.drive-meta-separator {
+	margin-inline-end: var(--space-2);
+}
+
+.drive-card-category {
+	max-inline-size: 100%;
+	overflow: hidden;
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-active);
+	color: var(--text-secondary);
+	font-size: var(--text-2xs);
+	font-weight: var(--weight-medium);
+	line-height: var(--leading-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .drive-card-actions {
-margin-block-start: .5rem;
-gap: .25rem;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-1);
 }
-.drive-card-actions :deep(.button) {
-padding-inline: .5rem;
+
+.is-grid {
+	.drive-card {
+		display: flex;
+		flex-direction: column;
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+		box-shadow: var(--elevation-1);
+
+		&:hover {
+			border-color: var(--border-strong);
+		}
+
+		&:has(:focus-visible) {
+			border-color: var(--focus-ring-color);
+		}
+	}
+
+	.drive-preview {
+		--thumb-icon-size: var(--text-2xl);
+
+		inline-size: 100%;
+		aspect-ratio: 4 / 3;
+		border-start-start-radius: calc(var(--radius-md) - 1px);
+		border-start-end-radius: calc(var(--radius-md) - 1px);
+	}
+
+	.drive-card-body {
+		flex: 1;
+		padding: var(--space-2) var(--space-3) 0;
+	}
+
+	.drive-card-actions {
+		padding: var(--space-1) var(--space-2) var(--space-2);
+	}
+
+	.drive-choose {
+		flex: 1;
+	}
 }
-.drive-note, .drive-confirm {
-padding: 1rem;
-background: var(--grey-100);
-border-radius: .75rem;
-margin-block: 1rem;
+
+.is-list {
+	.drive-card {
+		display: grid;
+		grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+		align-items: center;
+		gap: var(--space-3);
+		min-block-size: 3rem;
+		padding-block: var(--space-1);
+		padding-inline: var(--space-2) var(--space-1);
+		border-radius: $radius;
+
+		&:hover,
+		&:has(:focus-visible) {
+			background: var(--surface-hover);
+		}
+
+		& + .drive-card {
+			margin-block-start: 1px;
+		}
+	}
+
+	.drive-preview {
+		--thumb-icon-size: var(--text-md);
+
+		inline-size: 2.25rem;
+		block-size: 2.25rem;
+		border-radius: var(--radius-sm);
+	}
+
+	.drive-card-meta {
+		margin-block-start: 0;
+	}
 }
-.drive-empty {
-padding: 3rem 1rem;
-text-align: center;
-color: var(--grey-600);
+
+@container (min-width: 36rem) {
+	.is-list .drive-card-body {
+		display: grid;
+		grid-template-areas: 'name category size date';
+		grid-template-columns: minmax(0, 1fr) minmax(0, 9rem) 5rem 7.5rem;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.is-list .drive-card-name {
+		grid-area: name;
+		-webkit-line-clamp: 1;
+	}
+
+	.is-list .drive-card-meta {
+		display: contents;
+		font-size: var(--text-sm);
+	}
+
+	.is-list .drive-card-category {
+		grid-area: category;
+		justify-self: start;
+	}
+
+	.is-list .drive-meta-size {
+		grid-area: size;
+		color: var(--text-tertiary);
+		font-size: var(--text-sm);
+		text-align: end;
+	}
+
+	.is-list .drive-meta-date {
+		grid-area: date;
+		color: var(--text-tertiary);
+		font-size: var(--text-sm);
+	}
+
+	.is-list .drive-meta-separator {
+		display: none;
+	}
 }
+
+.drive-skeleton {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.drive-skeleton-thumb,
+.drive-skeleton-line {
+	display: block;
+	border-radius: var(--radius-sm);
+	background: var(--surface-active);
+}
+
+.drive-skeleton-line {
+	block-size: .625rem;
+	inline-size: 80%;
+
+	&.is-short {
+		inline-size: 45%;
+	}
+}
+
+.is-grid .drive-skeleton {
+	padding-block-end: var(--space-3);
+	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+
+	.drive-skeleton-thumb {
+		aspect-ratio: 4 / 3;
+		border-radius: 0;
+	}
+
+	.drive-skeleton-line {
+		margin-inline: var(--space-3);
+	}
+}
+
+.is-list .drive-skeleton {
+	grid-template-columns: 2.25rem minmax(0, 1fr);
+	align-items: center;
+	min-block-size: 3rem;
+	padding-inline: var(--space-2);
+
+	.drive-skeleton-thumb {
+		grid-row: span 2;
+		block-size: 2.25rem;
+	}
+}
+
+.drive-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-3);
+	margin-block-start: var(--space-2);
+}
+
+.drive-page {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.drive-drop-hint {
+	position: absolute;
+	inset: 0;
+	z-index: var(--layer-dropdown);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	border: 2px dashed var(--accent-text);
+	border-radius: var(--radius-lg);
+	background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+	background-image: linear-gradient(var(--surface-selected), var(--surface-selected));
+	color: var(--accent-text);
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity var(--motion-fast) var(--ease-standard);
+
+	.is-drop-target & {
+		opacity: 1;
+	}
+}
+
+// Details dialog: an opaque raised panel; the Modal itself only paints the scrim.
 .drive-details {
-background: var(--site-background);
-color: var(--text);
-border: 1px solid var(--grey-200);
-border-radius: 1.25rem;
-box-shadow: 0 24px 80px rgb(0 0 0 / 20%);
-padding: clamp(1rem, 3vw, 1.5rem);
-text-align: start;
-overflow-wrap: anywhere;
+	color: var(--text-primary);
+	background: var(--surface-raised);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--elevation-3);
+	text-align: start;
+	overflow-wrap: anywhere;
+
+	.input {
+		background: var(--surface-raised);
+		color: var(--text-primary);
+
+		&::placeholder {
+			color: var(--text-tertiary);
+			opacity: 1;
+		}
+
+		&:disabled {
+			background: var(--surface-sunken);
+			color: var(--text-secondary);
+		}
+	}
 }
-.drive-details-heading, .drive-upload-status {
-display: flex;
-align-items: center;
-justify-content: space-between;
-gap: .75rem;
+
+.drive-details-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding-block: var(--space-2);
+	padding-inline: var(--space-5) var(--space-2);
+	border-block-end: 1px solid var(--border-subtle);
+
+	h2 {
+		margin: 0;
+		font-size: var(--text-lg);
+		font-weight: var(--weight-semibold);
+	}
 }
-.drive-details-heading h2 {
-font-size: 1.25rem;
-font-weight: 600;
+
+.drive-details-body {
+	display: grid;
+	gap: var(--space-5);
+	padding: var(--space-5);
+
+	@media screen and (min-width: $tablet) {
+		grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr);
+	}
 }
+
+.drive-details-file {
+	display: grid;
+	align-content: start;
+	gap: var(--space-3);
+}
+
 .drive-detail-preview {
-block-size: 12rem;
-background: var(--grey-100);
-border-radius: .75rem;
-overflow: hidden;
-margin-block: 1rem;
+	--thumb-icon-size: calc(var(--text-2xl) * 2);
+
+	display: grid;
+	aspect-ratio: 4 / 3;
+	max-block-size: 12rem;
+	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface-sunken);
+
+	@media screen and (min-width: $tablet) {
+		max-block-size: none;
+	}
+
+	:deep(img) {
+		object-fit: contain;
+	}
 }
-.drive-detail-preview :deep(img) {object-fit: contain;}
-.drive-empty :deep(.button) {margin: 1rem auto 0;
-display: flex;}
-.drive-details > label {
-display: block;
-margin-block: .9rem;
+
+.drive-detail-meta {
+	display: grid;
+	gap: var(--space-1);
+	margin: 0;
+	font-size: var(--text-sm);
+
+	> div {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+
+	dt {
+		flex: none;
+		color: var(--text-secondary);
+	}
+
+	dd {
+		min-inline-size: 0;
+		margin: 0;
+		text-align: end;
+		font-variant-numeric: tabular-nums;
+	}
 }
+
+.drive-details-main {
+	display: grid;
+	align-content: start;
+	gap: var(--space-4);
+	min-inline-size: 0;
+}
+
+.drive-field {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.drive-field-label {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+}
+
+.drive-check {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-2);
+	font-size: var(--text-md);
+	cursor: pointer;
+
+	input {
+		flex: none;
+	}
+}
+
+.drive-usages-section h3 {
+	margin-block-end: var(--space-2);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+}
+
 .drive-usages {
-max-block-size: 12rem;
-overflow-y: auto;
-padding-inline-start: 1.5rem;
+	max-block-size: 12rem;
+	margin: 0;
+	padding: 0;
+	overflow-y: auto;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	list-style: none;
+
+	li {
+		padding: var(--space-2) var(--space-3);
+		font-size: var(--text-sm);
+	}
+
+	li + li {
+		border-block-start: 1px solid var(--border-subtle);
+	}
 }
-.drive-detail-actions, .drive-pagination {
-margin-block-start: 1.5rem;
-justify-content: flex-end;
+
+.drive-muted {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
 }
-@media (prefers-reduced-motion: reduce) {
-.drive-card {
-transition: none;
-} .drive-card:hover {
-transform: none;
-} }
-.drive-details :deep(.input) {
-background: var(--site-background);
-color: var(--text);
+
+.drive-confirm {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-inline-start: 3px solid var(--warning);
+	border-radius: var(--radius-md);
+	background: var(--tint-warning);
+	font-size: var(--text-md);
+
+	&.is-danger {
+		border-inline-start-color: var(--danger);
+		background: var(--tint-danger);
+	}
 }
-.drive-details :deep(.input::placeholder) {
-color: var(--text-light);
-opacity: 1;
+
+.drive-detail-actions {
+	position: sticky;
+	inset-block-end: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-5);
+	border-block-start: 1px solid var(--border-subtle);
+	border-end-start-radius: calc(var(--radius-lg) - 1px);
+	border-end-end-radius: calc(var(--radius-lg) - 1px);
+	background: var(--surface-raised);
 }
-.drive-details :deep(.button.is-text) {
-color: var(--text);
+
+.drive-detail-actions-start,
+.drive-detail-actions-end {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
-@media (width <= 600px) {
-:global(.drive-dialog .modal-container .modal-content.is-wide) {
-margin: 1rem auto;
+
+.drive-detail-actions-end {
+	margin-inline-start: auto;
 }
+
+// Picker: the header and toolbar stay pinned inside the dialog's own scroller.
+.is-picker {
+	.drive-top {
+		position: sticky;
+		inset-block-start: 0;
+		z-index: var(--layer-sticky);
+		padding: var(--space-4) var(--space-5) var(--space-3);
+		border-block-end: 1px solid var(--border-subtle);
+		background: var(--surface-raised);
+	}
+
+	.drive-body {
+		padding: var(--space-4) var(--space-5) var(--space-5);
+	}
+
+	.input,
+	.select select,
+	.drive-toggle,
+	.drive-view-toggle {
+		background-color: var(--surface-raised);
+		color: var(--text-primary);
+	}
+
+	@media screen and (max-width: $tablet - 1px) {
+		.drive-top,
+		.drive-body {
+			padding-inline: var(--space-4);
+		}
+	}
+}
+
+.drive-picker-heading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+
+	h2 {
+		flex: 1 1 auto;
+		margin: 0;
+		font-size: var(--text-lg);
+		font-weight: var(--weight-semibold);
+	}
+}
+
+.drive-busy {
+	color: var(--accent-text);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-medium);
+
+	// Stays in the accessibility tree while empty so the status is announced when it fills.
+	&:empty {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+}
+
+.drive-picker-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+// Wide modals flow on phones; keep an even gutter on both sides of the panels.
+@media screen and (max-width: $tablet - 1px) {
+	:global(.modal-dialog.drive-dialog .modal-container .modal-content.is-wide) {
+		margin: var(--space-4) auto;
+	}
+}
+
+// Both drive dialogs carry their own close button inside the panel.
+:global(.modal-dialog.drive-dialog > .modal-container > .close) {
+	display: none;
 }
 </style>

@@ -1,18 +1,21 @@
 <template>
 	<div class="content workspace">
-		<header class="workspace-header">
-			<h1 class="workspace-title">
+		<PageHeader class="workspace-header">
+			<template #title>
 				{{ salutation ?? $t('workspace.title') }}
-			</h1>
-			<p class="workspace-date">
-				<time :datetime="todayIso">{{ todayLabel }}</time>
-			</p>
-		</header>
+			</template>
+			<template #description>
+				<time
+					class="workspace-date"
+					:datetime="todayIso"
+				>{{ todayLabel }}</time>
+			</template>
+		</PageHeader>
 
 		<Message
 			v-if="deletionScheduledAt !== null"
 			variant="danger"
-			class="mbe-4"
+			class="workspace-notice"
 		>
 			{{
 				$t('user.deletion.scheduled', {
@@ -41,6 +44,7 @@
 							<Icon
 								icon="check"
 								class="capture-feedback-icon"
+								aria-hidden="true"
 							/>
 							<i18n-t
 								keypath="workspace.capture.added"
@@ -69,6 +73,14 @@
 						</template>
 					</p>
 				</div>
+				<!-- Narrow layouts: the shortcuts would otherwise sit below up to a page of tasks. -->
+				<WorkspaceLinks
+					class="workspace-shortcuts"
+					heading-id="workspace-shortcuts-heading"
+					:heading="$t('workspace.links.heading')"
+					:links="links"
+					compact
+				/>
 				<ImportHint v-if="tasksLoaded" />
 				<WorkspaceTasks
 					ref="workspaceTasks"
@@ -84,6 +96,7 @@
 			>
 				<RecentProjects />
 				<WorkspaceLinks
+					class="workspace-side-links"
 					heading-id="workspace-links-heading"
 					:heading="$t('workspace.links.heading')"
 					:links="links"
@@ -102,6 +115,7 @@ import {useStorage} from '@vueuse/core'
 import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import AddTask from '@/components/tasks/AddTask.vue'
 import ImportHint from '@/components/home/ImportHint.vue'
 import WorkspaceTasks from '@/components/home/workspace/WorkspaceTasks.vue'
@@ -241,7 +255,7 @@ const links = computed<WorkspaceLink[]>(() => [
 		to: {name: 'projects.history'},
 		title: t('projectHistory.title'),
 		description: t('workspace.links.historyHint'),
-		icon: ['far', 'calendar-check'],
+		icon: 'chart-gantt',
 	},
 ])
 </script>
@@ -253,56 +267,53 @@ const links = computed<WorkspaceLink[]>(() => [
 	margin-inline: auto;
 }
 
-.workspace-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: .25rem 1rem;
-	margin-block-end: 1.25rem;
+// The root keeps Bulma's .content class (tests and the import hint rely on it); its rich-text
+// spacing must not leak into the task rows and side lists.
+.workspace-layout :deep(li + li) {
+	margin-block-start: 0;
 }
 
-// .content h1 brings Bulma's large margins; the workspace keeps one compact heading row.
-.content .workspace-title {
-	margin: 0;
-	color: var(--text-strong);
-	font-size: 1.75rem;
-	font-weight: 600;
-	line-height: 1.25;
-	overflow-wrap: anywhere;
-
-	@media screen and (max-width: $tablet) {
-		font-size: 1.375rem;
-	}
+.workspace-date {
+	font-variant-numeric: tabular-nums;
 }
 
-.content .workspace-date {
-	margin: 0;
-	color: var(--text-muted);
-	font-size: .9375rem;
+.workspace-notice {
+	margin-block-end: var(--space-4);
 }
 
 .workspace-layout {
 	display: grid;
-	gap: 1.5rem;
+	gap: var(--space-6);
 	align-items: start;
 }
 
 @container (min-width: 52rem) {
 	.workspace-layout {
 		grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
-		gap: 2rem;
+		gap: var(--space-8);
 	}
 
 	.workspace-side {
 		position: sticky;
-		inset-block-start: 1rem;
+		inset-block-start: calc(var(--header-height) + var(--space-4));
+	}
+
+	.workspace-shortcuts {
+		display: none;
+	}
+}
+
+@container (width < 52rem) {
+	// The shortcuts strip under the capture field replaces this copy.
+	.workspace-side-links {
+		display: none;
 	}
 }
 
 .workspace-main {
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
+	gap: var(--space-4);
 	min-inline-size: 0;
 
 	:deep(.task-add) {
@@ -314,10 +325,10 @@ const links = computed<WorkspaceLink[]>(() => [
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: .25rem .5rem;
-	margin: .5rem 0 0;
-	color: var(--text-muted);
-	font-size: .875rem;
+	gap: var(--space-1) var(--space-2);
+	margin: var(--space-2) 0 0;
+	color: var(--text-secondary);
+	font-size: var(--text-md);
 
 	// Collapsed, not display: none, so the live region exists before its first
 	// message and screen readers announce it.
@@ -327,12 +338,12 @@ const links = computed<WorkspaceLink[]>(() => [
 }
 
 .capture-feedback-icon {
-	color: var(--success);
+	color: color-mix(in srgb, var(--success) 70%, var(--text-primary));
 }
 
 .capture-feedback-action {
-	color: var(--primary);
-	font-weight: 600;
+	color: var(--accent-text);
+	font-weight: var(--weight-semibold);
 	text-decoration: underline;
 	text-underline-offset: .15em;
 }
@@ -340,16 +351,16 @@ const links = computed<WorkspaceLink[]>(() => [
 .workspace-side {
 	display: flex;
 	flex-direction: column;
-	gap: 1.5rem;
+	gap: var(--space-6);
 	min-inline-size: 0;
+}
 
-	:deep(.workspace-side-heading) {
-		margin: 0 0 .5rem;
-		padding-inline: .5rem;
-		color: var(--text-muted);
-		font-size: .8125rem;
-		font-weight: 600;
-		letter-spacing: .02em;
-	}
+:deep(.workspace-side-heading) {
+	margin: 0 0 var(--space-2);
+	padding-inline: var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
 }
 </style>

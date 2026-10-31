@@ -41,7 +41,7 @@ export function useMenuActive() {
 	}
 
 	function toggleMenu() {
-		menuActive.value = menuActive.value = !menuActive.value
+		menuActive.value = !menuActive.value
 	}
 
 	return {

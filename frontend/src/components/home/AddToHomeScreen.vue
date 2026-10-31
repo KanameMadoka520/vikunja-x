@@ -6,6 +6,7 @@
 		<Icon
 			icon="arrow-up-from-bracket"
 			class="add-icon"
+			aria-hidden="true"
 		/>
 		<p>
 			{{ $t('home.addToHomeScreen') }}
@@ -48,18 +49,24 @@ const shouldShowMessage = computed(() => {
 </script>
 
 <style lang="scss" scoped>
+// A quiet dismissible chip at the top of the page, not a dark band.
 .add-to-home-screen {
-	margin-block-end: 1rem;
-
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 1rem;
-	padding: .5rem 1rem;
-	background: var(--grey-900);
-	border-radius: $radius;
-	font-size: .9rem;
-	color: var(--grey-200);
+	gap: var(--space-3);
+	margin-block-end: var(--space-4);
+	padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	line-height: var(--leading-tight);
+
+	p {
+		flex: 1 1 auto;
+		min-inline-size: 0;
+	}
 
 	@media screen and (min-width: $tablet) {
 		display: none;
@@ -68,18 +75,27 @@ const shouldShowMessage = computed(() => {
 	@media print {
 		display: none;
 	}
-	
 }
 
 .add-icon {
-	color: var(--primary-light);
+	flex-shrink: 0;
+	color: var(--accent-text);
 }
 
 .hide-button {
-	min-inline-size: 44px;
-	min-block-size: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
-	padding: .25rem .5rem;
+	min-inline-size: var(--target-min);
+	min-block-size: var(--target-min);
+	border-radius: $radius;
+	color: var(--text-secondary);
 	cursor: pointer;
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
 }
 </style>

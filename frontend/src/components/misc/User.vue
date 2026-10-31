@@ -16,6 +16,7 @@
 				v-if="isBot"
 				v-tooltip="t('user.settings.bots.badge')"
 				class="bot-badge"
+				role="img"
 				:aria-label="$t('tcymc.bot')"
 			>B</span>
 		</span>
@@ -54,7 +55,7 @@ const isBot = computed(() => (props.user.bot_owner_id ?? props.user.botOwnerId ?
 <style lang="scss" scoped>
 .user {
 	display: flex;
-	justify-items: center;
+	align-items: center;
 
 	&.is-inline {
 		display: inline-flex;
@@ -65,7 +66,7 @@ const isBot = computed(() => (props.user.bot_owner_id ?? props.user.botOwnerId ?
 	position: relative;
 	display: inline-flex;
 	flex-shrink: 0;
-	margin-inline-end: .5rem;
+	margin-inline-end: var(--space-2);
 }
 
 .avatar {
@@ -88,12 +89,12 @@ const isBot = computed(() => (props.user.bot_owner_id ?? props.user.botOwnerId ?
 	min-block-size: 14px;
 	max-inline-size: 22px;
 	max-block-size: 22px;
-	font-size: .65rem;
-	font-weight: 700;
+	font-size: var(--text-2xs);
+	font-weight: var(--weight-bold);
 	line-height: 1;
-	color: var(--white);
+	color: var(--text-on-accent);
 	background: var(--primary);
-	border: 2px solid var(--white);
+	border: 2px solid var(--surface);
 	border-radius: 100%;
 	text-transform: uppercase;
 	pointer-events: auto;

@@ -1,14 +1,15 @@
-// FIXME: adapt labels.vue so that it can be used for this as well 
+// FIXME: adapt labels.vue so that it can be used for this as well
+// Used by the label editor in the task detail view.
 .labels-list {
   a, a:hover {
     text-decoration: none;
   }
 
   .tag {
-    margin: .5rem 0 .5rem .5rem;
+    margin-block: .5rem;
+    margin-inline: .5rem 0;
     background: var(--grey-200);
 
-    // FIXME: only used in ListLabels.vue
     &.disabled {
       opacity: 0.7;
 
@@ -19,11 +20,11 @@
   }
 
   .multiselect .tag {
-    margin: 0 0 0 .5rem;
+    margin-block: 0;
+    margin-inline: .5rem 0;
   }
 }
 
 .tasks .task span.tag span {
   width: auto;
 }
-

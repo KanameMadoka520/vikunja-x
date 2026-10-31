@@ -28,9 +28,15 @@ const {t} = useI18n({useScope: 'global'})
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: .5rem;
-	padding: .75rem;
-	font-size: .8rem;
-	color: var(--grey-600);
+	gap: var(--space-2);
+	padding: var(--space-2);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.tcy-brand:hover {
+	color: var(--text-primary);
 }
 </style>

@@ -12,7 +12,7 @@ const speed = computed(() => outputSpeed(props.step))
 	<details class="output-speed">
 		<summary>
 			{{ t(`outputSpeed.${speed.rate == null ? 'stream' : speed.mode}`) }}:
-			<strong v-if="speed.rate != null">{{ n(speed.rate, {maximumFractionDigits: 1, minimumFractionDigits: 1}) }} tokens/s</strong>
+			<strong v-if="speed.rate != null">{{ t('outputSpeed.rate', {rate: n(speed.rate, {maximumFractionDigits: 1, minimumFractionDigits: 1})}) }}</strong>
 			<span v-else>{{ t('outputSpeed.unavailable') }}</span>
 		</summary>
 		<div class="speed-explanation">
@@ -32,30 +32,40 @@ const speed = computed(() => outputSpeed(props.step))
 
 <style scoped lang="scss">
 .output-speed {
- margin-block: .75rem;
- color: var(--text-light);
- font-size: .75rem;
- font-variant-numeric: tabular-nums;
- overflow-wrap: anywhere;
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
 }
+
 summary {
- cursor: pointer;
- padding-block: .3rem;
+	padding-block: var(--space-1);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+
+	&:focus-visible {
+		@include focus-ring;
+	}
 }
+
 strong {
- font-weight: 500;
- color: var(--text);
+	color: var(--text-secondary);
+	font-weight: var(--weight-medium);
 }
+
 .speed-explanation {
- margin-block-start: .4rem;
- padding: .65rem .85rem;
- border-inline-start: 2px solid var(--grey-200);
- line-height: 1.6;
+	margin-block: var(--space-1) var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-inline-start: 2px solid var(--border-default);
+	color: var(--text-secondary);
+	line-height: var(--leading-normal);
 }
+
 p {
- margin: 0;
+	margin: 0;
 }
+
 p + p {
- margin-block-start: .4rem;
+	margin-block-start: var(--space-1);
 }
 </style>

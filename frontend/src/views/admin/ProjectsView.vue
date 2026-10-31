@@ -1,193 +1,200 @@
 <template>
-	<Card>
-		<div class="admin-projects">
-			<div class="admin-projects__toolbar">
-				<div class="admin-projects__search">
-					<FormInput
-						v-model="searchTerm"
-						type="text"
-						:placeholder="$t('admin.projects.searchPlaceholder')"
-						:aria-label="$t('admin.projects.searchPlaceholder')"
-						@input="onSearch"
+	<div class="settings-page">
+		<PageHeader :title="$t('project.projects')" />
+		<Card>
+			<div class="admin-projects">
+				<div class="admin-projects__toolbar">
+					<div class="admin-projects__search">
+						<FormInput
+							v-model="searchTerm"
+							type="text"
+							:placeholder="$t('admin.projects.searchPlaceholder')"
+							:aria-label="$t('admin.projects.searchPlaceholder')"
+							@input="onSearch"
+						/>
+					</div>
+					<Multiselect
+						v-model="ownerFilter"
+						class="admin-projects__owner-filter"
+						:loading="userSearchLoading"
+						:placeholder="$t('admin.projects.filterByOwner')"
+						:aria-label="$t('admin.projects.filterByOwner')"
+						:search-results="userResults"
+						:total-results="searchData?.total"
+						label="username"
+						@search="searchUsers"
+					>
+						<template #searchResult="{option}">
+							<User
+								v-if="typeof option !== 'string'"
+								:avatar-size="24"
+								:show-username="true"
+								:user="option"
+							/>
+						</template>
+					</Multiselect>
+					<FormCheckbox
+						v-model="excludeDefaultProjects"
+						:label="$t('admin.projects.hideDefaultProjects')"
 					/>
 				</div>
-				<Multiselect
-					v-model="ownerFilter"
-					class="admin-projects__owner-filter"
-					:loading="userSearchLoading"
-					:placeholder="$t('admin.projects.filterByOwner')"
-					:aria-label="$t('admin.projects.filterByOwner')"
-					:search-results="userResults"
-					:total-results="searchData?.total"
-					label="username"
-					@search="searchUsers"
-				>
-					<template #searchResult="{option}">
-						<User
-							v-if="typeof option !== 'string'"
-							:avatar-size="24"
-							:show-username="true"
-							:user="option"
-						/>
-					</template>
-				</Multiselect>
-				<FormCheckbox
-					v-model="excludeDefaultProjects"
-					:label="$t('admin.projects.hideDefaultProjects')"
-				/>
-			</div>
 
-			<p v-if="loading">
-				{{ $t('misc.loading') }}
-			</p>
-			<template v-else>
-				<div
-					class="loader-container"
-					:class="{'is-loading': showReloading}"
-					:aria-busy="reloading"
+				<p v-if="loading">
+					{{ $t('misc.loading') }}
+				</p>
+				<template v-else>
+					<div
+						class="loader-container"
+						:class="{'is-loading': showReloading}"
+						:aria-busy="reloading"
+					>
+						<table class="table admin-table has-actions is-hoverable is-fullwidth">
+							<thead>
+								<tr>
+									<th :aria-sort="ariaSort('id')">
+										{{ $t('misc.id') }}
+										<Sort
+											:order="sortBy.id"
+											:label="$t('misc.id')"
+											@click="sort('id', $event)"
+										/>
+									</th>
+									<th :aria-sort="ariaSort('title')">
+										{{ $t('project.title') }}
+										<Sort
+											:order="sortBy.title"
+											:label="$t('project.title')"
+											@click="sort('title', $event)"
+										/>
+									</th>
+									<th :aria-sort="ariaSort('owner')">
+										{{ $t('admin.projects.ownerLabel') }}
+										<Sort
+											:order="sortBy.owner"
+											:label="$t('admin.projects.ownerLabel')"
+											@click="sort('owner', $event)"
+										/>
+									</th>
+									<th :aria-sort="ariaSort('created')">
+										{{ $t('task.attributes.created') }}
+										<Sort
+											:order="sortBy.created"
+											:label="$t('task.attributes.created')"
+											@click="sort('created', $event)"
+										/>
+									</th>
+									<th :aria-sort="ariaSort('updated')">
+										{{ $t('task.attributes.updated') }}
+										<Sort
+											:order="sortBy.updated"
+											:label="$t('task.attributes.updated')"
+											@click="sort('updated', $event)"
+										/>
+									</th>
+									<th>{{ $t('navigation.settings') }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr
+									v-for="p in projects"
+									:key="p.id"
+								>
+									<td :data-label="$t('misc.id')">
+										{{ p.id }}
+									</td>
+									<td :data-label="$t('project.title')">
+										{{ p.title }}
+									</td>
+									<td :data-label="$t('admin.projects.ownerLabel')">
+										<User
+											v-if="p.owner"
+											:user="p.owner"
+											:avatar-size="24"
+										/>
+									</td>
+									<td :data-label="$t('task.attributes.created')">
+										<TimeDisplay :date="p.created" />
+									</td>
+									<td :data-label="$t('task.attributes.updated')">
+										<TimeDisplay :date="p.updated" />
+									</td>
+									<td class="actions">
+										<ProjectSettingsDropdown
+											:project="p"
+											:force-all-actions="true"
+										>
+											<template #before-delete>
+												<DropdownItem
+													icon="user-edit"
+													@click="openReassign(p)"
+												>
+													{{ $t('admin.projects.reassignOwner') }}
+												</DropdownItem>
+											</template>
+										</ProjectSettingsDropdown>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<PaginationEmit
+						v-if="totalPages > 1"
+						:total-pages="totalPages"
+						:current-page="currentPage"
+						@pageChanged="goToPage"
+					/>
+				</template>
+
+				<Modal
+					v-if="reassignTarget"
+					variant="hint-modal"
+					@close="closeReassign"
 				>
-					<table class="table has-actions is-striped is-hoverable is-fullwidth">
-						<thead>
-							<tr>
-								<th :aria-sort="ariaSort('id')">
-									{{ $t('misc.id') }}
-									<Sort
-										:order="sortBy.id"
-										:label="$t('misc.id')"
-										@click="sort('id', $event)"
-									/>
-								</th>
-								<th :aria-sort="ariaSort('title')">
-									{{ $t('project.title') }}
-									<Sort
-										:order="sortBy.title"
-										:label="$t('project.title')"
-										@click="sort('title', $event)"
-									/>
-								</th>
-								<th :aria-sort="ariaSort('owner')">
-									{{ $t('admin.projects.ownerLabel') }}
-									<Sort
-										:order="sortBy.owner"
-										:label="$t('admin.projects.ownerLabel')"
-										@click="sort('owner', $event)"
-									/>
-								</th>
-								<th :aria-sort="ariaSort('created')">
-									{{ $t('task.attributes.created') }}
-									<Sort
-										:order="sortBy.created"
-										:label="$t('task.attributes.created')"
-										@click="sort('created', $event)"
-									/>
-								</th>
-								<th :aria-sort="ariaSort('updated')">
-									{{ $t('task.attributes.updated') }}
-									<Sort
-										:order="sortBy.updated"
-										:label="$t('task.attributes.updated')"
-										@click="sort('updated', $event)"
-									/>
-								</th>
-								<th>{{ $t('navigation.settings') }}</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="p in projects"
-								:key="p.id"
+					<Card
+						class="has-no-shadow"
+						:title="$t('admin.projects.reassignTitle', {title: reassignTarget.title})"
+					>
+						<FormField :label="$t('admin.projects.newOwnerLabel')">
+							<Multiselect
+								v-model="selectedUser"
+								:loading="userSearchLoading"
+								:placeholder="$t('admin.searchUsersPlaceholder')"
+								:search-results="userResults"
+								:total-results="searchData?.total"
+								label="username"
+								@search="searchUsers"
 							>
-								<td>{{ p.id }}</td>
-								<td>{{ p.title }}</td>
-								<td>
+								<template #searchResult="{option}">
 									<User
-										v-if="p.owner"
-										:user="p.owner"
 										:avatar-size="24"
+										:show-username="true"
+										:user="option"
 									/>
-								</td>
-								<td>
-									<TimeDisplay :date="p.created" />
-								</td>
-								<td>
-									<TimeDisplay :date="p.updated" />
-								</td>
-								<td class="actions">
-									<ProjectSettingsDropdown
-										:project="p"
-										:force-all-actions="true"
-									>
-										<template #before-delete>
-											<DropdownItem
-												icon="user-edit"
-												@click="openReassign(p)"
-											>
-												{{ $t('admin.projects.reassignOwner') }}
-											</DropdownItem>
-										</template>
-									</ProjectSettingsDropdown>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-				<PaginationEmit
-					v-if="totalPages > 1"
-					:total-pages="totalPages"
-					:current-page="currentPage"
-					@pageChanged="goToPage"
-				/>
-			</template>
+								</template>
+							</Multiselect>
+						</FormField>
 
-			<Modal
-				v-if="reassignTarget"
-				variant="hint-modal"
-				@close="closeReassign"
-			>
-				<Card
-					class="has-no-shadow"
-					:title="$t('admin.projects.reassignTitle', {title: reassignTarget.title})"
-				>
-					<FormField :label="$t('admin.projects.newOwnerLabel')">
-						<Multiselect
-							v-model="selectedUser"
-							:loading="userSearchLoading"
-							:placeholder="$t('admin.searchUsersPlaceholder')"
-							:search-results="userResults"
-							:total-results="searchData?.total"
-							label="username"
-							@search="searchUsers"
-						>
-							<template #searchResult="{option}">
-								<User
-									:avatar-size="24"
-									:show-username="true"
-									:user="option"
-								/>
-							</template>
-						</Multiselect>
-					</FormField>
-
-					<template #footer>
-						<XButton
-							variant="tertiary"
-							@click="closeReassign"
-						>
-							{{ $t('misc.cancel') }}
-						</XButton>
-						<XButton
-							variant="primary"
-							:disabled="!selectedUser || showReassigning"
-							:loading="reassigning"
-							@click="doReassign()"
-						>
-							{{ $t('admin.projects.reassignOwner') }}
-						</XButton>
-					</template>
-				</Card>
-			</Modal>
-		</div>
-	</Card>
+						<template #footer>
+							<XButton
+								variant="tertiary"
+								@click="closeReassign"
+							>
+								{{ $t('misc.cancel') }}
+							</XButton>
+							<XButton
+								variant="primary"
+								:disabled="!selectedUser || showReassigning"
+								:loading="reassigning"
+								@click="doReassign()"
+							>
+								{{ $t('admin.projects.reassignOwner') }}
+							</XButton>
+						</template>
+					</Card>
+				</Modal>
+			</div>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -197,6 +204,7 @@ import {useDebounceFn} from '@vueuse/core'
 import type {AdminUser, Project} from '@/client/generated'
 import {adminProjectsQuery, adminUserSearchQuery, useReassignAdminProjectMutation} from '@/client/queries/admin'
 import Card from '@/components/misc/Card.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import Modal from '@/components/misc/Modal.vue'
 import PaginationEmit from '@/components/misc/PaginationEmit.vue'
 import XButton from '@/components/input/Button.vue'
@@ -272,6 +280,8 @@ async function doReassign() {
 </script>
 
 <style lang="scss" scoped>
+@import './adminTable';
+
 .admin-projects__toolbar {
 	display: flex;
 	flex-wrap: wrap;

@@ -4,46 +4,45 @@
 			'has-background': background,
 			'link-share-is-fullwidth': isFullWidth,
 		}"
-		:style="{'background-image': `url(${background})`}"
+		:style="backgroundStyle"
 		class="link-share-container"
 	>
-		<div class="has-text-centered link-share-view">
-			<Logo
-				v-if="logoVisible"
-				class="logo"
-			/>
-			<Message
-				v-if="projectLoadError"
-				variant="danger"
-				class="mbe-4"
-			>
-				{{ $t('sharing.projectLoadError') }}
-				<BaseButton
-					variant="secondary"
-					class="mls-2"
-					@click="retryProjectLoad"
+		<div class="link-share-view">
+			<header class="link-share-header">
+				<Logo
+					v-if="logoVisible"
+					class="link-share-logo"
+				/>
+				<Message
+					v-if="projectLoadError"
+					variant="danger"
+					class="link-share-error"
 				>
-					{{ $t('sharing.retry') }}
-				</BaseButton>
-			</Message>
-			<BaseButton
-				v-if="!projectLoadError && currentProject"
-				:to="getProjectRoute()"
-				variant="text"
-				class="project-title-button"
-				:class="{'m-0': !logoVisible}"
-			>
-				<h1 class="title clickable-title">
-					{{ currentProject?.title === '' ? $t('misc.loading') : currentProject?.title }}
+					{{ $t('sharing.projectLoadError') }}
+					<XButton
+						variant="secondary"
+						class="is-small mis-2"
+						:shadow="false"
+						@click="retryProjectLoad"
+					>
+						{{ $t('sharing.retry') }}
+					</XButton>
+				</Message>
+				<h1
+					v-else
+					class="title link-share-title"
+				>
+					<RouterLink
+						v-if="currentProject && projectRoute"
+						:to="projectRoute"
+					>
+						{{ currentProject.title === '' ? $t('misc.loading') : currentProject.title }}
+					</RouterLink>
+					<template v-else>
+						{{ $t('misc.loading') }}
+					</template>
 				</h1>
-			</BaseButton>
-			<h1
-				v-else-if="!projectLoadError"
-				:class="{'m-0': !logoVisible}"
-				class="title"
-			>
-				{{ $t('misc.loading') }}
-			</h1>
+			</header>
 			<Card
 				class="has-text-start view"
 				:has-content="false"
@@ -66,7 +65,6 @@ import {ensureProject} from '@/client/queries/projects'
 
 import Logo from '@/components/home/Logo.vue'
 import PoweredByLink from './PoweredByLink.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
 import Card from '@/components/misc/Card.vue'
 import Message from '@/components/misc/Message.vue'
 import {PROJECT_VIEW_KINDS} from '@/constants/projectView'
@@ -77,6 +75,10 @@ const route = useRoute()
 
 const {currentProject} = useCurrentProject()
 const background = computed(() => baseStore.background)
+// link-share.scss paints it on a fixed layer instead of the scrolling container.
+const backgroundStyle = computed(() => background.value
+	? {'--link-share-background': `url(${JSON.stringify(background.value)})`}
+	: undefined)
 const logoVisible = computed(() => baseStore.logoVisible)
 const projectLoadError = ref(false)
 
@@ -109,7 +111,7 @@ watch(() => route.params.projectId, ensureProjectLoaded, { immediate: true })
 
 onMounted(ensureProjectLoaded)
 
-function getProjectRoute() {
+const projectRoute = computed(() => {
 	if (!currentProject.value) return undefined
 
 	const hash = route.hash // Preserve link share hash
@@ -131,7 +133,7 @@ function getProjectRoute() {
 		params: { projectId },
 		hash,
 	}
-}
+})
 
 const isFullWidth = computed(() => {
 	const viewId = route.params?.viewId ?? null
@@ -150,53 +152,72 @@ const isFullWidth = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.link-share-container.has-background .view {
-	background-color: transparent;
-	border: none;
-}
-
-.logo {
-	max-inline-size: 300px;
-	inline-size: 90%;
-	margin: 1rem auto 2rem;
-	block-size: 100px;
-}
-
-.title {
-	text-shadow: 0 0 1rem var(--white);
-}
-
-.project-title-button {
-	background: none !important;
-	border: none !important;
-	padding: 0 !important;
-	text-decoration: none !important;
-	
-	&:hover .clickable-title {
-		opacity: 0.8;
-		cursor: pointer;
-	}
-}
-
-.clickable-title {
-	text-shadow: 0 0 1rem var(--white);
-	margin: 0;
-	
-	&:hover {
-		text-decoration: underline;
-	}
+.link-share-container {
+	padding: var(--space-4) var(--page-gutter) var(--space-6);
 }
 
 .link-share-view {
 	inline-size: 100%;
-	max-inline-size: $desktop;
-	margin: 0 auto;
+	max-inline-size: var(--page-max-width);
+	margin-inline: auto;
+
+	.link-share-is-fullwidth & {
+		max-inline-size: none;
+	}
 }
 
-.link-share-container.link-share-is-fullwidth {
-	.link-share-view {
-		max-inline-size: 100vw;
+.link-share-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2) var(--space-4);
+	margin-block-end: var(--space-4);
+
+	// Over a project picture the title gets a quiet surface instead of a glow.
+	.has-background & {
+		inline-size: fit-content;
+		max-inline-size: 100%;
+		padding: var(--space-2) var(--space-4);
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--surface) 90%, transparent);
+		box-shadow: var(--elevation-1);
 	}
+}
+
+.link-share-logo :deep(.logo) {
+	display: block;
+	inline-size: auto;
+	block-size: 1.75rem;
+	max-inline-size: 8rem;
+}
+
+.link-share-header .link-share-title {
+	min-inline-size: 0;
+	margin: 0;
+	color: var(--text-primary);
+	font-size: var(--text-xl);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+	overflow-wrap: anywhere;
+
+	a {
+		color: inherit;
+
+		&:hover {
+			color: var(--accent-text);
+			text-decoration: underline;
+			text-underline-offset: .2em;
+		}
+	}
+}
+
+.link-share-error {
+	flex: 1 1 100%;
+}
+
+.link-share-container.has-background .view {
+	background-color: transparent;
+	border: none;
 }
 
 .link-share-container:not(.has-background) {
@@ -205,7 +226,7 @@ const isFullWidth = computed(() => {
 		border: none;
 
 		.task-add {
-			padding: 1rem 0 0;
+			padding: var(--space-4) 0 0;
 		}
 	}
 }

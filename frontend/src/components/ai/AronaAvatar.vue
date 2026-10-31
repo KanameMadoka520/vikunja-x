@@ -22,10 +22,10 @@ withDefaults(defineProps<{size?: 'small' | 'normal' | 'large'}>(), {size: 'norma
 	flex-shrink: 0;
 	inline-size: 2rem;
 	block-size: 2rem;
+	border-radius: 50%;
+	background: var(--surface-selected);
 	object-fit: cover;
 	object-position: center 20%;
-	border-radius: 50%;
-	background: hsla(var(--primary-hsl), .15);
 	vertical-align: middle;
 
 	&--small {
@@ -36,7 +36,7 @@ withDefaults(defineProps<{size?: 'small' | 'normal' | 'large'}>(), {size: 'norma
 	&--large {
 		inline-size: 4.5rem;
 		block-size: 4.5rem;
-		margin-block-end: 1.25rem;
+		margin-block-end: var(--space-5);
 	}
 }
 </style>

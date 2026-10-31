@@ -102,9 +102,64 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .vue-notification {
-	z-index: 9999;
+	z-index: var(--layer-toast);
+	margin: 0 .5rem .5rem;
+	padding: .65rem .85rem;
+	border: 1px solid var(--border-default);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	color: var(--text-primary);
+	box-shadow: var(--elevation-3);
+	font-size: var(--text-md);
+	line-height: 1.45;
+	cursor: pointer;
+
+	&.success {
+		border-inline-start-color: var(--success);
+	}
+
+	&.warn {
+		border-inline-start-color: var(--warning);
+	}
+
+	&.error {
+		border-inline-start-color: var(--danger);
+	}
 }
 
+.notification-title {
+	font-weight: var(--weight-semibold);
+	margin-block-end: .125rem;
+}
+
+.notification-content {
+	color: var(--text-secondary);
+	overflow-wrap: anywhere;
+
+	.notification-title + & {
+		font-size: var(--text-sm);
+	}
+}
+</style>
+
+<style lang="scss">
+// The library fades with `transition: all .5s`; keep it to a short opacity/transform fade.
+.global-notification {
+	.vn-fade-enter-active,
+	.vn-fade-leave-active,
+	.vn-fade-move {
+		transition:
+			opacity var(--motion-base) var(--ease-standard),
+			transform var(--motion-base) var(--ease-standard);
+	}
+
+	.vn-fade-enter-from,
+	.vn-fade-leave-to {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
 </style>

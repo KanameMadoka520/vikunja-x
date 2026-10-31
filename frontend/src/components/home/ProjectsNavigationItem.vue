@@ -7,11 +7,15 @@
 		}"
 		:data-project-id="project.id"
 	>
-		<div class="navigation-item">
+		<div
+			class="navigation-item"
+			:class="{'is-current': isCurrent}"
+		>
 			<BaseButton
 				v-if="canCollapse && childProjects?.length > 0"
 				class="collapse-project-button"
 				:aria-label="$t('navigation.toggleChildProjects')"
+				:aria-expanded="childProjectsOpen"
 				@click="childProjectsOpen = !childProjectsOpen"
 			>
 				<Icon
@@ -22,7 +26,8 @@
 			<BaseButton
 				:to="{ name: 'project.index', params: { projectId: project.id} }"
 				class="list-menu-link"
-				:class="{'router-link-exact-active': currentProject?.id === project.id}"
+				:class="{'router-link-exact-active': isCurrent}"
+				:aria-current="isCurrent ? 'page' : undefined"
 			>
 				<span
 					v-if="!canCollapse || childProjects?.length === 0"
@@ -32,7 +37,6 @@
 					<ColorBubble
 						v-if="project.hex_color !== ''"
 						:color="project.hex_color"
-						:aria-label="$t('project.color')"
 					/>
 					<span
 						v-else-if="project.id < -1"
@@ -180,6 +184,8 @@ const projectList = useProjects()
 const projectFavoriteMutation = usePatchProjectFavoriteMutation()
 const savedFilterFavoriteMutation = usePatchSavedFilterFavoriteMutation()
 const {currentProject} = useCurrentProject()
+// Every view of the current project highlights its row, not only the exact project route.
+const isCurrent = computed(() => currentProject.value?.id === props.project.id)
 
 // Persist open state across browser reloads. Using a separate ref for the state 
 // allows us to use only one entry in local storage instead of one for every project id.
@@ -232,26 +238,45 @@ async function toggleProjectFavorite() {
 
 <style lang="scss" scoped>
 .list-menu {
-	transition: background-color $transition;
+	border-radius: var(--radius-sm);
 }
 
 .project-is-collapsed {
 	transform: rotate(-90deg);
+
+	[dir="rtl"] & {
+		transform: rotate(90deg);
+	}
 }
 
 .favorite {
-	transition: opacity $transition, color $transition;
-	opacity: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	inline-size: var(--control-height-sm);
+	block-size: var(--control-height-sm);
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+	transition:
+		opacity var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	&:hover,
 	&.is-favorite {
-		opacity: 1;
 		color: var(--warning);
 	}
 }
 
-.list-menu:hover > div > .favorite {
-	opacity: 1;
+// Fine pointers reveal the star on hover; touch keeps it visible so it can be reached at all.
+@media (hover: hover) and (pointer: fine) {
+	.favorite:not(.is-favorite) {
+		opacity: 0;
+	}
+
+	.list-menu:hover > div > .favorite {
+		opacity: 1;
+	}
 }
 
 .list-menu:hover .color-bubble-wrapper > .drag-handle {
@@ -264,28 +289,30 @@ async function toggleProjectFavorite() {
 
 .color-bubble-wrapper {
 	position: relative;
-	inline-size: 1rem;
-	block-size: 1rem;
 	display: flex;
 	align-items: center;
-	justify-content: flex-start;
-	margin-inline-end: .25rem;
+	justify-content: center;
 	flex-shrink: 0;
+	inline-size: 1rem;
+	block-size: 1rem;
 
-	.color-bubble, .icon {
-		transition: all $transition;
+	.color-bubble,
+	.icon {
 		position: absolute;
-		inline-size: 12px;
 		margin: 0 !important;
 		padding: 0 !important;
+		transition: opacity var(--motion-fast) var(--ease-standard);
+	}
+
+	.color-bubble {
+		inline-size: .625rem;
+		block-size: .625rem;
 	}
 }
 
 .drag-handle {
 	opacity: 0;
 	cursor: grab;
-	transition: opacity $transition;
-	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
@@ -297,13 +324,14 @@ async function toggleProjectFavorite() {
 }
 
 .project-menu-title {
+	min-inline-size: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
 .saved-filter-icon {
-	color: var(--grey-300) !important;
-	font-size: .75rem;
+	color: var(--text-tertiary) !important;
+	font-size: var(--text-xs);
 }
 
 @media (pointer: coarse) {
@@ -316,33 +344,30 @@ async function toggleProjectFavorite() {
 	}
 }
 
-.navigation-item {
-	position: relative;
-	transition: background-color $transition, box-shadow $transition;
+// The link is the row's main control, so its focus ring outlines the whole row.
+.navigation-item:has(> .list-menu-link:focus-visible) {
+	@include focus-ring;
+
+	outline-offset: 0;
 }
 
 .navigation-item:has(*:focus-visible) {
-	box-shadow: 0 0 0 2px hsla(var(--primary-hsl), 0.5);
-	background-color: var(--white);
-
-	.favorite, .menu-list-dropdown {
+	.favorite,
+	.menu-list-dropdown {
 		opacity: 1;
 	}
 }
 
-.navigation-item a:focus-visible {
-	// The focus ring is already added to the navigation-item, so we don't need to add it again.
-	box-shadow: none;
+.navigation-item > .list-menu-link:focus-visible {
+	outline: none;
 }
 
 .is-drop-target {
-	background-color: hsla(var(--primary-hsl), 0.15);
-	border-radius: $radius;
+	background-color: var(--surface-selected);
 
 	.navigation-item {
-		background-color: hsla(var(--primary-hsl), 0.1);
+		background-color: var(--surface-selected-strong);
 		box-shadow: inset 0 0 0 2px var(--primary);
-		border-radius: $radius;
 	}
 }
 </style>

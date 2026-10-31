@@ -3,7 +3,7 @@ for (const width of [1440, 390, 320]) {
  test(`Bark settings save separately and protect keys at ${width}px`, async ({authenticatedPage: page}) => {
   await page.setViewportSize({width, height: 950})
   await page.goto('/user/settings/push')
-  await expect(page.locator('.card-header-title').filter({hasText: 'Mobile push · Bark'})).toBeVisible()
+  await expect(page.getByRole('heading', {name: 'Mobile push · Bark'})).toBeVisible()
   await page.getByLabel('Device key', {exact: true}).fill('test-only-device-key')
   await page.getByRole('button', {name: 'Save push settings', exact: true}).click()
   await expect(page.getByLabel('Device key', {exact: true})).toHaveValue('')

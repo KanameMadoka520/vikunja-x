@@ -20,7 +20,7 @@ test.describe('Admin panel', () => {
 			await page.goto('/admin')
 
 			await expect(page.locator('.side-nav-shell > nav')).toBeVisible()
-			await expect(page.locator('.card-header-title', {hasText: 'Overview'})).toBeVisible()
+			await expect(page.getByRole('heading', {name: 'Overview', exact: true})).toBeVisible()
 			await expect(page.locator('.admin-overview__card').first()).toBeVisible()
 		})
 

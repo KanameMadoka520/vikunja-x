@@ -10,23 +10,23 @@
 				<Popup
 					placement="bottom-start"
 					:anchor="columnsTriggerEl"
+					sheet-on-mobile
+					:sheet-title="$t('project.table.columns')"
 				>
-					<template #trigger="{toggle}">
+					<template #trigger="{toggle, isOpen}">
 						<XButton
 							ref="columnsTrigger"
 							icon="th"
 							variant="secondary"
-							class="mie-2"
+							aria-haspopup="dialog"
+							:aria-expanded="isOpen"
 							@click.prevent.stop="toggle()"
 						>
 							{{ $t('project.table.columns') }}
 						</XButton>
 					</template>
-					<template #content="{isOpen}">
-						<Card
-							class="columns-filter"
-							:class="{'is-open': isOpen}"
-						>
+					<template #content>
+						<Card class="columns-filter">
 							<FancyCheckbox v-model="activeColumns.index">
 								#
 							</FancyCheckbox>
@@ -75,6 +75,16 @@
 							<FancyCheckbox v-model="activeColumns.createdBy">
 								{{ $t('task.attributes.createdBy') }}
 							</FancyCheckbox>
+							<template #footer>
+								<XButton
+									variant="tertiary"
+									:shadow="false"
+									class="is-small"
+									@click="resetColumns"
+								>
+									{{ $t('tcymc.reset') }}
+								</XButton>
+							</template>
 						</Card>
 					</template>
 				</Popup>
@@ -90,14 +100,21 @@
 
 		<template #default>
 			<div
-				:class="{'is-loading': loading}"
-				class="loader-container"
+				:class="{'is-loading': loading, 'is-refreshing': refreshing}"
+				class="loader-container project-table-body"
+				:aria-busy="refreshing || undefined"
 			>
 				<Card
 					:padding="false"
 					:has-content="false"
+					class="project-table-card"
 				>
-					<div class="has-horizontal-overflow">
+					<div
+						class="project-table-scroll"
+						tabindex="0"
+						role="region"
+						:aria-label="$t('project.table.title')"
+					>
 						<table class="table has-actions is-hoverable is-fullwidth mbe-0">
 							<thead>
 								<tr>
@@ -105,23 +122,25 @@
 										v-if="activeColumns.index"
 										:aria-sort="ariaSort('index')"
 									>
-										#
 										<Sort
 											:order="sortBy.index"
 											label="#"
 											@click="sort('index', $event)"
-										/>
+										>
+											#
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.done"
 										:aria-sort="ariaSort('done')"
 									>
-										{{ $t('task.attributes.done') }}
 										<Sort
 											:order="sortBy.done"
 											:label="$t('task.attributes.done')"
 											@click="sort('done', $event)"
-										/>
+										>
+											{{ $t('task.attributes.done') }}
+										</Sort>
 									</th>
 									<th v-if="activeColumns.project">
 										{{ $t('task.attributes.project') }}
@@ -130,23 +149,25 @@
 										v-if="activeColumns.title"
 										:aria-sort="ariaSort('title')"
 									>
-										{{ $t('task.attributes.title') }}
 										<Sort
 											:order="sortBy.title"
 											:label="$t('task.attributes.title')"
 											@click="sort('title', $event)"
-										/>
+										>
+											{{ $t('task.attributes.title') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.priority"
 										:aria-sort="ariaSort('priority')"
 									>
-										{{ $t('task.attributes.priority') }}
 										<Sort
 											:order="sortBy.priority"
 											:label="$t('task.attributes.priority')"
 											@click="sort('priority', $event)"
-										/>
+										>
+											{{ $t('task.attributes.priority') }}
+										</Sort>
 									</th>
 									<th v-if="activeColumns.labels">
 										{{ $t('task.attributes.labels') }}
@@ -158,12 +179,13 @@
 										v-if="activeColumns.dueDate"
 										:aria-sort="ariaSort('due_date')"
 									>
-										{{ $t('task.attributes.dueDate') }}
 										<Sort
 											:order="sortBy.due_date"
 											:label="$t('task.attributes.dueDate')"
 											@click="sort('due_date', $event)"
-										/>
+										>
+											{{ $t('task.attributes.dueDate') }}
+										</Sort>
 									</th>
 									<th v-if="activeColumns.commentCount">
 										{{ $t('task.attributes.commentCount') }}
@@ -172,67 +194,73 @@
 										v-if="activeColumns.startDate"
 										:aria-sort="ariaSort('start_date')"
 									>
-										{{ $t('task.attributes.startDate') }}
 										<Sort
 											:order="sortBy.start_date"
 											:label="$t('task.attributes.startDate')"
 											@click="sort('start_date', $event)"
-										/>
+										>
+											{{ $t('task.attributes.startDate') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.endDate"
 										:aria-sort="ariaSort('end_date')"
 									>
-										{{ $t('task.attributes.endDate') }}
 										<Sort
 											:order="sortBy.end_date"
 											:label="$t('task.attributes.endDate')"
 											@click="sort('end_date', $event)"
-										/>
+										>
+											{{ $t('task.attributes.endDate') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.percentDone"
 										:aria-sort="ariaSort('percent_done')"
 									>
-										{{ $t('task.attributes.percentDone') }}
 										<Sort
 											:order="sortBy.percent_done"
 											:label="$t('task.attributes.percentDone')"
 											@click="sort('percent_done', $event)"
-										/>
+										>
+											{{ $t('task.attributes.percentDone') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.doneAt"
 										:aria-sort="ariaSort('done_at')"
 									>
-										{{ $t('task.attributes.doneAt') }}
 										<Sort
 											:order="sortBy.done_at"
 											:label="$t('task.attributes.doneAt')"
 											@click="sort('done_at', $event)"
-										/>
+										>
+											{{ $t('task.attributes.doneAt') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.created"
 										:aria-sort="ariaSort('created')"
 									>
-										{{ $t('task.attributes.created') }}
 										<Sort
 											:order="sortBy.created"
 											:label="$t('task.attributes.created')"
 											@click="sort('created', $event)"
-										/>
+										>
+											{{ $t('task.attributes.created') }}
+										</Sort>
 									</th>
 									<th
 										v-if="activeColumns.updated"
 										:aria-sort="ariaSort('updated')"
 									>
-										{{ $t('task.attributes.updated') }}
 										<Sort
 											:order="sortBy.updated"
 											:label="$t('task.attributes.updated')"
 											@click="sort('updated', $event)"
-										/>
+										>
+											{{ $t('task.attributes.updated') }}
+										</Sort>
 									</th>
 									<th v-if="activeColumns.createdBy">
 										{{ $t('task.attributes.createdBy') }}
@@ -284,8 +312,7 @@
 										<AssigneeList
 											v-if="t.assignees.length > 0"
 											:assignees="t.assignees"
-											:avatar-size="28"
-											class="mis-1"
+											:avatar-size="24"
 											:inline="true"
 										/>
 									</td>
@@ -305,7 +332,7 @@
 										:date="t.end_date"
 									/>
 									<td v-if="activeColumns.percentDone">
-										{{ t.percent_done * 100 }}%
+										{{ Math.round(t.percent_done * 100) }}%
 									</td>
 									<DateTableCell
 										v-if="activeColumns.doneAt"
@@ -321,7 +348,7 @@
 									/>
 									<td v-if="activeColumns.createdBy">
 										<User
-											:avatar-size="27"
+											:avatar-size="24"
 											:show-username="false"
 											:user="t.created_by ?? {}"
 										/>
@@ -407,6 +434,10 @@ const SORT_BY_DEFAULT: SortBy = {
 }
 
 const activeColumns = useStorage('tableViewColumns', {...ACTIVE_COLUMNS_DEFAULT})
+
+function resetColumns() {
+	activeColumns.value = {...ACTIVE_COLUMNS_DEFAULT}
+}
 const sortBy = useStorage<SortBy>('tableViewSortBy', {...SORT_BY_DEFAULT})
 
 const taskList = useTaskList(
@@ -422,8 +453,10 @@ const {
 	currentPage,
 	sortByParam,
 } = taskList
-const loading = useDelayedLoading(taskList.loading)
 const tasks: Ref<TaskResponse[]> = taskList.tasks
+// The spinner overlay is for a first load only; a background refetch keeps the rows usable.
+const loading = useDelayedLoading(() => taskList.loading.value && tasks.value.length === 0)
+const refreshing = useDelayedLoading(() => taskList.loading.value && tasks.value.length > 0)
 
 watch(
 	() => activeColumns.value,
@@ -457,13 +490,56 @@ const taskDetailRoutes = computed(() => Object.fromEntries(
 </script>
 
 <style lang="scss" scoped>
+.project-table-body {
+	transition: opacity var(--motion-fast) var(--ease-standard);
+
+	&.is-refreshing {
+		opacity: .85;
+	}
+}
+
+// The table scrolls inside its own region, so the sticky header stays in view and phones never scroll the page sideways.
+.project-table-scroll {
+	max-block-size: max(20rem, calc(100dvh - var(--header-height) - 10rem));
+	overflow: auto;
+	overscroll-behavior-inline: contain;
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: -2px;
+	}
+}
+
 .table {
 	background: transparent;
-	overflow-x: auto;
-	overflow-y: hidden;
+	font-size: var(--text-md);
 
-	th {
+	th,
+	td {
+		padding: var(--space-2) var(--space-3);
+		border-color: var(--border-subtle);
+		vertical-align: middle;
+	}
+
+	thead th {
+		position: sticky;
+		inset-block-start: 0;
+		z-index: var(--layer-sticky);
+		border-block-end-width: 0;
+		background: var(--surface);
+		box-shadow: inset 0 -1px 0 var(--border-default);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
 		white-space: nowrap;
+	}
+
+	tbody tr:hover {
+		background-color: var(--surface-hover);
+	}
+
+	tbody tr:last-child td {
+		border-block-end-width: 0;
 	}
 
 	.user {
@@ -473,12 +549,22 @@ const taskDetailRoutes = computed(() => Object.fromEntries(
 
 .columns-filter {
 	margin: 0;
+	min-inline-size: min(15rem, calc(100vw - 2 * var(--space-4)));
 
-	:deep(.card-content .content) {
-		display: flex;
-		flex-direction: column;
+	:deep(.card-content) {
+		max-block-size: min(24rem, 60dvh);
+		overflow-y: auto;
 	}
 
+	:deep(.card-content .content) {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+		gap: 0 var(--space-3);
+	}
+
+	:deep(.card-footer) {
+		justify-content: flex-end;
+	}
 }
 
 .link-share-view .card {

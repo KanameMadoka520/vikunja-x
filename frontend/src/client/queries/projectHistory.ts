@@ -2,6 +2,7 @@ import {queryOptions, useMutation} from '@tanstack/vue-query'
 import {projectHistory, projectCompletion, type ProjectHistoryData} from '@/client/generated'
 import {contextMutationOptions} from './contextMutation'
 import {projectKeys} from './projects'
+import {projectTimelineKeys} from './projectTimeline'
 
 export function projectHistoryQuery(query: NonNullable<ProjectHistoryData['query']>) {
 	return queryOptions({
@@ -23,6 +24,7 @@ export function useProjectCompletionMutation() {
 			client.invalidateQueries({queryKey: projectKeys.list()}),
 			client.invalidateQueries({queryKey: projectKeys.detail(id)}),
 			client.invalidateQueries({queryKey: ['project-history']}),
+			client.invalidateQueries({queryKey: projectTimelineKeys.all}),
 		]),
 	}))
 }

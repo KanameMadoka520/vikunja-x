@@ -24,12 +24,14 @@
 						v-if="tertiary !== ''"
 						:shadow="false"
 						variant="tertiary"
+						class="create-edit__tertiary"
 						@click.prevent.stop="$emit('tertiary', $event)"
 					>
 						{{ tertiary }}
 					</XButton>
 					<XButton
 						variant="secondary"
+						:shadow="false"
 						@click.prevent.stop="goBack()"
 					>
 						{{ $t('misc.cancel') }}
@@ -39,7 +41,6 @@
 						variant="primary"
 						:icon="primaryIcon || undefined"
 						:disabled="isBusy"
-						class="mis-2"
 						:loading="currentLoading"
 						@click.prevent.stop="primary"
 					>
@@ -108,3 +109,10 @@ function primary(event: MouseEvent) {
 	setLoading(true)
 }
 </script>
+
+<style lang="scss" scoped>
+// The secondary action (e.g. Delete) sits apart from Cancel and the primary action.
+.create-edit__tertiary {
+	margin-inline-end: auto;
+}
+</style>

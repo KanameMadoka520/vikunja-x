@@ -15,7 +15,7 @@
 				type="color"
 				:list="colorListID"
 				:class="{'is-empty': isEmpty}"
-				:aria-label="$t('input.projectColor')"
+				:aria-label="label || $t('input.projectColor')"
 				@input="onInput"
 			>
 			<svg
@@ -108,6 +108,11 @@ import {computePosition, autoUpdate, offset, flip, shift} from '@floating-ui/dom
 import {createRandomID} from '@/helpers/randomId'
 import XButton from '@/components/input/Button.vue'
 
+const {label = ''} = defineProps<{
+	/** Accessible name of the colour input; defaults to the project colour wording. */
+	label?: string
+}>()
+
 const model = defineModel<string>({ required: true })
 
 const palettes = {
@@ -183,9 +188,9 @@ function reset() {
 
 <style lang="scss" scoped>
 .color-picker-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 
 	// reset / see https://stackoverflow.com/a/11471224/15522256
 	input[type="color"] {
@@ -207,12 +212,15 @@ function reset() {
 		block-size: $picker-size;
 		overflow: hidden;
 		border-radius: 100%;
-		border: $border-width solid var(--grey-300);
-		box-shadow: $shadow;
+		border: $border-width solid var(--border-strong);
 
 		& > * {
 			grid-row: 1;
 			grid-column: 1;
+		}
+
+		&:has(:focus-visible) {
+			@include focus-ring;
 		}
 	}
 
@@ -220,51 +228,78 @@ function reset() {
 		padding: 0;
 		inline-size: $picker-size - 2 * $border-width;
 		block-size: $picker-size - 2 * $border-width;
+		cursor: pointer;
 	}
 
 	.picker__input.is-empty {
 		opacity: 0;
 	}
-	
+
 	.picker__pattern {
 		pointer-events: none;
 	}
 }
-.color-presets { position: relative;
-margin-inline-start: .6rem;
-font-size: .8rem;
+
+.color-presets {
+	position: relative;
+	margin-inline-start: var(--space-2);
+	font-size: var(--text-sm);
 }
-.color-presets summary { cursor: pointer;
-min-block-size: 2rem;
-display: flex;
-align-items: center;
+
+.color-presets summary {
+	display: flex;
+	align-items: center;
+	min-block-size: max(2rem, var(--target-min));
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	cursor: pointer;
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	// The global ring rule in theme.scss does not cover <summary>.
+	&:focus-visible {
+		@include focus-ring;
+	}
 }
-.palette-panel { position: fixed;
-z-index: 40;
-inline-size: min(18rem, 70vw);
-background: var(--site-background);
-border: 1px solid var(--grey-300);
-border-radius: .8rem;
-padding: .75rem;
-box-shadow: 0 10px 30px #00000022;
+
+.palette-panel {
+	position: fixed;
+	z-index: var(--layer-dropdown);
+	inline-size: min(18rem, calc(100vw - 1.5rem));
+	padding: var(--space-3);
 }
-.palette-panel select { inline-size: 100%;
-margin-block-end: .6rem;
+
+.palette-panel select {
+	inline-size: 100%;
+	margin-block-end: var(--space-3);
 }
-.swatches { display: grid;
-grid-template-columns: repeat(8, 1fr);
-gap: .35rem;
+
+.swatches {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: var(--space-1);
 }
-.swatches button { aspect-ratio: 1;
-min-block-size: 24px;
-border: 1px solid #88888844;
-border-radius: .45rem;
-cursor: pointer;
-transition: transform .16s ease;
-}
-.swatches button:hover { transform: scale(1.16);
-}
-.swatches button[aria-pressed="true"] { outline: 2px solid var(--primary);
-outline-offset: 2px;
+
+// Swatches include white and near-black, so the edge uses the strong hairline.
+.swatches button {
+	aspect-ratio: 1;
+	min-block-size: 24px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: transform var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		transform: scale(1.08);
+	}
+
+	&[aria-pressed="true"] {
+		outline: 2px solid var(--primary);
+		outline-offset: 2px;
+	}
 }
 </style>

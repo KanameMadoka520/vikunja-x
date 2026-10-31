@@ -36,32 +36,37 @@ const textAlignClass = computed(() => TEXT_ALIGN_MAP[props.textAlign])
 
 <style lang="scss" scoped>
 .message-wrapper {
-	border-radius: $radius;
-	background: var(--white);
+	border-radius: var(--radius-md);
+	background: var(--surface);
 }
 
+// A coloured leading rule and a faint tint; the text keeps the normal colour for contrast.
 .message {
-	padding: .75rem 1rem;
-	border-radius: $radius;
+	padding: .65rem .9rem;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border-subtle);
+	border-inline-start-width: 3px;
+	font-size: var(--text-md);
+	color: var(--text-primary);
 }
 
 .info {
-	border: 1px solid var(--primary);
-	background: hsla(var(--primary-hsl), .05);
+	border-inline-start-color: var(--primary);
+	background: var(--tint-info);
 }
 
 .danger {
-	border: 1px solid var(--danger);
-	background: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .05);
+	border-inline-start-color: var(--danger);
+	background: var(--tint-danger);
 }
 
 .warning {
-	border: 1px solid var(--warning);
-	background: hsla(var(--warning-h), var(--warning-s), var(--warning-l), .05);
+	border-inline-start-color: var(--warning);
+	background: var(--tint-warning);
 }
 
 .success {
-	border: 1px solid var(--success);
-	background: hsla(var(--success-h), var(--success-s), var(--success-l), .05);
+	border-inline-start-color: var(--success);
+	background: var(--tint-success);
 }
 </style>

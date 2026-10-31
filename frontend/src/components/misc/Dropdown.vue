@@ -56,6 +56,8 @@ defineProps({
 
 const emit = defineEmits<{
 	'close': [event: PointerEvent]
+	// The menu is placed and visible, so its items can take focus.
+	'shown': []
 }>()
 
 defineSlots<{
@@ -165,6 +167,10 @@ watch(open, async isOpen => {
 	if (open.value && dropdown.value && dropdownMenu.value) stopPositioning = autoUpdate(dropdown.value, dropdownMenu.value, updatePosition)
 })
 onBeforeUnmount(() => stopPositioning?.())
+// Post flush: the menu stays visibility:hidden, and so unfocusable, until the DOM has the new style.
+watch(positioned, isPositioned => {
+	if (isPositioned) emit('shown')
+}, {flush: 'post'})
 
 onClickOutside(dropdown, (e) => {
 	if (!open.value) {
@@ -197,18 +203,18 @@ onClickOutside(dropdown, (e) => {
 .dropdown-content {
 	max-block-size: var(--dropdown-max-height, none);
 	overflow-y: auto;
-	background-color: var(--scheme-main);
-	border-radius: $radius;
-	padding-block-end: .5rem;
-	padding-block-start: .5rem;
-	box-shadow: var(--shadow-md);
+	background-color: var(--surface-raised);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	padding: .3rem;
+	box-shadow: var(--elevation-3);
 }
 
 .dropdown-divider {
-	background-color: var(--border-light);
+	background-color: var(--border-subtle);
 	border: none;
 	display: block;
 	block-size: 1px;
-	margin: 0.5rem 0;
+	margin: .3rem -.3rem;
 }
 </style>

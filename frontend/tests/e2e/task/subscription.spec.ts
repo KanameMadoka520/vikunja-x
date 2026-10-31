@@ -9,7 +9,7 @@ test('task subscription survives reload and can be removed', async ({authenticat
 	const [task] = await TaskFactory.create(1, {project_id: project.id})
 	const headers = {Authorization: `Bearer ${userToken}`}
 	await page.goto(`/tasks/${task.id}`)
-	const actions = page.locator('.task-view .action-buttons')
+	const actions = page.locator('.task-view .task-primary-actions')
 	await actions.getByRole('button', {name: 'Subscribe', exact: true}).click()
 	await expect(actions.getByRole('button', {name: 'Unsubscribe', exact: true})).toBeVisible()
 	await page.reload()

@@ -1,11 +1,14 @@
 <template>
-	<section
+	<component
+		:is="compact ? 'nav' : 'section'"
 		class="workspace-side-section workspace-links"
+		:class="{'is-compact': compact}"
 		:aria-labelledby="headingId"
 	>
 		<h2
 			:id="headingId"
 			class="workspace-side-heading"
+			:class="{'is-sr-only': compact}"
 		>
 			{{ heading }}
 		</h2>
@@ -32,18 +35,26 @@
 							:icon="link.icon"
 						/>
 					</span>
-					<span class="workspace-link-text">
+					<span
+						v-if="compact"
+						class="workspace-link-title"
+					>{{ link.title }}</span>
+					<span
+						v-else
+						class="workspace-link-text"
+					>
 						<span class="workspace-link-title">{{ link.title }}</span>
 						<span class="workspace-link-description">{{ link.description }}</span>
 					</span>
 					<Icon
+						v-if="!compact"
 						icon="angle-right"
 						class="workspace-link-chevron is-mirrored-rtl"
 					/>
 				</RouterLink>
 			</li>
 		</ul>
-	</section>
+	</component>
 </template>
 
 <script setup lang="ts">
@@ -62,11 +73,15 @@ export interface WorkspaceLink {
 	arona?: boolean
 }
 
-defineProps<{
+withDefaults(defineProps<{
 	heading: string
 	headingId: string
 	links: WorkspaceLink[]
-}>()
+	// A single row of pills (titles only) for narrow layouts.
+	compact?: boolean
+}>(), {
+	compact: false,
+})
 </script>
 
 <style lang="scss" scoped>
@@ -79,16 +94,16 @@ defineProps<{
 .workspace-link {
 	display: flex;
 	align-items: center;
-	gap: .75rem;
-	padding: .5rem;
-	border-radius: $radius-large;
-	color: var(--text);
+	gap: var(--space-3);
+	padding: var(--space-2);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
 
 	&:hover {
-		background: var(--grey-100);
+		background: var(--surface-hover);
 
 		.workspace-link-chevron {
-			color: var(--text-muted);
+			color: var(--text-tertiary);
 		}
 	}
 }
@@ -100,13 +115,13 @@ defineProps<{
 	flex-shrink: 0;
 	inline-size: 2rem;
 	block-size: 2rem;
-	border-radius: 50%;
-	background: var(--grey-100);
-	color: var(--primary);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
 
 	svg {
-		inline-size: .9rem;
-		block-size: .9rem;
+		inline-size: .875rem;
+		block-size: .875rem;
 	}
 }
 
@@ -118,24 +133,57 @@ defineProps<{
 }
 
 .workspace-link-title {
-	color: var(--text-strong);
-	font-weight: 600;
-	line-height: 1.3;
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
 }
 
 .workspace-link-description {
-	color: var(--text-muted);
-	font-size: .8125rem;
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 	line-height: 1.35;
 }
 
 .workspace-link-chevron {
 	flex-shrink: 0;
-	color: var(--grey-300);
-	transition: color $transition-duration ease;
+	color: var(--border-strong);
+}
 
-	@media (prefers-reduced-motion: reduce) {
-		transition: none;
+.is-compact {
+	.workspace-link-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.workspace-link {
+		gap: var(--space-2);
+		min-block-size: var(--control-height);
+		padding-block: 0;
+		padding-inline: var(--space-1) var(--space-3);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-full);
+		background: var(--surface);
+
+		&:hover {
+			background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+		}
+	}
+
+	.workspace-link-icon {
+		inline-size: 1.5rem;
+		block-size: 1.5rem;
+
+		svg {
+			inline-size: .75rem;
+			block-size: .75rem;
+		}
+	}
+
+	.workspace-link-title {
+		font-weight: var(--weight-medium);
+		white-space: nowrap;
 	}
 }
 </style>

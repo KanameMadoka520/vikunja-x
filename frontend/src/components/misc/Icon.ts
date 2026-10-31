@@ -105,6 +105,14 @@ import {
 	faUmbrellaBeach,
 	faCalendarPlus,
 	faFlagCheckered,
+	faChartGantt,
+	faCircleCheck,
+	faEnvelope,
+	faKey,
+	faServer,
+	faShieldHalved,
+	faSliders,
+	faUserGear,
 } from '@fortawesome/free-solid-svg-icons'
 import {
 	faBellSlash,
@@ -119,6 +127,7 @@ import {
 	faTimesCircle,
 	faCircleQuestion, faFaceLaugh,
 	faCalendarCheck,
+	faCircle as faCircleRegular,
 } from '@fortawesome/free-regular-svg-icons'
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
 
@@ -184,6 +193,7 @@ library.add(faEye)
 library.add(faEyeSlash)
 library.add(faFillDrip)
 library.add(faFilter)
+library.add(faChartGantt)
 library.add(faForward)
 library.add(faGripLines)
 library.add(faHeader)
@@ -244,6 +254,8 @@ library.add(faUmbrellaBeach)
 library.add(faCalendarPlus)
 library.add(faFlagCheckered)
 library.add(faCalendarCheck)
+library.add(faCircleCheck)
+library.add(faCircleRegular)
 library.add(faFaceLaugh)
 library.add(faExclamation)
 library.add(faArrowUpRightFromSquare)
@@ -253,3 +265,9 @@ export default FontAwesomeIcon as unknown as FontAwesomeIconFixedTypes
 
 library.add(faCompress)
 library.add(faArrowUp)
+library.add(faEnvelope)
+library.add(faKey)
+library.add(faServer)
+library.add(faShieldHalved)
+library.add(faSliders)
+library.add(faUserGear)

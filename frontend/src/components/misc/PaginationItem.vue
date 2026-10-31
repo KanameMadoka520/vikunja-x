@@ -1,8 +1,10 @@
 <template>
+	<!-- Explicit aria-current: RouterLink ignores the query, so it would mark every page link as current. -->
 	<BaseButton
 		:to="to"
 		:disabled="disabled"
 		:class="[`pagination-${variant}`, {'is-current': isCurrent}]"
+		:aria-current="isCurrent ? 'page' : 'false'"
 		@click="emit('click')"
 	>
 		<slot />
@@ -40,76 +42,57 @@ const emit = defineEmits<{
 .pagination-link {
 	appearance: none;
 	align-items: center;
-	border: 1px solid transparent;
-	border-radius: $radius;
-	box-shadow: none;
 	display: inline-flex;
-	font-size: 1em;
-	block-size: 2.5em;
 	justify-content: center;
-	line-height: 1.5;
-	margin: 0.25rem;
-	padding: calc(0.5em - 1px) 0.5em;
 	position: relative;
+	min-block-size: var(--control-height);
+	min-inline-size: var(--control-height);
+	margin: var(--space-1);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-default);
+	border-radius: $radius;
+	background-color: var(--surface);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-medium);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.5;
 	text-align: center;
 	vertical-align: top;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard);
 
 	-webkit-touch-callout: none;
 	user-select: none;
 
-	&:focus,
-	&:active {
-		outline: none;
+	&:hover {
+		border-color: var(--border-strong);
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
 	}
 
 	&[disabled],
 	&[aria-disabled='true'],
 	fieldset[disabled] & {
 		cursor: not-allowed;
-	}
-
-	border-color: var(--border);
-	color: var(--text-strong);
-	min-inline-size: 2.5em;
-
-	&:hover {
-		border-color: var(--link-hover-border);
-		color: var(--link-hover);
-	}
-
-	&:focus {
-		border-color: var(--link-focus-border);
-	}
-
-	&:active {
-		box-shadow: inset 0 1px 2px rgba($scheme-invert, 0.2);
-	}
-
-	&[disabled],
-	&[aria-disabled='true'] {
-		background-color: var(--border);
-		border-color: var(--border);
-		box-shadow: none;
-		color: var(--text-light);
-		opacity: 0.5;
+		opacity: .5;
+		background-color: transparent;
+		background-image: none;
+		border-color: var(--border-subtle);
 	}
 }
 
 .pagination-previous,
 .pagination-next {
-	padding-inline: 0.75em;
+	padding-inline: var(--space-3);
 	white-space: nowrap;
-
-	&:not([disabled], [aria-disabled='true']):hover {
-		background: $scheme-main;
-		cursor: pointer;
-	}
 }
 
 .pagination-link.is-current {
-	background-color: var(--link);
-	border-color: var(--link);
-	color: var(--link-invert);
+	background-color: var(--primary);
+	background-image: none;
+	border-color: var(--primary);
+	color: var(--text-on-accent);
 }
 
 @media screen and (max-width: $tablet - 1px) {
@@ -145,6 +128,6 @@ const emit = defineEmits<{
 // Previously lived in styles/theme/background.scss, then BasePagination.vue.
 .app-container.has-background .pagination-link:not(.is-current),
 .link-share-container.has-background .pagination-link:not(.is-current) {
-	background: var(--grey-100);
+	background-color: var(--surface);
 }
 </style>

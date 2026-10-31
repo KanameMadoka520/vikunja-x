@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="loader-container"
+		class="project-view-shell loader-container"
 		:class="{
 			'is-loading': isLoadingProject,
 			'is-archived': currentProject.is_archived,
@@ -15,71 +15,96 @@
 			class="switch-view-container d-print-none"
 			:class="{'is-justify-content-flex-end': views.length === 1}"
 		>
-			<!-- Dropdown mode when buttons overflow -->
-			<Dropdown
-				v-if="isOverflowing && views.length > 1"
-				class="switch-view-dropdown"
-			>
-				<template #trigger="{ toggleOpen, open }">
-					<BaseButton
-						class="switch-view switch-view-dropdown-trigger"
-						:aria-expanded="open"
-						@click="toggleOpen"
-					>
-						{{ activeViewTitle }}
-						<Icon
-							icon="chevron-down"
-							class="dropdown-icon"
-						/>
-					</BaseButton>
-				</template>
-				<template #default="{ close }">
-					<div @click="close">
-						<DropdownItem
-							v-for="view in views"
-							:key="view.id"
-							:to="getViewRoute(view)"
-							:class="{'is-active': view.id === viewId}"
-						>
-							{{ getViewTitle(view) }}
-						</DropdownItem>
-					</div>
-				</template>
-			</Dropdown>
-
-			<!-- Inline buttons, hidden when overflowing but kept in DOM for width measurement -->
-			<div
+			<nav
 				v-if="views.length > 1"
-				ref="switchViewRef"
-				class="switch-view"
-				:class="{'switch-view--hidden': isOverflowing || !overflowChecked}"
-				:aria-hidden="isOverflowing || undefined"
+				ref="switchViewNavRef"
+				class="switch-view-nav"
+				:aria-label="$t('project.views.switcherLabel')"
 			>
-				<BaseButton
-					v-for="view in views"
-					:key="view.id"
-					class="switch-view-button"
-					:class="{'is-active': view.id === viewId}"
-					:to="getViewRoute(view)"
-					:tabindex="isOverflowing ? -1 : undefined"
+				<!-- Dropdown mode when buttons overflow -->
+				<Dropdown
+					v-if="isOverflowing"
+					class="switch-view-dropdown"
 				>
-					{{ getViewTitle(view) }}
-				</BaseButton>
-			</div>
+					<template #trigger="{ toggleOpen, open }">
+						<BaseButton
+							class="switch-view switch-view-dropdown-trigger"
+							:aria-expanded="open"
+							@click="toggleOpen"
+						>
+							<span class="switch-view-dropdown-label">{{ activeViewTitle }}</span>
+							<Icon
+								icon="chevron-down"
+								class="dropdown-icon"
+							/>
+						</BaseButton>
+					</template>
+					<template #default="{ close }">
+						<div @click="close">
+							<DropdownItem
+								v-for="view in views"
+								:key="view.id"
+								:to="getViewRoute(view)"
+								:class="{'is-active': view.id === viewId}"
+								:aria-current="view.id === viewId ? 'page' : undefined"
+							>
+								{{ getViewTitle(view) }}
+							</DropdownItem>
+						</div>
+					</template>
+				</Dropdown>
+
+				<!-- Inline buttons, hidden when overflowing but kept in DOM for width measurement -->
+				<div
+					ref="switchViewRef"
+					class="switch-view"
+					:class="{'switch-view--hidden': isOverflowing || !overflowChecked}"
+					:aria-hidden="isOverflowing || undefined"
+				>
+					<BaseButton
+						v-for="view in views"
+						:key="view.id"
+						class="switch-view-button"
+						:class="{'is-active': view.id === viewId}"
+						:to="getViewRoute(view)"
+						:aria-current="view.id === viewId ? 'page' : undefined"
+						:tabindex="isOverflowing ? -1 : undefined"
+					>
+						{{ getViewTitle(view) }}
+					</BaseButton>
+				</div>
+			</nav>
 			<div class="project-view-actions">
 				<ScreenshotPreview />
 				<slot name="header" />
 			</div>
 		</div>
-		<CustomTransition name="fade">
+
+		<div
+			v-if="currentProject.is_completed || currentProject.is_archived"
+			class="project-view-banners d-print-none"
+		>
+			<p
+				v-if="currentProject.is_completed"
+				class="completion-notice"
+			>
+				<Icon
+					icon="check"
+					class="completion-notice__icon"
+				/>
+				<span>{{ $t('projectHistory.completedBadge') }}</span>
+				<RouterLink :to="{name: 'projects.history', query: {tab: 'lifecycle', project: projectId}}">
+					{{ $t('projectHistory.viewHistory') }}
+				</RouterLink>
+			</p>
 			<Message
 				v-if="currentProject.is_archived"
 				variant="warning"
-				class="mbe-4"
+				class="archived-notice"
 			>
 				{{ $t('project.archivedMessage') }}
 			</Message>
-		</CustomTransition>
+		</div>
 
 		<slot v-if="!isLoadingProject" />
 	</div>
@@ -96,7 +121,6 @@ import Dropdown from '@/components/misc/Dropdown.vue'
 import DropdownItem from '@/components/misc/DropdownItem.vue'
 import Icon from '@/components/misc/Icon'
 import Message from '@/components/misc/Message.vue'
-import CustomTransition from '@/components/misc/CustomTransition.vue'
 
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 import {useTitle} from '@/composables/useTitle'
@@ -119,17 +143,19 @@ const viewFiltersStore = useViewFiltersStore()
 const {currentProject: queriedProject} = useCurrentProject()
 
 const switchViewContainerRef = ref<HTMLElement>()
+const switchViewNavRef = ref<HTMLElement>()
 const switchViewRef = ref<HTMLElement>()
 const isOverflowing = ref(false)
 const overflowChecked = ref(false)
 
+// The nav takes the row space the actions leave over, so its width does not depend on which switcher shows.
 function checkOverflow() {
-	if (!switchViewRef.value || !switchViewContainerRef.value) {
+	if (!switchViewRef.value || !switchViewNavRef.value) {
 		return
 	}
 	const buttonsWidth = switchViewRef.value.scrollWidth
-	const containerWidth = switchViewContainerRef.value.clientWidth
-	isOverflowing.value = buttonsWidth > containerWidth
+	const availableWidth = switchViewNavRef.value.clientWidth
+	isOverflowing.value = buttonsWidth > availableWidth
 	overflowChecked.value = true
 }
 
@@ -137,7 +163,7 @@ onMounted(() => {
 	checkOverflow()
 })
 
-useResizeObserver(switchViewContainerRef, () => {
+useResizeObserver([switchViewContainerRef, switchViewNavRef], () => {
 	requestAnimationFrame(() => checkOverflow())
 })
 
@@ -183,100 +209,188 @@ function getViewRoute(view: ProjectView) {
 </script>
 
 <style lang="scss" scoped>
-.project-view-actions {
- display: flex;
- flex-wrap: wrap;
- align-items: center;
- justify-content: center;
- gap: .5rem;
-}
-
 .switch-view-container {
 	position: relative;
-	min-block-size: $switch-view-height;
-	margin-block-end: 1rem;
-	
 	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	justify-content: space-between;
-	align-items: center;	
-	gap: 1rem;
-	
-	@media screen and (max-width: $tablet) {
-		justify-content: center;
-		flex-direction: column;
-	}
+	gap: var(--space-2) var(--space-3);
+	min-block-size: var(--control-height);
+	margin-block-end: var(--space-4);
+}
+
+// Grows into the space the actions leave; wraps onto its own row once that is under 10rem.
+.switch-view-nav {
+	position: relative;
+	display: flex;
+	flex: 1 1 10rem;
+	min-inline-size: 0;
+}
+
+.project-view-actions {
+	display: flex;
+	flex: 0 1 auto;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	margin-inline-start: auto;
 }
 
 .switch-view {
-	background: var(--white);
 	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	max-inline-size: 100%;
+	min-block-size: var(--control-height);
+	padding: 2px;
+	border: 1px solid var(--border-subtle);
 	border-radius: $radius;
-	font-size: .75rem;
-	box-shadow: var(--shadow-sm);
-	padding: .5rem;
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
+	font-size: var(--text-sm);
 }
 
+// The measuring copy stays nav-wide and clips its buttons: hidden boxes still count as scrollable
+// overflow, so unclipped they would scroll the page sideways on phones. scrollWidth still sees them.
 .switch-view--hidden {
 	position: absolute;
+	inset-inline-start: 0;
+	overflow: hidden;
 	visibility: hidden;
 	pointer-events: none;
 	white-space: nowrap;
-	inset-inline-start: 0;
-	inset-inline-end: 0;
-	overflow: hidden;
-}
-
-.switch-view-dropdown-trigger {
-	cursor: pointer;
-	display: inline-flex;
-	align-items: center;
-	gap: .25rem;
-	font-weight: bold;
-	color: var(--switch-view-color);
-	background: var(--switch-view-active-background);
-}
-
-.dropdown-icon {
-	font-size: .6rem;
 }
 
 .switch-view-button {
-	padding: .25rem .5rem;
-	display: block;
+	display: inline-flex;
+	align-items: center;
+	min-block-size: calc(var(--control-height) - 6px);
+	padding-inline: var(--space-3);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	font-weight: var(--weight-medium);
 	white-space: nowrap;
-	border-radius: $radius;
-	transition: all 100ms;
-
-	&:not(:last-child) {
-		margin-inline-end: .5rem;
-	}
 
 	&:hover {
-		color: var(--switch-view-color);
-		background: var(--switch-view-active-background);
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: 0;
 	}
 
 	&.is-active {
-		color: var(--switch-view-color);
-		background: var(--switch-view-active-background);
-		font-weight: bold;
-		box-shadow: var(--shadow-xs);
+		background-color: var(--surface-selected);
+		color: var(--accent-text);
+		font-weight: var(--weight-semibold);
 	}
 }
 
-// FIXME: this should be in notification and set via a prop
-.is-archived .notification.is-warning {
-	margin-block-end: 1rem;
+.switch-view-dropdown {
+	min-inline-size: 0;
+	max-inline-size: 100%;
+}
+
+.switch-view-dropdown-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-inline-size: 0;
+	max-inline-size: 100%;
+	min-block-size: var(--control-height);
+	padding-inline: var(--space-3);
+	border-color: var(--border-default);
+	background-color: var(--surface);
+	color: var(--accent-text);
+	font-weight: var(--weight-semibold);
+	cursor: pointer;
+
+	&:hover {
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
+.switch-view-dropdown-label {
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dropdown-icon {
+	flex-shrink: 0;
+	color: var(--text-secondary);
+	font-size: var(--text-2xs);
+}
+
+.project-view-banners {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin-block-end: var(--space-4);
+}
+
+// Same shape as Message (leading status rule over a faint tint), so both notices read as one family.
+.completion-notice {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid var(--border-subtle);
+	border-inline-start: 3px solid var(--success);
+	border-radius: var(--radius-md);
+	background: var(--tint-success);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+
+	a {
+		margin-inline-start: auto;
+		color: var(--accent-text);
+		font-weight: var(--weight-medium);
+	}
+}
+
+.completion-notice__icon {
+	color: var(--success);
 }
 
 .project-title-print {
-	display: none;
-	font-size: 1.75rem;
-	text-align: center;
-	margin-block-end: .5rem;
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 
 	@media print {
-		display: block;
+		position: static;
+		inline-size: auto;
+		block-size: auto;
+		overflow: visible;
+		clip-path: none;
+		margin-block-end: var(--space-2);
+		font-size: var(--text-2xl);
+		text-align: center;
+		white-space: normal;
+	}
+}
+
+@media screen and (max-width: $tablet) {
+	.switch-view-container {
+		margin-block-end: var(--space-3);
+	}
+
+	.project-view-actions {
+		flex: 1 1 auto;
 	}
 }
 </style>

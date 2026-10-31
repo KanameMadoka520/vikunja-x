@@ -18,9 +18,14 @@ test('tcymc public page requires preview, keeps drafts private and can be withdr
 	await page.getByRole('button', {name: '预览公开效果'}).click()
 	await expect(page.getByRole('heading', {name: '外人看到的效果'})).toBeVisible()
 	await expect(page.frameLocator('iframe').getByRole('heading', {name: '自定义内容'})).toBeVisible()
+	// An earlier spec may have published under another slug, and the link shows that until this
+	// publish answers: wait for the request and the new address before visiting it.
+	const published = page.waitForResponse(response =>
+		new URL(response.url()).pathname.endsWith('/showcase/publish') && response.request().method() === 'POST')
 	await page.getByRole('button', {name: '发布当前预览'}).click()
+	expect((await published).ok()).toBe(true)
 	const publicLink = page.getByRole('link', {name: '查看公开页面 ↗'})
-	await expect(publicLink).toBeVisible()
+	await expect(publicLink).toHaveAttribute('href', /\/p\/tcy-e2e-public$/)
 	const href = await publicLink.getAttribute('href')
 	const guest = await browser.newContext({locale: 'zh-CN'})
 	try {

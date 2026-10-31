@@ -78,13 +78,14 @@
 
 			<XButton
 				:loading="isLoading"
+				class="is-fullwidth login-submit"
 				@click="submit"
 			>
 				{{ $t('user.auth.login') }}
 			</XButton>
 			<p
 				v-if="registrationEnabled"
-				class="mbs-2"
+				class="login-register"
 			>
 				{{ $t('user.auth.noAccountYet') }}
 				<RouterLink
@@ -99,13 +100,19 @@
 
 		<div
 			v-if="!isDesktop && hasOpenIdProviders"
-			class="mbs-4"
+			class="login-providers"
 		>
+			<p
+				v-if="localAuthEnabled || ldapAuthEnabled"
+				class="login-divider"
+			>
+				<span>{{ $t('user.auth.or') }}</span>
+			</p>
 			<XButton
 				v-for="(p, k) in openidConnect.providers"
 				:key="k"
 				variant="secondary"
-				class="is-fullwidth mbs-2"
+				class="is-fullwidth"
 				@click="redirectToProvider(p)"
 			>
 				{{ $t('user.auth.loginWith', {provider: p.name}) }}
@@ -251,12 +258,42 @@ async function submit() {
 </script>
 
 <style lang="scss" scoped>
-.button {
-	margin: 0 0.4rem 0 0;
+.login-submit {
+	margin-block-start: var(--space-4);
+}
+
+.login-register {
+	margin-block-start: var(--space-4);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	text-align: center;
+}
+
+.login-providers {
+	display: grid;
+	gap: var(--space-2);
+	margin-block-start: var(--space-5);
+}
+
+.login-divider {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-block-end: var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+
+	&::before,
+	&::after {
+		content: "";
+		flex: 1 1 auto;
+		border-block-start: 1px solid var(--border-subtle);
+	}
 }
 
 .reset-password-link {
 	display: inline-block;
+	font-size: var(--text-sm);
 }
 
 // Underline links sitting inside body text so they're not distinguished by color alone
@@ -266,8 +303,11 @@ async function submit() {
 
 .label-with-link {
 	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
 	justify-content: space-between;
-	margin-block-end: .5rem;
+	gap: var(--space-1) var(--space-3);
+	margin-block-end: var(--space-2);
 
 	.label {
 		margin-block-end: 0;

@@ -6,6 +6,7 @@
 			'is-primary': isPrimary,
 		}"
 		:value="value"
+		:aria-label="label || undefined"
 		max="100"
 	>
 		{{ value === undefined ? '' : `${value}%` }}
@@ -18,19 +19,22 @@ withDefaults(defineProps<{
 	value?: number
 	isSmall?: boolean
 	isPrimary?: boolean
+	// Accessible name; an aria-label attribute passed by the caller works as well.
+	label?: string
 }>(), {
 	value: undefined,
 	isSmall: false,
 	isPrimary: false,
+	label: '',
 })
 </script>
 
 <style lang="scss" scoped>
 .progress-bar {
-	--progress-height: #{$size-normal};
-	--progress-bar-background-color: var(--border-light, #{$border-light});
-	--progress-value-background-color: var(--grey-500, #{$text});
-	--progress-border-radius: #{$radius};
+	--progress-height: .5rem;
+	--progress-bar-background-color: var(--surface-active);
+	--progress-value-background-color: var(--text-tertiary);
+	--progress-border-radius: var(--radius-full);
 	--progress-indeterminate-duration: 1.5s;
 
 	appearance: none;
@@ -42,7 +46,7 @@ withDefaults(defineProps<{
 	min-inline-size: 6vw;
 
 	inline-size: 50px;
-	margin: 0 .5rem 0 0;
+	margin: 0 var(--space-2) 0 0;
 	flex: 3 1 auto;
 
 	&::-moz-progress-bar,
@@ -51,7 +55,7 @@ withDefaults(defineProps<{
 	}
 
 	@media screen and (max-width: $tablet) {
-		margin: 0.5rem 0 0;
+		margin: var(--space-2) 0 0;
 		order: 1;
 		inline-size: 100%;
 	}
@@ -62,10 +66,12 @@ withDefaults(defineProps<{
 
 	&::-webkit-progress-value {
 		background-color: var(--progress-value-background-color);
+		border-radius: var(--progress-border-radius);
 	}
 
 	&::-moz-progress-bar {
 		background-color: var(--progress-value-background-color);
+		border-radius: var(--progress-border-radius);
 	}
 
 	&::-ms-fill {
@@ -79,14 +85,6 @@ withDefaults(defineProps<{
 		$color: nth($pair, 1);
 		&.is-#{$name} {
 			--progress-value-background-color: var(--#{$name}, #{$color});
-
-			&:indeterminate {
-				background-image: linear-gradient(
-						to right,
-						var(--#{$name}, #{$color}) 30%,
-						var(--progress-bar-background-color) 30%
-				);
-			}
 		}
 	}
 
@@ -97,9 +95,9 @@ withDefaults(defineProps<{
 		animation-timing-function: linear;
 		background-color: var(--progress-bar-background-color);
 		background-image: linear-gradient(
-				to right,
-				var(--text, #{$text}) 30%,
-				var(--progress-bar-background-color) 30%
+			to right,
+			var(--progress-value-background-color) 30%,
+			var(--progress-bar-background-color) 30%
 		);
 		background-position: top left;
 		background-repeat: no-repeat;
@@ -116,10 +114,21 @@ withDefaults(defineProps<{
 		&::-ms-fill {
 			animation-name: none;
 		}
+
+		// A static hatch still reads as "working, amount unknown" without a moving sweep.
+		@media (prefers-reduced-motion: reduce) {
+			animation: none;
+			background-size: auto;
+			background-image: repeating-linear-gradient(
+				-45deg,
+				var(--progress-value-background-color) 0 .25rem,
+				var(--progress-bar-background-color) .25rem .5rem
+			);
+		}
 	}
 
 	&.is-small {
-		--progress-height: #{$size-small};
+		--progress-height: .375rem;
 	}
 }
 

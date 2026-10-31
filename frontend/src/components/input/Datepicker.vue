@@ -6,6 +6,7 @@
 			:anchor="triggerEl"
 			sheet-on-mobile
 			:sheet-title="dialogTitle"
+			surface
 		>
 			<template #trigger="{toggle}">
 				<SimpleButton
@@ -195,13 +196,9 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
+// The surface is painted by <Popup surface>; inside the mobile sheet the sheet panel is the surface.
 .datepicker-popup {
 	position: relative;
-	background: var(--white);
-	border: 1px solid var(--grey-200);
-	border-radius: $radius-large;
-	box-shadow: var(--shadow-md);
-	overflow: hidden;
 	inline-size: 548px;
 	max-inline-size: calc(100vw - 2rem);
 
@@ -212,50 +209,50 @@ defineExpose({
 	.bottom-sheet & {
 		inline-size: 100%;
 		max-inline-size: none;
-		border: 0;
-		border-radius: 0;
-		box-shadow: none;
 	}
 }
 
 .datepicker-popup__clear {
-	color: var(--primary);
-	font-family: $family-sans-serif;
-	font-weight: 700;
-	font-size: .85rem;
-	text-transform: uppercase;
-	letter-spacing: .04em;
+	min-block-size: var(--target-min);
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-sm);
+	color: var(--accent-text);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+
+	&:hover {
+		background-color: var(--surface-hover);
+	}
 }
 
 .datepicker-popup__footer {
 	display: flex;
 	align-items: center;
-	gap: .75rem;
-	padding: .75rem 1rem;
-	border-block-start: 1px solid var(--grey-200);
-	background: var(--grey-50);
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-4);
+	border-block-start: 1px solid var(--border-subtle);
+	background: var(--surface-sunken);
 
 	.bottom-sheet & {
 		flex-direction: column;
 		align-items: stretch;
-		gap: .5rem;
-		padding-block-end: 1rem;
-		background: var(--white);
+		padding-block-end: var(--space-4);
+		background: transparent;
 	}
 }
 
 .datepicker-popup__summary {
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-2);
 	flex: 1;
 	min-inline-size: 0;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	font-size: .85rem;
-	font-weight: 600;
-	color: var(--grey-700);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	color: var(--text-secondary);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -263,9 +260,10 @@ defineExpose({
 	color: var(--primary);
 }
 
+// The sheet is the touch layout, so its confirm button gets the full touch target.
 .datepicker__close-button {
 	.bottom-sheet & {
-		min-block-size: 44px;
+		min-block-size: 2.75rem;
 	}
 }
 </style>

@@ -25,16 +25,16 @@ defineExpose({
 <style lang="scss" scoped>
 .simple-button {
 	color: var(--text);
-	padding: .25rem .5rem;
-	transition: background-color $transition;
+	padding: var(--space-1) var(--space-2);
+	transition: background-color var(--motion-fast) var(--ease-standard);
 	border-radius: $radius;
 	display: block;
-	margin: .1rem 0;
+	margin: 2px 0;
 	inline-size: 100%;
 	text-align: start;
 
 	&:hover {
-		background: var(--white);
+		background-color: var(--surface-hover);
 	}
 }
 </style>

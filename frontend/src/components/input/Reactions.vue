@@ -109,23 +109,14 @@ onMounted(() => document.addEventListener('click', hideEmojiPicker))
 onBeforeUnmount(() => document.removeEventListener('click', hideEmojiPicker))
 
 const emojiPickerButtonRef = ref<InstanceType<typeof BaseButton> | null>(null)
-const reactionContainerRef = ref<HTMLElement | null>(null)
-const emojiPickerPosition = ref()
 
 function toggleEmojiPicker() {
-	if (!showEmojiPicker.value) {
-		const rect = emojiPickerButtonRef.value?.$el?.getBoundingClientRect()
-		const container = reactionContainerRef.value?.getBoundingClientRect()
-		if (rect && container) {
-			const left = rect.left - container.left + rect.width
-
-			emojiPickerPosition.value = {
-				'inset-inline-start': left === 0 ? undefined : left,
-			}
-		}
-	}
-
 	nextTick(() => showEmojiPicker.value = !showEmojiPicker.value)
+}
+
+function closeEmojiPicker() {
+	showEmojiPicker.value = false
+	emojiPickerButtonRef.value?.focus()
 }
 
 function hasCurrentUserReactedWithEmoji(value: string | number): boolean {
@@ -145,10 +136,7 @@ async function toggleReaction(value: string | number) {
 </script>
 
 <template>
-	<div
-		ref="reactionContainerRef"
-		class="reactions"
-	>
+	<div class="reactions">
 		<BaseButton
 			v-for="(users, value) in modelValue"
 			:key="'button' + value"
@@ -173,38 +161,89 @@ async function toggleReaction(value: string | number) {
 			<Icon :icon="['far', 'face-laugh']" />
 		</BaseButton>
 		<CustomTransition name="fade">
+			<!-- preventDefault keeps Escape from also closing a surrounding native <dialog>. -->
 			<VuemojiPicker
 				v-if="showEmojiPicker"
 				ref="emojiPickerRef"
 				class="emoji-picker"
-				:style="{'inset-inline-start': emojiPickerPosition?.left + 'px'}"
 				data-source="/emojis.json"
 				:is-dark="isDark"
 				@emojiClick="detail => addReaction(detail.unicode)"
+				@keydown.esc.stop.prevent="closeEmojiPicker"
 			/>
 		</CustomTransition>
 	</div>
 </template>
 
 <style scoped lang="scss">
+.reactions {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+}
+
 .reaction-button {
-	margin-inline-end: .25rem;
-	margin-block-end: .25rem;
-	padding: .175rem .5rem .15rem;
-	border: 1px solid var(--grey-400);
-	background: var(--grey-100);
-	border-radius: 100px;
-	font-size: .75rem;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: var(--control-height-sm);
+	padding: 0 var(--space-2);
+	border: 1px solid var(--border-default);
+	background: var(--surface-sunken);
+	border-radius: var(--radius-full);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard);
+
+	&:hover:not([disabled], [aria-disabled="true"]) {
+		border-color: var(--border-strong);
+		background-color: var(--surface-hover);
+	}
 
 	&.current-user-has-reacted {
 		border-color: var(--primary);
-		background-color: hsla(var(--primary-h), var(--primary-s), var(--primary-light-l), 0.5);
+		background-color: var(--surface-selected);
+		color: var(--accent-text);
 	}
 }
 
 .emoji-picker {
 	position: absolute;
-	z-index: 99;
-	margin-block-start: .5rem;
+	inset-block-start: 100%;
+	inset-inline-start: 0;
+	z-index: var(--layer-dropdown);
+	margin-block-start: var(--space-1);
+
+	// Phones: pinned above the bottom edge across the page gutters, so it never overflows sideways.
+	@media (width <= 480px) {
+		position: fixed;
+		inset-block: auto max(var(--space-4), env(safe-area-inset-bottom));
+		inset-inline: var(--page-gutter);
+		z-index: var(--layer-floating);
+		margin: 0;
+	}
+
+	// emoji-picker-element reads these custom properties on its host element.
+	:deep(emoji-picker) {
+		--background: var(--surface-raised);
+		--border-color: var(--border-subtle);
+		--border-radius: var(--radius-md);
+		--indicator-color: var(--primary);
+		--outline-color: var(--focus-ring-color);
+
+		border-radius: var(--radius-md);
+		box-shadow: var(--elevation-3);
+
+		@media (width <= 480px) {
+			--num-columns: 7;
+
+			inline-size: 100%;
+		}
+	}
 }
 </style>

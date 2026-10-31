@@ -1,82 +1,87 @@
 <template>
-	<Card :title="$t('user.settings.avatar.title')">
-		<Message v-if="avatarProvider === 'ldap'">
-			{{ $t('user.settings.avatar.ldap') }}
-		</Message>
-
-		<Message v-else-if="avatarProvider === 'openid'">
-			{{ $t('user.settings.avatar.openid', {provider: authStore.info?.auth_provider}) }}
-		</Message>
-
-		<template v-else>
-			<div class="control mbe-4">
-				<label
-					v-for="(label, providerId) in AVATAR_PROVIDERS"
-					:key="providerId"
-					class="radio"
-				>
-					<input
-						v-model="avatarProvider"
-						name="avatarProvider"
-						type="radio"
-						:value="providerId"
+	<div class="settings-page">
+		<PageHeader
+			:title="$t('user.settings.avatar.title')"
+			:description="$t('user.settings.avatar.description')"
+		/>
+		<Card>
+			<Message v-if="avatarProvider === 'ldap'">
+				{{ $t('user.settings.avatar.ldap') }}
+			</Message>
+			<Message v-else-if="avatarProvider === 'openid'">
+				{{ $t('user.settings.avatar.openid', {provider: authStore.info?.auth_provider}) }}
+			</Message>
+			<template v-else>
+				<fieldset class="avatar-providers">
+					<legend class="avatar-providers__legend">
+						{{ $t('user.settings.avatar.provider') }}
+					</legend>
+					<label
+						v-for="(label, providerId) in AVATAR_PROVIDERS"
+						:key="providerId"
+						class="radio"
+						:class="{'is-selected': avatarProvider === providerId}"
 					>
-					{{ label }}
-				</label>
-			</div>
-
-			<template v-if="avatarProvider === 'upload'">
-				<label class="image-choice mbe-4"><input
-					v-model="cropBeforeUpload"
-					type="checkbox"
-				> {{ $t('flow.cropAvatar') }}</label>
-				<input
-					ref="avatarUploadInput"
-					accept="image/*"
-					class="is-hidden"
-					type="file"
-					@change="cropAvatar"
-				>
-
-				<XButton
-					v-if="!isCropAvatar"
-					:loading="saving || loading"
-					@click="avatarUploadInput.click()"
-				>
-					{{ $t('user.settings.avatar.uploadAvatar') }}
-				</XButton>
-				<template v-else>
-					<Cropper
-						ref="cropper"
-						:src="avatarToCrop"
-						:stencil-props="{aspectRatio: 1}"
-						class="mbe-4 cropper"
-						@ready="() => loading = false"
-					/>
+						<input
+							v-model="avatarProvider"
+							name="avatarProvider"
+							type="radio"
+							:value="providerId"
+						>
+						{{ label }}
+					</label>
+				</fieldset>
+				<template v-if="avatarProvider === 'upload'">
+					<label class="image-choice mbe-4"><input
+						v-model="cropBeforeUpload"
+						type="checkbox"
+					> {{ $t('flow.cropAvatar') }}</label>
+					<input
+						ref="avatarUploadInput"
+						accept="image/*"
+						class="is-hidden"
+						type="file"
+						@change="cropAvatar"
+					>
 					<XButton
-						v-cy="'uploadAvatar'"
+						v-if="!isCropAvatar"
+						icon="arrow-up-from-bracket"
 						:loading="saving || loading"
-						@click="uploadAvatar"
+						@click="avatarUploadInput.click()"
 					>
 						{{ $t('user.settings.avatar.uploadAvatar') }}
 					</XButton>
+					<template v-else>
+						<Cropper
+							ref="cropper"
+							:src="avatarToCrop"
+							:stencil-props="{aspectRatio: 1}"
+							class="mbe-4 cropper"
+							@ready="() => loading = false"
+						/>
+						<XButton
+							v-cy="'uploadAvatar'"
+							:loading="saving || loading"
+							@click="uploadAvatar"
+						>
+							{{ $t('user.settings.avatar.uploadAvatar') }}
+						</XButton>
+					</template>
 				</template>
 			</template>
-
-			<div
-				v-else
-				class="mbs-2"
+			<template
+				v-if="!['ldap', 'openid', 'upload'].includes(avatarProvider)"
+				#footer
 			>
 				<XButton
 					:loading="saving || loading"
-					class="is-fullwidth"
 					@click="updateAvatarStatus()"
 				>
 					{{ $t('misc.save') }}
 				</XButton>
-			</div>
-		</template>
-	</Card>
+			</template>
+		</Card>
+	</div>
 </template>
 
 
@@ -91,6 +96,7 @@ import {avatarProviderQuery, useUpdateAvatarProviderMutation, useUploadAvatarMut
 import {useTitle} from '@/composables/useTitle'
 import {useAuthStore} from '@/stores/auth'
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 
 defineOptions({name: 'UserSettingsAvatar'})
 
@@ -152,16 +158,19 @@ const avatarToCrop = ref()
 const avatarUploadInput = ref()
 
 async function cropAvatar() {
-	const avatar = avatarUploadInput.value.files
+	const input: HTMLInputElement = avatarUploadInput.value
+	const avatar = input.files?.[0]
+	// Clear the picker right away: choosing the same file again after a crop or a cancelled
+	// format prompt must still fire change. Browsers empty the live FileList, so keep the File.
+	input.value = ''
 
-	if (avatar.length === 0) {
+	if (!avatar) {
 		return
 	}
 
 	if (!cropBeforeUpload.value) {
 		const username = authStore.info?.username
-		if (username) await upload.mutateAsync({username, blob: avatar[0]}).catch(() => undefined)
-		avatarUploadInput.value.value = ''
+		if (username) await upload.mutateAsync({username, blob: avatar}).catch(() => undefined)
 		return
 	}
 	loading.value = true
@@ -173,7 +182,7 @@ async function cropAvatar() {
 		// This ensures the canvas is ready before allowing upload
 	}
 	reader.onerror = () => loading.value = false
-	reader.readAsDataURL(avatar[0])
+	reader.readAsDataURL(avatar)
 }
 </script>
 
@@ -189,21 +198,60 @@ async function cropAvatar() {
 </style>
 
 <style lang="scss" scoped>
-// Ported from bulma-css-variables/sass/form/checkbox-radio.sass
-// (the %checkbox-radio placeholder), scoped to this component so we can
-// drop the global Bulma import.
+.avatar-providers {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-4);
+	padding: 0;
+	border: 0;
+	min-inline-size: 0;
+}
+
+.avatar-providers__legend {
+	inline-size: 100%;
+	margin-block-end: var(--space-1);
+	padding: 0;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+}
+
+// Ported from bulma-css-variables/sass/form/checkbox-radio.sass (the %checkbox-radio
+// placeholder), scoped to this component so we can drop the global Bulma import.
 label.radio {
-	cursor: pointer;
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-block-size: var(--control-height);
+	padding: var(--space-1) var(--space-3);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	background: var(--surface);
 	line-height: 1.25;
-	position: relative;
+	cursor: pointer;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard);
 
 	input {
 		cursor: pointer;
+		accent-color: var(--primary);
 	}
 
 	&:hover {
-		color: var(--input-hover-color);
+		border-color: var(--border-strong);
+	}
+
+	&.is-selected {
+		border-color: hsla(var(--primary-hsl), .5);
+		background: var(--surface-selected);
+		color: var(--accent-text);
+		font-weight: var(--weight-semibold);
+	}
+
+	&:has(input:focus-visible) {
+		@include focus-ring;
 	}
 
 	&[disabled],
@@ -211,9 +259,11 @@ label.radio {
 		color: var(--input-disabled-color);
 		cursor: not-allowed;
 	}
+}
 
-	& + .radio {
-		margin-inline-start: .5em;
-	}
+.image-choice {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
 }
 </style>

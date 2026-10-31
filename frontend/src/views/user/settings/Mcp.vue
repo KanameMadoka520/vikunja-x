@@ -12,6 +12,7 @@ import XButton from '@/components/input/Button.vue'
 import FormField from '@/components/input/FormField.vue'
 import Message from '@/components/misc/Message.vue'
 import ErrorMessage from '@/components/misc/Error.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import {useCopyToClipboard} from '@/composables/useCopyToClipboard'
 import {useTitle} from '@/composables/useTitle'
 import {formatDateSince, formatDisplayDate} from '@/helpers/time/formatDate'
@@ -72,148 +73,157 @@ async function deleteToken() {
 </script>
 
 <template>
-	<Card
-		title="MCP"
-		:loading="loading"
-	>
-		<p>
-			{{ t('user.settings.mcp.intro') }}
-			<a
-				:href="MCP_HELP"
-				target="_blank"
-				rel="noreferrer"
-			>{{ t('user.settings.mcp.more') }}</a>
-		</p>
-		<ErrorMessage v-if="loadFailed" />
-		<template v-if="info">
-			<label
-				class="label"
-				for="mcp-endpoint"
-			>{{ t('user.settings.mcp.endpoint') }}</label>
-			<FormField
-				id="mcp-endpoint"
-				:model-value="endpoint"
-				readonly
-			>
-				<template #addon>
-					<XButton
-						:shadow="false"
-						icon="paste"
-						:aria-label="t('misc.copy')"
-						@click="copy(endpoint)"
+	<div class="settings-page">
+		<PageHeader title="MCP">
+			<template #description>
+				{{ t('user.settings.mcp.intro') }}
+				<a
+					:href="MCP_HELP"
+					target="_blank"
+					rel="noreferrer"
+				>{{ t('user.settings.mcp.more') }}</a>
+			</template>
+		</PageHeader>
+		<Card :loading="loading">
+			<ErrorMessage v-if="loadFailed" />
+			<template v-if="info">
+				<label
+					class="label"
+					for="mcp-endpoint"
+				>{{ t('user.settings.mcp.endpoint') }}</label>
+				<FormField
+					id="mcp-endpoint"
+					:model-value="endpoint"
+					readonly
+				>
+					<template #addon>
+						<XButton
+							:shadow="false"
+							icon="paste"
+							:aria-label="t('misc.copy')"
+							@click="copy(endpoint)"
+						/>
+					</template>
+				</FormField>
+				<template v-if="newToken">
+					<Message
+						variant="success"
+						class="mbe-4"
+					>
+						{{ t('user.settings.mcp.created') }}<br>
+						{{ t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
+					</Message>
+					<McpClientGuide
+						:endpoint="endpoint"
+						:token="newToken"
 					/>
+					<XButton
+						class="mbs-4"
+						@click="done"
+					>
+						{{ t('task.attributes.done') }}
+					</XButton>
 				</template>
-			</FormField>
-			<template v-if="newToken">
-				<Message
-					variant="success"
-					class="mbe-4"
-				>
-					{{ t('user.settings.mcp.created') }}<br>
-					{{ t('user.settings.apiTokens.tokenCreatedNotSeeAgain') }}
-				</Message>
-				<McpClientGuide
-					:endpoint="endpoint"
-					:token="newToken"
-				/>
-				<XButton
-					class="mbs-4"
-					@click="done"
-				>
-					{{ t('task.attributes.done') }}
-				</XButton>
+				<template v-else>
+					<h2 class="settings-subheading">
+						{{ t('user.settings.mcp.tokens') }}
+					</h2>
+					<div
+						v-if="tokens.length"
+						class="has-horizontal-overflow"
+					>
+						<table class="table">
+							<thead>
+								<tr>
+									<th>{{ t('user.settings.apiTokens.attributes.title') }}</th>
+									<th>{{ t('user.settings.apiTokens.attributes.expiresAt') }}</th>
+									<th>{{ t('misc.created') }}</th>
+									<th class="has-text-end">
+										{{ t('misc.actions') }}
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr
+									v-for="token in tokens"
+									:key="token.id"
+									:class="{'mcp-token-expired': isApiTokenExpired(token, now.getTime())}"
+								>
+									<td>{{ token.title }}</td>
+									<td>
+										{{ formatDisplayDate(token.expires_at) }}
+										<p
+											v-if="isApiTokenExpired(token, now.getTime())"
+											class="has-text-danger"
+										>
+											{{ t('user.settings.apiTokens.expired', {ago: formatDateSince(token.expires_at)}) }}
+										</p>
+									</td>
+									<td>{{ formatDisplayDate(token.created) }}</td>
+									<td class="has-text-end">
+										<XButton
+											variant="secondary"
+											danger
+											class="is-small"
+											@click="() => {tokenToDelete = token; showDeleteModal = true}"
+										>
+											{{ t('misc.delete') }}
+										</XButton>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="mbe-4">
+						<RouterLink :to="{name: 'user.settings.apiTokens'}">
+							{{ t('user.settings.mcp.manageTokens') }}
+						</RouterLink>
+					</p>
+					<ApiTokenForm
+						v-if="showCreateForm"
+						:routes="info.routes ?? {}"
+						:presets="presets"
+						:locked-scopes="{mcp: ['access']}"
+						initial-title="MCP"
+						:initial-scopes="initialScopes"
+						@created="onTokenCreated"
+						@cancel="showCreateForm = false"
+					/>
+					<XButton
+						v-else
+						icon="plus"
+						@click="showCreateForm = true"
+					>
+						{{ t('user.settings.apiTokens.createAToken') }}
+					</XButton>
+				</template>
 			</template>
-			<template v-else>
-				<h5 class="mbs-5 mbe-4 has-text-weight-bold">
-					{{ t('user.settings.mcp.tokens') }}
-				</h5>
-				<div
-					v-if="tokens.length"
-					class="has-horizontal-overflow"
-				>
-					<table class="table">
-						<thead>
-							<tr>
-								<th>{{ t('user.settings.apiTokens.attributes.title') }}</th>
-								<th>{{ t('user.settings.apiTokens.attributes.expiresAt') }}</th>
-								<th>{{ t('misc.created') }}</th>
-								<th class="has-text-end">
-									{{ t('misc.actions') }}
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr
-								v-for="token in tokens"
-								:key="token.id"
-								:class="{'mcp-token-expired': isApiTokenExpired(token, now.getTime())}"
-							>
-								<td>{{ token.title }}</td>
-								<td>
-									{{ formatDisplayDate(token.expires_at) }}
-									<p
-										v-if="isApiTokenExpired(token, now.getTime())"
-										class="has-text-danger"
-									>
-										{{ t('user.settings.apiTokens.expired', {ago: formatDateSince(token.expires_at)}) }}
-									</p>
-								</td>
-								<td>{{ formatDisplayDate(token.created) }}</td>
-								<td class="has-text-end">
-									<XButton
-										variant="secondary"
-										@click="() => {tokenToDelete = token; showDeleteModal = true}"
-									>
-										{{ t('misc.delete') }}
-									</XButton>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-				<p class="mbe-4">
-					<RouterLink :to="{name: 'user.settings.apiTokens'}">
-						{{ t('user.settings.mcp.manageTokens') }}
-					</RouterLink>
-				</p>
-				<ApiTokenForm
-					v-if="showCreateForm"
-					:routes="info.routes ?? {}"
-					:presets="presets"
-					:locked-scopes="{mcp: ['access']}"
-					initial-title="MCP"
-					:initial-scopes="initialScopes"
-					@created="onTokenCreated"
-					@cancel="showCreateForm = false"
-				/>
-				<XButton
-					v-else
-					icon="plus"
-					@click="showCreateForm = true"
-				>
-					{{ t('user.settings.apiTokens.createAToken') }}
-				</XButton>
-			</template>
-		</template>
-		<Modal
-			:enabled="showDeleteModal"
-			@close="showDeleteModal = false"
-			@submit="deleteToken"
-		>
-			<template #header>
-				{{ t('user.settings.apiTokens.delete.header') }}
-			</template>
-			<template #text>
-				<p v-if="tokenToDelete">
-					{{ t('user.settings.apiTokens.delete.text1', {token: tokenToDelete.title}) }}<br>
-					{{ t('user.settings.apiTokens.delete.text2') }}
-				</p>
-			</template>
-		</Modal>
-	</Card>
+			<Modal
+				danger
+				:enabled="showDeleteModal"
+				@close="showDeleteModal = false"
+				@submit="deleteToken"
+			>
+				<template #header>
+					{{ t('user.settings.apiTokens.delete.header') }}
+				</template>
+				<template #text>
+					<p v-if="tokenToDelete">
+						{{ t('user.settings.apiTokens.delete.text1', {token: tokenToDelete.title}) }}<br>
+						{{ t('user.settings.apiTokens.delete.text2') }}
+					</p>
+				</template>
+			</Modal>
+		</Card>
+	</div>
 </template>
 
 <style scoped lang="scss">
+.settings-subheading {
+	margin-block: var(--space-5) var(--space-3);
+	font-size: var(--text-lg);
+}
+
 .mcp-token-expired {
 	opacity: .6;
 }

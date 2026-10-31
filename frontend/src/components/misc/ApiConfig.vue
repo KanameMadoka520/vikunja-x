@@ -127,20 +127,22 @@ async function setApiUrl() {
 
 <style lang="scss" scoped>
 .api-config {
-	margin-block-end: .75rem;
+	margin-block-end: var(--space-4);
 }
 
 .api-url-info {
-	font-size: .9rem;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
 	text-align: end;
 }
 
 .url {
-	border-inline-end: 1px dashed var(--primary);
+	color: var(--text-primary);
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
 }
 
 .api-config__change-button {
 	display: inline-block;
-    color: var(--link);
 }
 </style>

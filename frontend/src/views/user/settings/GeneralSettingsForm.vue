@@ -1,308 +1,335 @@
 <template>
-	<Card
-		:title="$t('user.settings.sections.personalInformation')"
-		class="general-settings"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormField
-				:label="$t('user.settings.general.name')"
-				layout="two-col"
+	<div class="general-settings-form">
+		<div class="settings-sections">
+			<Card
+				:title="$t('user.settings.sections.personalInformation')"
+				class="general-settings"
 			>
-				<FormInput
-					v-model="settings.name"
-					:disabled="isExternalUser"
-					:placeholder="$t('user.settings.general.newName')"
-					type="text"
-					@keyup.enter="updateSettings"
-				/>
-			</FormField>
+				<div class="field-group">
+					<FormField
+						:label="$t('user.settings.general.name')"
+						layout="two-col"
+					>
+						<FormInput
+							v-model="settings.name"
+							:disabled="isExternalUser"
+							:placeholder="$t('user.settings.general.newName')"
+							:aria-describedby="isExternalUser ? 'general-name-help' : undefined"
+							type="text"
+							@keyup.enter="updateSettings"
+						/>
+					</FormField>
+					<p
+						v-if="isExternalUser"
+						id="general-name-help"
+						class="help"
+					>
+						{{ $t('user.settings.general.externalUserNameChange', {provider: authStore.info?.auth_provider}) }}
+					</p>
+					<FormField
+						:label="$t('user.settings.general.defaultProject')"
+						layout="two-col"
+					>
+						<ProjectSearch v-model="defaultProject" />
+					</FormField>
+				</div>
+			</Card>
+
+			<Card
+				:title="$t('user.settings.sections.taskAndNotifications')"
+				class="general-settings"
+			>
+				<div class="field-group">
+					<FormField
+						:label="$t('user.settings.general.defaultView')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.default_view"
+							:options="defaultViewOptions"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.general.minimumPriority')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.minimum_priority"
+							:options="minimumPriorityOptions"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.general.defaultDueTime')"
+						layout="two-col"
+					>
+						<FormInput
+							v-model="settings.frontend_settings.default_due_time"
+							type="time"
+							aria-describedby="general-due-time-help"
+						/>
+					</FormField>
+					<p
+						id="general-due-time-help"
+						class="help"
+					>
+						{{ $t('user.settings.general.defaultDueTimeDescription') }}
+					</p>
+					<FormField
+						v-if="hasFilters"
+						:label="$t('user.settings.general.filterUsedOnOverview')"
+						layout="two-col"
+					>
+						<ProjectSearch
+							v-model="filterUsedInOverview"
+							:saved-filters-only="true"
+						/>
+					</FormField>
+					<FormCheckbox
+						v-model="settings.frontend_settings.show_last_viewed"
+						:label="$t('user.settings.general.showLastViewed')"
+					/>
+					<FormCheckbox
+						v-model="settings.email_reminders_enabled"
+						:label="$t('user.settings.general.emailReminders')"
+					/>
+					<FormCheckbox
+						v-model="settings.overdue_tasks_reminders_enabled"
+						:label="$t('user.settings.general.overdueReminders')"
+					/>
+					<FormField
+						v-if="settings.overdue_tasks_reminders_enabled"
+						:label="$t('user.settings.general.overdueTasksRemindersTime')"
+						layout="two-col"
+					>
+						<FormInput
+							v-model="settings.overdue_tasks_reminders_time"
+							type="time"
+							@keyup.enter="updateSettings"
+						/>
+					</FormField>
+				</div>
+			</Card>
+
+			<Card
+				:title="$t('user.settings.sections.localization')"
+				class="general-settings"
+			>
+				<div class="field-group">
+					<FormField
+						:label="$t('user.settings.general.language')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.language"
+							:options="languageOptions"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.general.timezone')"
+						layout="two-col"
+					>
+						<Multiselect
+							v-model="timezoneObject"
+							:placeholder="$t('user.settings.general.timezone')"
+							:search-results="timezoneSearchResults"
+							:show-empty="true"
+							class="timezone-select"
+							label="label"
+							select-placeholder=""
+							@search="searchTimezones"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.general.weekStart')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model.number="settings.week_start"
+							v-cy="'weekStartSelect'"
+							:options="weekStartOptions"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.general.dateDisplay')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.date_display"
+							:options="dateDisplayOptions"
+						/>
+					</FormField>
+					<FormField
+						v-if="settings.frontend_settings.date_display !== 'relative'"
+						:label="$t('user.settings.general.timeFormat')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.time_format"
+							:options="timeFormatOptions"
+						/>
+					</FormField>
+					<FormField
+						v-if="timeTrackingEnabled"
+						:label="$t('user.settings.general.timeTrackingDefaultStart')"
+						layout="two-col"
+					>
+						<FormInput
+							v-model="settings.frontend_settings.time_tracking_default_start"
+							type="time"
+						/>
+					</FormField>
+				</div>
+			</Card>
+
+			<Card
+				:title="$t('user.settings.sections.appearance')"
+				class="general-settings"
+			>
+				<div class="field-group">
+					<FormField
+						:label="$t('user.settings.appearance.title')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.color_schema"
+							:options="colorSchemeOptions"
+						/>
+					</FormField>
+					<FormField
+						:label="$t('user.settings.quickAddMagic.title')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.quick_add_magic_mode"
+							:options="quickAddMagicModeOptions"
+						/>
+					</FormField>
+					<div
+						v-if="settings.frontend_settings.quick_add_magic_mode !== PrefixMode.Disabled"
+						class="field"
+					>
+						<label class="label">{{ $t('user.settings.general.quickAddDefaultReminders') }}</label>
+						<p class="help">
+							{{ $t('user.settings.general.quickAddDefaultRemindersDescription') }}
+						</p>
+						<p class="help">
+							{{ $t('user.settings.general.quickAddDefaultRemindersHint') }}
+						</p>
+						<Reminders
+							v-model="quickAddDefaultReminders"
+							:default-relative-to="REMINDER_PERIOD_RELATIVE_TO_TYPES.DUEDATE"
+							:allow-absolute="false"
+						/>
+					</div>
+					<FormField
+						:label="$t('user.settings.general.defaultTaskRelationType')"
+						layout="two-col"
+					>
+						<FormSelect
+							v-model="settings.frontend_settings.default_task_relation_type"
+							:options="defaultTaskRelationTypeOptions"
+						/>
+					</FormField>
+					<FormCheckbox
+						v-model="settings.frontend_settings.play_sound_when_done"
+						:label="$t('user.settings.general.playSoundWhenDone')"
+					/>
+					<FormCheckbox
+						v-model="settings.frontend_settings.allow_icon_changes"
+						:label="$t('user.settings.general.allowIconChanges')"
+					/>
+					<FormCheckbox
+						v-model="settings.frontend_settings.always_show_bucket_task_count"
+						:label="$t('user.settings.general.alwaysShowBucketTaskCount')"
+					/>
+					<FormField
+						:label="$t('user.settings.backgroundBrightness.title')"
+						layout="two-col"
+					>
+						<FormInput
+							v-model.number="settings.frontend_settings.background_brightness"
+							type="number"
+							min="0"
+							max="100"
+							@blur="enforceBackgroundBrightnessBounds"
+						/>
+					</FormField>
+				</div>
+			</Card>
+
+			<Card
+				v-if="isDesktop"
+				:title="$t('user.settings.sections.desktop')"
+				class="general-settings"
+			>
+				<div class="field-group">
+					<FormField
+						:label="$t('user.settings.desktop.quickEntryShortcut')"
+						layout="two-col"
+					>
+						<ShortcutRecorder
+							v-model="settings.frontend_settings.desktop_quick_entry_shortcut"
+							@update:modelValue="updateSettings"
+						/>
+					</FormField>
+				</div>
+			</Card>
+
+			<Card
+				:title="$t('user.settings.sections.privacy')"
+				class="general-settings"
+			>
+				<div class="field-group">
+					<FormCheckbox
+						v-model="settings.discoverable_by_name"
+						:label="$t('user.settings.general.discoverableByName')"
+					/>
+					<FormCheckbox
+						v-model="settings.discoverable_by_email"
+						:label="$t('user.settings.general.discoverableByEmail')"
+					/>
+				</div>
+			</Card>
+		</div>
+
+		<div
+			class="sticky-save"
+			:class="{'is-dirty': isDirty}"
+		>
 			<p
-				v-if="isExternalUser"
-				class="help"
+				class="sticky-save__status"
+				role="status"
 			>
-				{{ $t('user.settings.general.externalUserNameChange', {provider: authStore.info?.auth_provider}) }}
+				<Icon
+					:icon="isDirty ? 'pen' : 'check'"
+					class="sticky-save__icon"
+					aria-hidden="true"
+				/>
+				{{ isDirty ? $t('settingsDraft.unsaved') : $t('user.settings.saveBar.clean') }}
 			</p>
-			<FormField
-				:label="$t('user.settings.general.defaultProject')"
-				layout="two-col"
-			>
-				<ProjectSearch v-model="defaultProject" />
-			</FormField>
-		</div>
-	</Card>
-
-	<Card
-		:title="$t('user.settings.sections.taskAndNotifications')"
-		class="general-settings section-block"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormField
-				:label="$t('user.settings.general.defaultView')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.default_view"
-					:options="defaultViewOptions"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.general.minimumPriority')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.minimum_priority"
-					:options="minimumPriorityOptions"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.general.defaultDueTime')"
-				layout="two-col"
-			>
-				<FormInput
-					v-model="settings.frontend_settings.default_due_time"
-					type="time"
-				/>
-			</FormField>
-			<p class="help">
-				{{ $t('user.settings.general.defaultDueTimeDescription') }}
-			</p>
-			<FormField
-				v-if="hasFilters"
-				:label="$t('user.settings.general.filterUsedOnOverview')"
-				layout="two-col"
-			>
-				<ProjectSearch
-					v-model="filterUsedInOverview"
-					:saved-filters-only="true"
-				/>
-			</FormField>
-			<FormCheckbox
-				v-model="settings.frontend_settings.show_last_viewed"
-				:label="$t('user.settings.general.showLastViewed')"
-			/>
-			<FormCheckbox
-				v-model="settings.email_reminders_enabled"
-				:label="$t('user.settings.general.emailReminders')"
-			/>
-			<FormCheckbox
-				v-model="settings.overdue_tasks_reminders_enabled"
-				:label="$t('user.settings.general.overdueReminders')"
-			/>
-			<FormField
-				v-if="settings.overdue_tasks_reminders_enabled"
-				:label="$t('user.settings.general.overdueTasksRemindersTime')"
-				layout="two-col"
-			>
-				<FormInput
-					v-model="settings.overdue_tasks_reminders_time"
-					type="time"
-					@keyup.enter="updateSettings"
-				/>
-			</FormField>
-		</div>
-	</Card>
-
-	<Card
-		:title="$t('user.settings.sections.localization')"
-		class="general-settings section-block"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormField
-				:label="$t('user.settings.general.language')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.language"
-					:options="languageOptions"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.general.timezone')"
-				layout="two-col"
-			>
-				<Multiselect
-					v-model="timezoneObject"
-					:placeholder="$t('user.settings.general.timezone')"
-					:search-results="timezoneSearchResults"
-					:show-empty="true"
-					class="timezone-select"
-					label="label"
-					select-placeholder=""
-					@search="searchTimezones"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.general.weekStart')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model.number="settings.week_start"
-					v-cy="'weekStartSelect'"
-					:options="weekStartOptions"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.general.dateDisplay')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.date_display"
-					:options="dateDisplayOptions"
-				/>
-			</FormField>
-			<FormField
-				v-if="settings.frontend_settings.date_display !== 'relative'"
-				:label="$t('user.settings.general.timeFormat')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.time_format"
-					:options="timeFormatOptions"
-				/>
-			</FormField>
-			<FormField
-				v-if="timeTrackingEnabled"
-				:label="$t('user.settings.general.timeTrackingDefaultStart')"
-				layout="two-col"
-			>
-				<FormInput
-					v-model="settings.frontend_settings.time_tracking_default_start"
-					type="time"
-				/>
-			</FormField>
-		</div>
-	</Card>
-
-	<Card
-		:title="$t('user.settings.sections.appearance')"
-		class="general-settings section-block"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormField
-				:label="$t('user.settings.appearance.title')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.color_schema"
-					:options="colorSchemeOptions"
-				/>
-			</FormField>
-			<FormField
-				:label="$t('user.settings.quickAddMagic.title')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.quick_add_magic_mode"
-					:options="quickAddMagicModeOptions"
-				/>
-			</FormField>
-			<div
-				v-if="settings.frontend_settings.quick_add_magic_mode !== PrefixMode.Disabled"
-				class="field"
-			>
-				<label class="label">{{ $t('user.settings.general.quickAddDefaultReminders') }}</label>
-				<p class="help">
-					{{ $t('user.settings.general.quickAddDefaultRemindersDescription') }}
-				</p>
-				<p class="help">
-					{{ $t('user.settings.general.quickAddDefaultRemindersHint') }}
-				</p>
-				<Reminders
-					v-model="quickAddDefaultReminders"
-					:default-relative-to="REMINDER_PERIOD_RELATIVE_TO_TYPES.DUEDATE"
-					:allow-absolute="false"
-				/>
+			<div class="sticky-save__actions">
+				<XButton
+					variant="tertiary"
+					:aria-disabled="!isDirty || loading"
+					@click="discardChanges"
+				>
+					{{ $t('user.settings.saveBar.discard') }}
+				</XButton>
+				<XButton
+					v-cy="'saveGeneralSettings'"
+					icon="save"
+					:loading="loading"
+					:aria-disabled="!isDirty || loading"
+					@click="updateSettings()"
+				>
+					{{ $t('misc.save') }}
+				</XButton>
 			</div>
-			<FormField
-				:label="$t('user.settings.general.defaultTaskRelationType')"
-				layout="two-col"
-			>
-				<FormSelect
-					v-model="settings.frontend_settings.default_task_relation_type"
-					:options="defaultTaskRelationTypeOptions"
-				/>
-			</FormField>
-			<FormCheckbox
-				v-model="settings.frontend_settings.play_sound_when_done"
-				:label="$t('user.settings.general.playSoundWhenDone')"
-			/>
-			<FormCheckbox
-				v-model="settings.frontend_settings.allow_icon_changes"
-				:label="$t('user.settings.general.allowIconChanges')"
-			/>
-			<FormCheckbox
-				v-model="settings.frontend_settings.always_show_bucket_task_count"
-				:label="$t('user.settings.general.alwaysShowBucketTaskCount')"
-			/>
-			<FormField
-				:label="$t('user.settings.backgroundBrightness.title')"
-				layout="two-col"
-			>
-				<FormInput
-					v-model.number="settings.frontend_settings.background_brightness"
-					type="number"
-					min="0"
-					max="100"
-					@blur="enforceBackgroundBrightnessBounds"
-				/>
-			</FormField>
 		</div>
-	</Card>
-
-	<Card
-		v-if="isDesktop"
-		:title="$t('user.settings.sections.desktop')"
-		class="general-settings section-block"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormField
-				:label="$t('user.settings.desktop.quickEntryShortcut')"
-				layout="two-col"
-			>
-				<ShortcutRecorder
-					v-model="settings.frontend_settings.desktop_quick_entry_shortcut"
-					@update:modelValue="updateSettings"
-				/>
-			</FormField>
-		</div>
-	</Card>
-
-	<Card
-		:title="$t('user.settings.sections.privacy')"
-		class="general-settings section-block"
-		:loading="loading"
-	>
-		<div class="field-group">
-			<FormCheckbox
-				v-model="settings.discoverable_by_name"
-				:label="$t('user.settings.general.discoverableByName')"
-			/>
-			<FormCheckbox
-				v-model="settings.discoverable_by_email"
-				:label="$t('user.settings.general.discoverableByEmail')"
-			/>
-		</div>
-	</Card>
-
-	<div class="sticky-save">
-		<CustomTransition name="fade">
-			<XButton
-				v-if="isDirty"
-				v-cy="'saveGeneralSettings'"
-				:loading="loading"
-				class="is-fullwidth"
-				@click="updateSettings()"
-			>
-				{{ $t('misc.save') }}
-			</XButton>
-		</CustomTransition>
 	</div>
 </template>
+
+
 
 
 <script setup lang="ts">
@@ -320,7 +347,6 @@ import {PrefixMode} from '@/modules/quickAddMagic'
 
 import ProjectSearch from '@/components/tasks/partials/ProjectSearch.vue'
 import Multiselect from '@/components/input/Multiselect.vue'
-import CustomTransition from '@/components/misc/CustomTransition.vue'
 import FormField from '@/components/input/FormField.vue'
 import FormInput from '@/components/input/FormInput.vue'
 import FormSelect from '@/components/input/FormSelect.vue'
@@ -521,6 +547,11 @@ const filterUsedInOverview = computed({
 const hasFilters = computed(() => projectList.projectsArray.some(isSavedFilterProject))
 const loading = updateUserSettings.isPending
 
+function discardChanges() {
+	if (loading.value || !isDirty.value) return
+	settings.value = createUserSettingsDraft(initialSettings.value)
+}
+
 async function updateSettings() {
 	if (loading.value) return
 	const submitted = createUserSettingsDraft(settings.value)
@@ -541,8 +572,17 @@ async function updateSettings() {
 </script>
 
 <style lang="scss" scoped>
+.settings-sections {
+	display: grid;
+	gap: var(--space-5);
+
+	> .card {
+		margin-block-end: 0;
+	}
+}
+
 .timezone-select {
-	min-inline-size: 200px;
+	min-inline-size: 12rem;
 	flex-grow: 1;
 
 	@media screen and (max-width: $tablet) {
@@ -550,18 +590,85 @@ async function updateSettings() {
 	}
 }
 
-.section-block + .section-block {
-	margin-block-start: 1.5rem;
-}
-
 .field-group {
 	display: grid;
-	grid-template-columns: 1fr;
+	grid-template-columns: minmax(0, 1fr);
+
+	> .help {
+		margin-block-end: var(--space-3);
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+	}
+}
+
+// FormField's two-column row is a fixed 50/50 split; on phones the control needs the full width.
+@media screen and (max-width: $tablet) {
+	.general-settings :deep(label.two-col) {
+		flex-direction: column;
+		align-items: stretch;
+		gap: var(--space-1);
+	}
+
+	.general-settings :deep(label.two-col > *),
+	.general-settings :deep(label.two-col input),
+	.general-settings :deep(label.two-col .input),
+	.general-settings :deep(label.two-col .select),
+	.general-settings :deep(label.two-col .multiselect) {
+		flex: 0 0 auto;
+		inline-size: 100%;
+	}
+
+	.general-settings :deep(label.two-col .select select) {
+		inline-size: 100%;
+	}
 }
 
 .sticky-save {
-	position: sticky;
-	inset-block-end: 0;
-	padding: .25rem 1rem 1rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	margin-block-start: var(--space-5);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+
+	&.is-dirty {
+		position: sticky;
+		inset-block-end: var(--space-3);
+		z-index: var(--layer-sticky);
+		border-color: var(--border-default);
+		box-shadow: var(--elevation-3);
+	}
+}
+
+.sticky-save__status {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+
+	.is-dirty & {
+		color: var(--text-primary);
+		font-weight: var(--weight-medium);
+	}
+}
+
+.sticky-save__icon {
+	color: var(--text-tertiary);
+
+	.is-dirty & {
+		color: var(--warning);
+	}
+}
+
+.sticky-save__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-inline-start: auto;
 }
 </style>

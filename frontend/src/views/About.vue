@@ -10,18 +10,20 @@
 			:show-close="true"
 			@close="goBack()"
 		>
-			<div class="p-4">
+			<div class="about">
 				<TcyBrand />
-				<p v-if="versionsEqual">
-					{{ $t('about.version', {version: apiVersion}) }}
-				</p>
-				<template v-else>
-					<p>{{ $t('about.frontendVersion', {version: frontendVersion}) }}</p>
-					<p>{{ $t('about.apiVersion', {version: apiVersion}) }}</p>
-				</template>
-				<p v-if="proActive">
-					{{ $t('about.proActive') }}
-				</p>
+				<div class="about__versions">
+					<p v-if="versionsEqual">
+						{{ $t('about.version', {version: apiVersion}) }}
+					</p>
+					<template v-else>
+						<p>{{ $t('about.frontendVersion', {version: frontendVersion}) }}</p>
+						<p>{{ $t('about.apiVersion', {version: apiVersion}) }}</p>
+					</template>
+					<p v-if="proActive">
+						{{ $t('about.proActive') }}
+					</p>
+				</div>
 			</div>
 			<template #footer>
 				<XButton
@@ -50,3 +52,21 @@ const apiVersion = computed(() => configStore.version)
 const versionsEqual = computed(() => apiVersion.value === frontendVersion)
 const proActive = computed(() => configStore.enabled_pro_features.length > 0)
 </script>
+
+<style lang="scss" scoped>
+.about {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--space-4);
+}
+
+.about__versions {
+	display: grid;
+	gap: var(--space-1);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	font-variant-numeric: tabular-nums;
+}
+</style>

@@ -22,8 +22,8 @@
 			alt=""
 			class="tw:w-full"
 		>
-		<div class="p-2">
-			<div class="tw:flex tw:justify-between">
+		<div class="kanban-card__body">
+			<div class="kanban-card__meta">
 				<span class="task-id">
 					<Done
 						class="kanban-card__done"
@@ -78,6 +78,7 @@
 				v-if="task.percent_done > 0"
 				class="task-progress"
 				:value="task.percent_done * 100"
+				:label="$t('task.attributes.percentDone')"
 			/>
 			<div class="footer">
 				<Labels :labels="task.labels" />
@@ -97,12 +98,16 @@
 				<span
 					v-if="!isEditorContentEmpty(task.description)"
 					class="icon"
+					role="img"
+					:aria-label="$t('task.attributes.description')"
 				>
 					<Icon icon="align-left" />
 				</span>
 				<span
 					v-if="task.repeat_after > 0"
 					class="icon"
+					role="img"
+					:aria-label="$t('task.attributes.repeat')"
 				>
 					<Icon icon="history" />
 				</span>
@@ -307,19 +312,30 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-$task-background: var(--white);
-
 .task {
+	// Fixed chip colours for custom-coloured cards: whichever text colour colorIsDark picks keeps 4.5:1 on them.
+	--kanban-chip-on-light: hsl(220, 13%, 91%);
+	--kanban-chip-on-dark: hsl(215, 27.9%, 16.9%);
+
 	-webkit-touch-callout: none; // iOS Safari
 	user-select: none;
 	cursor: pointer;
-	box-shadow: var(--shadow-xs);
 	display: block;
+	position: relative;
 
-	font-size: .9rem;
+	border: 1px solid var(--border-subtle);
 	border-radius: $radius;
-	background: $task-background;
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	line-height: var(--leading-normal);
 	overflow: hidden;
+
+	&:hover {
+		border-color: var(--border-default);
+		box-shadow: var(--elevation-2);
+	}
 
 	&.loader-container.is-loading::after {
 		inline-size: 1.5rem;
@@ -329,9 +345,17 @@ $task-background: var(--white);
 		border-width: 2px;
 	}
 
+	> img {
+		display: block;
+		inline-size: 100%;
+	}
+
 	h3 {
+		margin-block: var(--space-1) 0;
 		font-family: $family-sans-serif;
-		font-size: .85rem;
+		font-size: var(--text-md);
+		font-weight: var(--weight-medium);
+		line-height: var(--leading-tight);
 		word-break: break-word;
 	}
 
@@ -341,77 +365,84 @@ $task-background: var(--white);
 	}
 
 	.due-date {
-		float: inline-end;
-		display: flex;
+		display: inline-flex;
+		flex-shrink: 0;
 		align-items: center;
-		padding: 0 .25rem;
-		font-size: .85rem;
+		gap: var(--space-1);
+		padding: 0 var(--space-1);
+		font-size: var(--text-xs);
+		white-space: nowrap;
 
 		.icon {
-			margin-inline-end: .25rem;
+			inline-size: auto;
+			block-size: auto;
 		}
-
 	}
 
 	&[data-is-overdue] .due-date {
 		color: var(--danger-text);
 	}
 
-	.label-wrapper .tag {
-		margin: .5rem .5rem 0 0;
-	}
-
 	.footer {
-		background: transparent;
-		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: .25rem;
-		margin-block-start: .25rem;
+		gap: var(--space-1);
+		margin-block-start: var(--space-2);
+		padding: 0;
+		background: transparent;
+
+		&:empty {
+			display: none;
+		}
 
 		:deep(.checklist-summary) {
 			padding-inline-start: 0;
+			font-size: var(--text-xs);
 		}
 
-		.assignees {
-			display: flex;
-
-			.user {
-				display: inline;
-				margin: 0;
-
-				img {
-					margin: 0;
-				}
-			}
+		:deep(.assignees-list) {
+			margin-inline-start: auto;
 		}
 
-		.priority-label {
-			font-size: .75rem;
-			padding: 0 .5rem 0 .25rem;
+		:deep(.priority-label) {
+			font-size: var(--text-xs);
+			padding: 0 var(--space-1);
 
 			.icon {
 				block-size: 1rem;
-				padding: 0 .25rem;
 				margin-block-start: 0;
+				padding: 0 var(--space-1) 0 0;
 			}
+		}
+
+		> .icon {
+			inline-size: 1.25rem;
+			block-size: 1.25rem;
+			font-size: var(--text-2xs);
+			color: var(--text-secondary);
 		}
 	}
 
-	.footer .icon,
+	.footer > .icon,
 	.due-date,
-	.priority-label {
-		background: var(--grey-100);
-		border-radius: $radius;
-		padding: 0 .5rem;
+	.footer :deep(.priority-label) {
+		min-block-size: 1.25rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-active);
 	}
 
-	.task-id, .project-title {
-		color: var(--grey-500);
-		font-size: .8rem;
-		margin-block-end: .25rem;
+	.task-id,
+	.project-title {
 		display: flex;
+		align-items: center;
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.project-title {
+		margin-block-start: var(--space-1);
 	}
 
 	&.is-moving {
@@ -423,16 +454,22 @@ $task-background: var(--white);
 	}
 
 	&.has-custom-background-color {
+		border-color: transparent;
 		color: #000000; // pure black, not grey-800: guarantees 4.5:1 at the luminance flip point
 
-		.footer .icon,
+		.footer > .icon,
 		.due-date,
-		.priority-label {
-			background: hsl(220, 13%, 91%);
+		.footer :deep(.priority-label) {
+			background: var(--kanban-chip-on-light);
 		}
 
-		// beat component-level color: var(--grey-500) so secondary text tracks the guaranteed main text color
-		.task-id, .project-title {
+		.footer > .icon {
+			color: inherit;
+		}
+
+		// beat the component-level muted colour so secondary text tracks the guaranteed main text colour
+		.task-id,
+		.project-title {
 			color: inherit;
 		}
 
@@ -445,20 +482,18 @@ $task-background: var(--white);
 		--white: hsla(var(--white-h), var(--white-s), var(--white-l), var(--white-a)) !important;
 		color: var(--white);
 
-		.footer .icon,
+		.footer > .icon,
 		.due-date,
-		.priority-label {
-			background: hsl(215, 27.9%, 16.9%); // grey-800
+		.footer :deep(.priority-label) {
+			background: var(--kanban-chip-on-dark);
 		}
 
-		.footer {
-			.icon svg {
-				fill: var(--white);
-			}
+		.footer .icon svg {
+			fill: var(--white);
 		}
 
-		// beat component-level color: var(--grey-500) so secondary text tracks the guaranteed main text color
-		.task-id, .project-title {
+		.task-id,
+		.project-title {
 			color: inherit;
 		}
 
@@ -466,27 +501,50 @@ $task-background: var(--white);
 			color: inherit;
 		}
 
-		// var(--danger-text)/PriorityLabel's --danger-text fail on the dark grey-800 chip bg; brightened red keeps hue/sat, hits >= 4.5:1
+		// --danger-text fails on the dark chip; the brightened red keeps hue/saturation and reaches 4.5:1
 		&[data-is-overdue] .due-date,
-		.priority-label.high-priority {
+		.footer :deep(.priority-label.high-priority) {
 			color: hsl(var(--danger-h), var(--danger-s), 68%);
 		}
 	}
 }
 
+@supports selector(:has(*)) {
+	.task:has(.kanban-card__title-link:focus-visible) {
+		@include focus-ring;
+		outline-offset: 1px;
+
+		.kanban-card__title-link {
+			outline: none;
+		}
+	}
+}
+
+.kanban-card__body {
+	padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.kanban-card__meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	min-block-size: 1.25rem;
+}
+
 .kanban-card__done {
-	margin-inline-end: .25rem;
+	margin-inline-end: var(--space-1);
 }
 
 .task-progress {
-	margin: 8px 0 0;
+	margin: var(--space-2) 0 0;
 	inline-size: 100%;
-	block-size: 0.5rem;
+	block-size: .375rem;
 }
 
 :deep(.comment-count) {
-	background: var(--grey-100);
-	border-radius: $radius;
-	padding: 0.25rem;
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-sm);
+	background: var(--surface-active);
 }
 </style>

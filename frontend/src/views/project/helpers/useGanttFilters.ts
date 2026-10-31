@@ -91,7 +91,9 @@ function ganttFiltersToApiParams(filters: GanttFilters): TaskFilterParams {
 			'(start_date >= "' + dateFrom + '" && start_date <= "' + dateTo + '") || ' +
 			'(end_date >= "' + dateFrom + '" && end_date <= "' + dateTo + '") || ' +
 			'(due_date >= "' + dateFrom + '" && due_date <= "' + dateTo + '") || ' +
-			'(start_date <= "' + dateFrom + '" && end_date >= "' + dateTo + '")' +
+			'(start_date <= "' + dateFrom + '" && end_date >= "' + dateTo + '") || ' +
+			// Without an end date the due date closes the bar (GanttChart), so it also spans the range.
+			'(start_date <= "' + dateFrom + '" && due_date >= "' + dateTo + '")' +
 			')',
 		filter_include_nulls: filters.showTasksWithoutDates,
 		expand: ['subtasks'],

@@ -3,6 +3,7 @@ import {test, expect} from '../../support/fixtures'
 import {UserFactory} from '../../factories/user'
 import {setupApiUrl} from '../../support/authenticateUser'
 import {apiRootUrl} from '../../support/apiUrl'
+import {MAIL_SERVICES_MISSING, mailServicesAvailable} from '../../support/mailServices'
 
 test.describe('Registration', () => {
 	test.beforeEach(async ({page}) => {
@@ -36,6 +37,7 @@ test.describe('Registration', () => {
 		const publicUrl = new URL('/', baseURL).href
 		const apiUrl = apiRootUrl(process.env.MAILER_API_URL || 'http://127.0.0.1:3457')
 		const mailpitUrl = process.env.MAILPIT_URL || 'http://127.0.0.1:8025'
+		test.skip(!await mailServicesAvailable(request, apiUrl, mailpitUrl), MAIL_SERVICES_MISSING)
 		const username = `unconfirmed-${randomBytes(8).toString('hex')}`
 		const email = `${username}@example.com`
 		const context = await browser.newContext({baseURL: publicUrl})

@@ -250,7 +250,7 @@ test.describe('Workspace (en)', () => {
 		await expect(page.locator('.recent-projects')).toContainText('Garden')
 		const side = page.getByRole('complementary', {name: 'Recent projects and shortcuts'})
 		await expect(side.getByRole('link', {name: /Arona/})).toHaveAttribute('href', '/ai')
-		await side.getByRole('link', {name: /Project year in review/}).click()
+		await side.getByRole('link', {name: /Project timeline/}).click()
 		await expect(page).toHaveURL(/\/projects\/history/)
 	})
 

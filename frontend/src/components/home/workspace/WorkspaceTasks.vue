@@ -1,5 +1,6 @@
 <template>
 	<section
+		ref="panel"
 		v-cy="'showTasks'"
 		class="workspace-tasks show-tasks"
 		aria-labelledby="workspace-tasks-heading"
@@ -53,121 +54,121 @@
 		</Message>
 		<Message
 			v-if="savedFilterIgnored"
-			class="mbe-2"
+			class="saved-filter-ignored"
 		>
 			{{ $t('task.show.savedFilterIgnored') }}
 		</Message>
 
-		<div
+		<LoadError
 			v-if="projectsFailed"
 			class="workspace-error"
-			role="alert"
-		>
-			<p>{{ $t('workspace.loadError') }}</p>
-			<XButton
-				variant="secondary"
-				icon="arrow-rotate-right"
-				@click="projectList.refetch()"
-			>
-				{{ $t('projectHistory.retry') }}
-			</XButton>
-		</div>
+			:message="$t('workspace.loadError')"
+			:retry="() => projectList.refetch()"
+		/>
 
-		<div
+		<EmptyState
 			v-else-if="!hasProjects"
 			class="workspace-empty"
 			data-empty="no-projects"
+			:title="$t('workspace.noProjects')"
 		>
-			<p class="workspace-empty-title">
-				{{ $t('workspace.noProjects') }}
-			</p>
 			<XButton
 				:to="{name: 'project.create'}"
 				icon="plus"
 			>
 				{{ $t('project.create.header') }}
 			</XButton>
-		</div>
+		</EmptyState>
 
-		<div
+		<LoadError
 			v-else-if="taskQuery.isError.value && !hasData"
 			class="workspace-error"
-			role="alert"
-		>
-			<p>{{ $t('workspace.loadError') }}</p>
-			<XButton
-				variant="secondary"
-				icon="arrow-rotate-right"
-				@click="taskQuery.refetch()"
-			>
-				{{ $t('projectHistory.retry') }}
-			</XButton>
-		</div>
-
-		<ul
-			v-else-if="!hasData"
-			class="workspace-skeleton"
-			:aria-label="$t('misc.loading')"
-		>
-			<li
-				v-for="row in 4"
-				:key="row"
-			/>
-		</ul>
+			:message="$t('workspace.loadError')"
+			:retry="() => taskQuery.refetch()"
+		/>
 
 		<div
+			v-else-if="!hasData"
+			class="workspace-skeleton"
+			role="status"
+		>
+			<span class="is-sr-only">{{ $t('misc.loading') }}</span>
+			<div
+				v-for="row in 4"
+				:key="row"
+				class="workspace-skeleton__row"
+				aria-hidden="true"
+			>
+				<span class="workspace-skeleton__box" />
+				<span class="workspace-skeleton__line" />
+			</div>
+		</div>
+
+		<EmptyState
 			v-else-if="tasks.length === 0"
 			class="workspace-empty"
+			:title="emptyMessage"
 		>
-			<p class="workspace-empty-title">
-				{{ emptyMessage }}
-			</p>
 			<RouterLink
 				v-if="view !== 'current'"
 				:to="{name: 'tasks.range'}"
 				class="workspace-empty-link"
 			>
 				{{ $t('workspace.seeUpcoming') }}
+				<Icon
+					icon="angle-right"
+					class="is-mirrored-rtl"
+				/>
 			</RouterLink>
-		</div>
+		</EmptyState>
 
-		<Card
-			v-else
-			:padding="false"
-			:has-content="false"
-			:loading="taskQuery.isFetching.value"
-			class="workspace-task-card has-overflow"
-		>
-			<section
-				v-for="group in groups"
-				:key="group.key"
-				class="task-group"
-				:data-group="group.key"
-				:aria-labelledby="view === 'current' ? `workspace-group-${group.key}` : undefined"
+		<template v-else>
+			<!-- Data stays on screen after a failed background refresh; say so instead of failing silently. -->
+			<LoadError
+				v-if="taskQuery.isError.value"
+				class="workspace-refresh-error"
+				:message="$t('workspace.refreshError')"
+				:retry="() => taskQuery.refetch()"
+			/>
+			<Card
+				:padding="false"
+				:has-content="false"
+				class="workspace-task-card has-overflow"
+				:class="{'is-refreshing': taskQuery.isFetching.value}"
 			>
-				<h3
-					v-if="view === 'current'"
-					:id="`workspace-group-${group.key}`"
-					class="task-group-heading"
+				<section
+					v-for="group in groups"
+					:key="group.key"
+					class="task-group"
+					:data-group="group.key"
+					:aria-labelledby="view === 'current' ? `workspace-group-${group.key}` : undefined"
 				>
-					<span>{{ groupLabel(group.key) }}</span>
-					<span class="task-group-count">{{ group.tasks.length }}</span>
-				</h3>
-				<ul class="tasks">
-					<li
-						v-for="task in group.tasks"
-						:key="task.id"
+					<h3
+						v-if="view === 'current'"
+						:id="`workspace-group-${group.key}`"
+						class="task-group-heading"
 					>
-						<SingleTaskInProject
-							:show-project="true"
-							:the-task="task"
-							:can-mark-as-done="canMarkAsDone(task)"
-							@taskUpdated="refetch"
-						/>
-					</li>
-				</ul>
-			</section>
-		</Card>
+						<span>{{ groupLabel(group.key) }}</span>
+						<span class="task-group-count">{{
+							totalPages > 1 ? $t('workspace.groupOnPage', {count: group.tasks.length}) : group.tasks.length
+						}}</span>
+					</h3>
+					<ul class="tasks">
+						<li
+							v-for="task in group.tasks"
+							:key="task.id"
+						>
+							<SingleTaskInProject
+								:show-project="true"
+								:the-task="task"
+								:can-mark-as-done="canMarkAsDone(task)"
+								@taskUpdated="refetch"
+							/>
+						</li>
+					</ul>
+				</section>
+			</Card>
+		</template>
 
 		<footer
 			v-if="hasProjects && hasData && tasks.length > 0"
@@ -221,12 +222,14 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, ref, useTemplateRef, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
 import Message from '@/components/misc/Message.vue'
+import EmptyState from '@/components/misc/state/EmptyState.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 import SegmentedControl from '@/components/input/SegmentedControl.vue'
 import SingleTaskInProject from '@/components/tasks/partials/SingleTaskInProject.vue'
 import XLabel from '@/components/tasks/partials/Label.vue'
@@ -236,6 +239,7 @@ import {useProjects} from '@/composables/useProjects'
 import {useLabels} from '@/composables/useLabels'
 import {useTasks} from '@/composables/useTasks'
 import {useGlobalNow} from '@/composables/useGlobalNow'
+import {useTaskRowKeyboard} from '@/components/home/workspace/useTaskRowKeyboard'
 import {resolveUserTimezone} from '@/helpers/time/userTimezone'
 import {PERMISSIONS} from '@/constants/permissions'
 import type {TaskResponse} from '@/client/queries/tasks'
@@ -263,6 +267,8 @@ const {getLabelById} = useLabels()
 const {now} = useGlobalNow()
 
 const view = defineModel<WorkspaceTaskView>('view', {required: true})
+
+useTaskRowKeyboard(useTemplateRef<HTMLElement>('panel'))
 
 const viewOptions = computed(() => [
 	{
@@ -411,104 +417,117 @@ const savedFilterIgnored = computed(() => filteredLabels.value.length > 0
 </script>
 
 <style lang="scss" scoped>
+// Home keeps Bulma's .content on its root; paragraphs in the states here bring their own spacing.
+.workspace-tasks.show-tasks :deep(p) {
+	margin-block: 0;
+}
+
 .workspace-tasks-header {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: .5rem 1rem;
-	margin-block-end: .75rem;
+	gap: var(--space-2) var(--space-4);
+	margin-block-end: var(--space-3);
 }
 
 .workspace-tasks-count {
-	margin: 0;
-	color: var(--text-muted);
-	font-size: .875rem;
+	color: var(--text-tertiary);
+	font-size: var(--text-md);
 	font-variant-numeric: tabular-nums;
 }
 
 .workspace-task-card {
 	margin-block-end: 0;
+	transition: opacity var(--motion-base) var(--ease-standard);
+
+	// Background refreshes keep the rows usable; only a quiet hint that something is loading.
+	&.is-refreshing {
+		opacity: .85;
+	}
+}
+
+.workspace-refresh-error {
+	margin-block-end: var(--space-3);
 }
 
 .task-group + .task-group {
-	border-block-start: 1px solid var(--grey-100);
+	border-block-start: 1px solid var(--border-subtle);
 }
 
 .task-group-heading {
+	position: sticky;
+	inset-block-start: var(--header-height);
+	z-index: var(--layer-sticky);
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-2);
 	margin: 0;
-	padding: .75rem 1rem .25rem;
-	color: var(--text-muted);
-	font-size: .8125rem;
-	font-weight: 600;
-	letter-spacing: .02em;
+	padding: var(--space-3) var(--space-4) var(--space-1);
+	background: var(--surface);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+
+	.task-group:first-child & {
+		border-start-start-radius: var(--radius-md);
+		border-start-end-radius: var(--radius-md);
+	}
 
 	[data-group="overdue"] & {
-		color: var(--danger-text, var(--danger));
+		color: var(--danger-text);
 	}
 }
 
 .task-group-count {
+	color: var(--text-tertiary);
 	font-variant-numeric: tabular-nums;
-	font-weight: 500;
-	opacity: .85;
+	font-weight: var(--weight-medium);
 }
 
 .tasks {
 	list-style: none;
 	margin: 0;
-	padding: 0 .5rem .5rem;
+	padding: 0 var(--space-2) var(--space-2);
 }
 
 .workspace-skeleton {
 	display: grid;
-	gap: .5rem;
-	margin: 0;
-	padding: 1rem;
-	list-style: none;
-	border-radius: $radius-large;
-	background: var(--white);
-	box-shadow: var(--shadow-sm);
-
-	li {
-		block-size: 1.75rem;
-		border-radius: $radius;
-		background: var(--grey-100);
-
-		&:nth-child(2n) {
-			inline-size: 80%;
-		}
-	}
+	gap: var(--space-1);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
 }
 
-.workspace-empty,
-.workspace-error {
+.workspace-skeleton__row {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: .75rem;
-	padding: 1.25rem;
-	border: 1px dashed var(--grey-300);
-	border-radius: $radius-large;
-	color: var(--text-muted);
+	align-items: center;
+	gap: var(--space-3);
+	block-size: 2.25rem;
 
-	p {
-		margin: 0;
+	&:nth-child(2n + 1) .workspace-skeleton__line {
+		inline-size: 55%;
 	}
 }
 
-.workspace-error {
-	border-style: solid;
-	border-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .4);
-	color: var(--text);
+.workspace-skeleton__box,
+.workspace-skeleton__line {
+	border-radius: var(--radius-xs);
+	background: var(--surface-active);
 }
 
-.workspace-empty-title {
-	color: var(--text);
-	font-weight: 500;
+.workspace-skeleton__box {
+	flex: none;
+	inline-size: 1rem;
+	block-size: 1rem;
+}
+
+.workspace-skeleton__line {
+	inline-size: 75%;
+	block-size: .75rem;
 }
 
 .workspace-tasks-footer {
@@ -516,20 +535,20 @@ const savedFilterIgnored = computed(() => filteredLabels.value.length > 0
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: .5rem 1rem;
-	margin-block-start: .75rem;
-	font-size: .875rem;
+	gap: var(--space-2) var(--space-4);
+	margin-block-start: var(--space-3);
+	font-size: var(--text-md);
 }
 
 .workspace-pagination {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: .25rem .5rem;
+	gap: var(--space-1) var(--space-2);
 }
 
 .workspace-page-status {
-	color: var(--text-muted);
+	color: var(--text-tertiary);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -537,37 +556,44 @@ const savedFilterIgnored = computed(() => filteredLabels.value.length > 0
 .workspace-empty-link {
 	display: inline-flex;
 	align-items: center;
-	gap: .375rem;
-	min-block-size: 2rem;
+	gap: var(--space-2);
+	min-block-size: var(--target-min);
 	margin-inline-start: auto;
-	font-weight: 500;
-
-	@media (pointer: coarse) {
-		min-block-size: 2.75rem;
-	}
+	color: var(--accent-text);
+	font-weight: var(--weight-medium);
 }
 
 .workspace-empty-link {
 	margin-inline-start: 0;
 }
 
-.label-filter-info {
-	margin-block-end: 1rem;
+.label-filter-info,
+.saved-filter-ignored {
+	margin-block-end: var(--space-3);
+}
 
+.label-filter-info {
 	.clear-filter-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-inline-size: var(--target-min);
+		min-block-size: var(--target-min);
 		margin-inline-start: auto;
-		padding: .25rem .5rem;
+		border-radius: $radius;
+		color: var(--text-secondary);
 
 		&:hover {
-			color: var(--danger);
+			background: var(--surface-hover);
+			color: var(--danger-text);
 		}
 	}
 
-	:deep(.message.info) {
+	:deep(.message) {
 		inline-size: 100%;
 		display: flex;
 		align-items: center;
-		gap: .5rem;
+		gap: var(--space-2);
 	}
 }
 </style>

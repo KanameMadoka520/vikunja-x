@@ -2,11 +2,9 @@
 // using the --primary token, sets body background, and defines a handful of
 // generic utility classes (.box, .is-fullwidth, .color-bubble, etc.).
 
-*,
-*:hover,
-*:active,
+// Transparent rather than none: forced-colors mode paints it, so focus stays visible there (WCAG C40).
 *:focus {
-  outline: none;
+  outline: 2px solid transparent;
 }
 
 a, button, input[type='checkbox'], input[type='radio'], select, [tabindex], [contenteditable='true'] {
@@ -26,6 +24,11 @@ a, button, input[type='checkbox'], input[type='radio'], select, [tabindex], [con
   --body-overflow-y: auto;
 }
 
+// Keyboard focus scrolled into view must not end up under the fixed header (WCAG 2.4.11).
+html {
+  scroll-padding-block-start: calc(var(--header-height) + var(--space-2));
+}
+
 // The LanguageTool browser plugin creates a custom element with shadow root for textareas.
 // Since shadow root doesn't inherit styles, we have to set `box-sizing` to `border-box` instead of `inherit`.
 // https://dev.to/konnorrogers/revisiting-box-sizing-best-practices-3del
@@ -35,13 +38,42 @@ a, button, input[type='checkbox'], input[type='radio'], select, [tabindex], [con
   box-sizing: border-box;
 }
 
+html {
+  color-scheme: light;
+
+  &.dark {
+    @media screen {
+      color-scheme: dark;
+    }
+  }
+}
+
 body {
   background: var(--site-background);
   min-height: 100vh;
- 
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
   @media print {
     background: #fff;
   }
+}
+
+// iOS zooms into any focused field under 16px; touch layouts keep text fields at 16px.
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color']),
+  select,
+  textarea,
+  [contenteditable='true'] {
+    font-size: max(1rem, 16px) !important;
+  }
+}
+
+::selection {
+  background: hsla(var(--primary-hsl), .24);
 }
 
 h1,
@@ -51,7 +83,10 @@ h4,
 h5,
 h6 {
   font-family: $vikunja-font;
-  font-weight: 400 !important;
+  font-weight: var(--weight-semibold) !important;
+  letter-spacing: -0.011em;
+  line-height: var(--leading-tight);
+  color: var(--text-strong);
 }
 
 // FIXME: these helpers should be mixins
@@ -121,6 +156,7 @@ button.table {
 }
 
 .box {
-  border: 1px solid var(--grey-200);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
 }

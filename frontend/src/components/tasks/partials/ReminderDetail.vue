@@ -11,6 +11,7 @@
 				<SimpleButton
 					ref="trigger"
 					v-tooltip="reminder.reminder && reminder.relative_to !== '' ? formatDisplayDate(reminder.reminder) : null"
+					class="reminder-trigger"
 					@click.prevent.stop="toggle()"
 				>
 					{{ reminderText }}
@@ -289,48 +290,63 @@ function translateUnit(amount: number, unit: PeriodUnit): string {
 </script>
 
 <style lang="scss" scoped>
+.reminder-trigger.simple-button {
+	min-block-size: var(--control-height-sm);
+	margin: 0;
+	padding: var(--space-1) var(--space-2);
+	color: var(--text-primary);
+
+	&:hover {
+		background: var(--surface-hover);
+	}
+}
+
 .options {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	align-items: stretch;
+	padding: var(--space-1);
 }
 
 .reminder-options-popup {
-	inline-size: 310px;
-	z-index: 99;
+	inline-size: min(19.5rem, calc(100vw - var(--space-8)));
+	z-index: var(--layer-floating);
 
 	.bottom-sheet & {
 		inline-size: 100%;
 		border: 0;
 		box-shadow: none;
 		border-radius: 0;
-		padding-block-end: .5rem;
+		padding-block-end: var(--space-2);
 
 		.option-button {
-			inline-size: 100%;
-			padding: .75rem 1rem;
-			font-size: 1rem;
+			min-block-size: var(--target-min);
+			padding: var(--space-3) var(--space-4);
+			font-size: var(--text-base);
 		}
 	}
 
 	.option-button {
-		font-size: .85rem;
-		border-radius: 0;
-		padding: .5rem;
+		min-block-size: 2rem;
 		margin: 0;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm);
+		color: var(--text-primary);
+		font-size: var(--text-md);
 
 		&:hover {
-			background: var(--grey-100);
+			background: var(--surface-hover);
 		}
 	}
 }
 
 .reminder__close-button {
-	margin: .5rem;
-	inline-size: calc(100% - 1rem);
+	margin: var(--space-2);
+	inline-size: calc(100% - var(--space-4));
 }
 
-.currently-active {
-	color: var(--primary);
+.option-button.currently-active {
+	color: var(--accent-text);
+	font-weight: var(--weight-semibold);
 }
 </style>

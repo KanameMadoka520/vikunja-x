@@ -12,7 +12,6 @@
 		class="icon-wrapper"
 	>
 		<Icon
-			size="6x"
 			icon="file-pdf"
 		/>
 	</div>
@@ -23,7 +22,6 @@
 		class="icon-wrapper"
 	>
 		<Icon
-			size="6x"
 			icon="volume-high"
 		/>
 	</div>
@@ -34,7 +32,6 @@
 		class="icon-wrapper"
 	>
 		<Icon
-			size="6x"
 			icon="play"
 		/>
 	</div>
@@ -45,7 +42,6 @@
 		class="icon-wrapper"
 	>
 		<Icon
-			size="6x"
 			icon="file"
 		/>
 	</div>
@@ -106,12 +102,19 @@ onBeforeUnmount(() => releaseAttachmentUrl(blobUrl.value))
 
 <style scoped lang="scss">
 img {
+	display: block;
 	inline-size: 100%;
-	border-radius: $radius;
+	block-size: 100%;
 	object-fit: cover;
 }
 
 .icon-wrapper {
-	color: var(--grey-500);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: 100%;
+	block-size: 100%;
+	color: var(--text-tertiary);
+	font-size: var(--text-xl);
 }
 </style>

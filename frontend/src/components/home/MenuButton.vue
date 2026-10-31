@@ -5,8 +5,8 @@
 		:title="$t('keyboardShortcuts.toggleMenu')"
 		:aria-label="menuActive ? $t('misc.hideMenu') : $t('misc.showMenu')"
 		:aria-expanded="menuActive"
+		aria-controls="app-sidebar"
 		@click="baseStore.toggleMenu()"
-		@shortkey="() => baseStore.toggleMenu()"
 	/>
 </template>
 
@@ -23,54 +23,58 @@ const menuActive = computed(() => baseStore.menuActive)
 </script>
 
 <style lang="scss" scoped>
-$line-width: 2rem;
-$size: $line-width + 1rem;
+$line-width: 1.125rem;
 
 .menu-show-button {
-	min-block-size: $size;
-	inline-size: $size;
-
 	position: relative;
-
-	$transform-x: translateX(-50%);
+	flex-shrink: 0;
+	inline-size: var(--navbar-button-size, 2.25rem);
+	block-size: var(--navbar-button-size, 2.25rem);
+	border-radius: $radius;
 
 	&::before,
 	&::after {
 		content: '';
-		display: block;
 		position: absolute;
-		block-size: 3px;
+		inset-inline: 0;
+		inset-block-start: 50%;
+		display: block;
 		inline-size: $line-width;
-		inset-inline-start: 50%;
-		transform: $transform-x;
-		background-color: var(--grey-400);
-		border-radius: 2px;
-		transition: all $transition;
+		block-size: 2px;
+		margin-inline: auto;
+		margin-block-start: -1px;
+		border-radius: var(--radius-full);
+		background-color: var(--text-secondary);
+		transition:
+			transform var(--motion-fast) var(--ease-standard),
+			background-color var(--motion-fast) var(--ease-standard);
 	}
 
 	&::before {
-		inset-block-start: 50%;
-		transform: $transform-x translateY(-0.4rem)
+		transform: translateY(-.25rem);
 	}
 
 	&::after {
-		inset-block-end: 50%;
-		transform: $transform-x translateY(0.4rem)
+		transform: translateY(.25rem);
+	}
+
+	&:hover {
+		background-color: var(--surface-hover);
 	}
 
 	&:hover,
-	&:focus {
+	&:focus-visible {
 		&::before,
 		&::after {
-			background-color: var(--grey-600);
+			background-color: var(--text-primary);
 		}
 
 		&::before {
-			transform: $transform-x translateY(-0.5rem);
+			transform: translateY(-.3125rem);
 		}
 
 		&::after {
-			transform: $transform-x translateY(0.5rem)
+			transform: translateY(.3125rem);
 		}
 	}
 }

@@ -1,6 +1,7 @@
 <template>
 	<div class="shortcut-recorder">
 		<button
+			type="button"
 			class="input recorder-button"
 			:class="{'is-recording': recording}"
 			@click="startRecording"
@@ -158,52 +159,59 @@ function clear() {
 .shortcut-recorder {
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-2);
 }
 
 .recorder-button {
 	display: inline-flex;
 	align-items: center;
-	gap: .25rem;
+	gap: var(--space-1);
 	cursor: pointer;
 	min-inline-size: 150px;
 	text-align: start;
 
 	&.is-recording {
 		border-color: var(--primary);
-		box-shadow: 0 0 0 0.125em rgba(var(--primary-rgb), 0.25);
+		background-color: var(--surface-selected);
 	}
 }
 
 kbd {
-	padding: .1rem .4rem;
-	border: 1px solid var(--grey-300);
-	background: var(--grey-100);
-	border-radius: 3px;
-	font-size: .85rem;
+	padding: 1px var(--space-2);
+	border: 1px solid var(--border-default);
+	border-block-end-width: 2px;
+	background: var(--surface-sunken);
+	border-radius: var(--radius-xs);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
 	font-family: inherit;
 	line-height: 1.5;
 
 	& + kbd {
-		margin-inline-start: .15rem;
+		margin-inline-start: 2px;
 	}
 }
 
 .recording-hint {
-	color: var(--primary);
-	font-size: .85rem;
+	color: var(--accent-text);
+	font-size: var(--text-sm);
 }
 
 .placeholder {
-	color: var(--grey-400);
+	color: var(--input-placeholder-color);
 }
 
 .clear-button {
-	color: var(--grey-500);
-	padding: .25rem;
+	display: inline-grid;
+	place-items: center;
+	min-inline-size: var(--control-height-sm);
+	min-block-size: var(--control-height-sm);
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
 
 	&:hover {
-		color: var(--danger);
+		background-color: var(--surface-hover);
+		color: var(--danger-text);
 	}
 }
 </style>

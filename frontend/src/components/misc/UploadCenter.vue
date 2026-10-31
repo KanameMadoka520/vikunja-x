@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {watch, ref, nextTick, onBeforeUnmount} from 'vue'
+import {computed, watch, ref, nextTick, onBeforeUnmount, onMounted, useId} from 'vue'
 import UploadProgressRow from './UploadProgressRow.vue'
 import {useI18n} from 'vue-i18n'
 import {imagePrompt, uploads, uploadsExpanded, type ImageChoice} from '@/helpers/uploadTransport'
@@ -19,6 +19,31 @@ watch(() => uploads.value.map(row => `${row.id}:${row.stage}`).join(','), () => 
 	}
 })
 onBeforeUnmount(() => clearTimeout(collapseTimer))
+const rowsId = useId()
+const activeCount = () => uploads.value.filter(row => !['done', 'error', 'cancelled'].includes(row.stage)).length
+// Open modal dialogs sit in the top layer; the panel follows them so task uploads stay visible.
+const portal = ref<string | HTMLElement>('body')
+let dialogObserver: MutationObserver | undefined
+function syncPortal() {
+	const dialogs = document.querySelectorAll<HTMLDialogElement>('dialog.modal-dialog[open]')
+	portal.value = dialogs.item(dialogs.length - 1) ?? 'body'
+}
+onMounted(() => {
+	syncPortal()
+	dialogObserver = new MutationObserver(syncPortal)
+	dialogObserver.observe(document.body, {
+		attributes: true,
+		attributeFilter: ['open'],
+		childList: true,
+		subtree: true,
+	})
+})
+onBeforeUnmount(() => dialogObserver?.disconnect())
+const inDialog = computed(() => portal.value !== 'body')
+// A dialog shows its own result, and its footer actions must stay reachable: once the uploads in it
+// are done and the panel has collapsed, it steps aside until the dialog closes. Failures stay.
+const visible = computed(() => uploads.value.length > 0 && !(inDialog.value && !uploadsExpanded.value
+	&& uploads.value.every(row => row.stage === 'done' || row.stage === 'cancelled')))
 watch(imagePrompt, async prompt => {
 	if (prompt) { mode.value = 'original'; restoreFocus = document.activeElement as HTMLElement; await nextTick(); dialog.value?.showModal() }
 	else { dialog.value?.close(); restoreFocus?.focus() }
@@ -83,105 +108,213 @@ function size(bytes: number) { return (bytes / 1024 / 1024).toFixed(2) + ' MiB' 
 			</XButton>
 		</footer>
 	</dialog>
-	<aside
-		v-if="uploads.length"
-		class="upload-center"
-		:aria-label="t('flow.uploads')"
-	>
-		<button
-			class="upload-center-heading"
-			@click="uploadsExpanded = !uploadsExpanded"
+	<Teleport :to="portal">
+		<aside
+			v-if="visible"
+			class="upload-center d-print-none"
+			:class="{'is-in-dialog': inDialog}"
+			:aria-label="t('flow.uploads')"
 		>
-			{{ t('flow.uploads') }} · {{ uploads.filter(row => !['done','error','cancelled'].includes(row.stage)).length }} <span>{{ uploadsExpanded ? '−' : '+' }}</span>
-		</button>
-		<div
-			v-if="uploadsExpanded"
-			class="upload-rows"
-		>
-			<UploadProgressRow
-				v-for="row in uploads"
-				:key="row.id"
-				:row="row"
-			/>
 			<button
-				class="clear-uploads"
-				@click="uploads = uploads.filter(row => !['done','error','cancelled'].includes(row.stage))"
+				type="button"
+				class="upload-center-heading"
+				:aria-expanded="uploadsExpanded"
+				:aria-controls="uploadsExpanded ? rowsId : undefined"
+				@click="uploadsExpanded = !uploadsExpanded"
 			>
-				{{ t('flow.clearFinished') }}
+				<span class="upload-center-title">{{ t('flow.uploads') }}</span>
+				<span class="upload-center-count">{{ activeCount() }}</span>
+				<Icon
+					icon="chevron-down"
+					class="upload-center-chevron"
+					:class="{'is-expanded': uploadsExpanded}"
+					aria-hidden="true"
+				/>
 			</button>
-		</div>
-	</aside>
+			<div
+				v-if="uploadsExpanded"
+				:id="rowsId"
+				class="upload-rows"
+			>
+				<UploadProgressRow
+					v-for="row in uploads"
+					:key="row.id"
+					:row="row"
+				/>
+				<button
+					type="button"
+					class="clear-uploads"
+					@click="uploads = uploads.filter(row => !['done','error','cancelled'].includes(row.stage))"
+				>
+					{{ t('flow.clearFinished') }}
+				</button>
+			</div>
+		</aside>
+	</Teleport>
 </template>
 
 <style scoped lang="scss">
-.image-upload-dialog { border: 1px solid var(--grey-200);
-border-radius: 1.25rem;
-padding: 1.5rem;
-background: var(--site-background);
-color: var(--text);
-inline-size: min(92vw, 32rem);
-max-block-size: 90dvh;
-overflow: auto;
-box-shadow: 0 24px 80px #00000044;
+.image-upload-dialog {
+	inline-size: min(92vw, 32rem);
+	max-block-size: 90dvh;
+	padding: var(--space-6);
+	overflow: auto;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
+	&::backdrop {
+		background: var(--scrim);
+	}
+
+	h2 {
+		margin-block-end: var(--space-2);
+		font-size: var(--text-lg);
+	}
+
+	p,
+	li {
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		overflow-wrap: anywhere;
+	}
+
+	ul {
+		margin-block: var(--space-2) var(--space-3);
+	}
+
+	footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		margin-block-start: var(--space-5);
+	}
 }
-.image-upload-dialog::backdrop { background: #00000055;
-backdrop-filter: blur(5px);
+
+.image-choice {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-block: var(--space-2);
+	padding: var(--space-3);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		background-color: var(--surface-hover);
+	}
+
+	&:has(input:checked) {
+		border-color: var(--primary);
+		background-color: var(--surface-selected);
+	}
+
 }
-.image-upload-dialog h2 { font-size: 1.3rem;
-margin-block-end: .75rem;
+
+.image-options label {
+	display: grid;
+	gap: var(--space-2);
+	margin-block: var(--space-3);
+	font-size: var(--text-sm);
 }
-.image-upload-dialog p, .image-upload-dialog li { font-size: .85rem;
-overflow-wrap: anywhere;
+
+// Bottom-end dock: the panel stacks above the Arona launcher whenever the launcher is on screen.
+.upload-center {
+	position: fixed;
+	inset-inline-end: var(--dock-inset-inline);
+	inset-block-end: var(--dock-inset-block);
+	z-index: var(--layer-floating);
+	inline-size: min(22rem, calc(100vw - 2 * var(--dock-inset-inline)));
+	overflow: hidden;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
+	:root:has(.arona-launcher) & {
+		inset-block-end: calc(var(--dock-inset-block) + var(--dock-launcher-size) + var(--space-3));
+	}
+
+	// Dialog footers put their actions at the end, and the launcher sits behind the dialog.
+	&.is-in-dialog,
+	:root:has(.arona-launcher) &.is-in-dialog {
+		inset-inline-start: var(--dock-inset-inline);
+		inset-inline-end: auto;
+		inset-block-end: var(--dock-inset-block);
+	}
 }
-.image-upload-dialog footer { display: flex;
-justify-content: flex-end;
-gap: .75rem;
-margin-block-start: 1.25rem;
+
+.upload-center-heading {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	inline-size: 100%;
+	min-block-size: var(--nav-row-height);
+	padding: var(--space-2) var(--space-3);
+	border: 0;
+	background: var(--surface-sunken);
+	color: inherit;
+	font: inherit;
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	text-align: start;
+	cursor: pointer;
+
+	&:hover {
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+	}
 }
-.image-choice { display: flex;
-gap: .75rem;
-padding: .85rem;
-border: 1px solid var(--grey-200);
-border-radius: .75rem;
-margin-block: .5rem;
-cursor: pointer;
+
+.upload-center-title {
+	flex: 1 1 auto;
+	min-inline-size: 0;
 }
-.image-choice:has(input:checked) { border-color: var(--primary);
-background: var(--grey-100);
+
+.upload-center-count {
+	min-inline-size: 1.25rem;
+	padding-inline: var(--space-1);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
 }
-.image-options label { display: grid;
-gap: .5rem;
-margin-block: .75rem;
+
+.upload-center-chevron {
+	color: var(--text-secondary);
+	transition: transform var(--motion-fast) var(--ease-standard);
+
+	&.is-expanded {
+		transform: rotate(180deg);
+	}
 }
-.upload-center { position: fixed;
-z-index: 10000;
-inset-inline-end: 1rem;
-inset-block-end: 1rem;
-inline-size: min(22rem, calc(100vw - 2rem));
-background: var(--site-background);
-color: var(--text);
-border: 1px solid var(--grey-200);
-border-radius: 1rem;
-box-shadow: 0 12px 40px #00000022;
-overflow: hidden;
+
+.upload-rows {
+	max-block-size: 35dvh;
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: var(--space-1) var(--space-3) var(--space-2);
 }
-.upload-center-heading { display: flex;
-justify-content: space-between;
-inline-size: 100%;
-padding: .85rem 1rem;
-background: var(--grey-100);
-border: 0;
-color: inherit;
-cursor: pointer;
-}
-.upload-rows { max-block-size: 35dvh;
-overflow: auto;
-padding: .75rem 1rem;
-}
-.clear-uploads { border: 0;
-background: transparent;
-color: var(--primary);
-cursor: pointer;
-font-size: .8rem;
+
+.clear-uploads {
+	padding: var(--space-1) 0;
+	border: 0;
+	background: transparent;
+	color: var(--accent-text);
+	font: inherit;
+	font-size: var(--text-xs);
+	cursor: pointer;
+
+	&:hover {
+		text-decoration: underline;
+	}
 }
 </style>

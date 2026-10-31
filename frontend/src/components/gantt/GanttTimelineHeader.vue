@@ -1,54 +1,35 @@
 <template>
+	<!-- A visual axis only: every bar announces its own dates, so the 70-odd day cells stay out of the reading order. -->
 	<div
 		class="gantt-timeline"
-		role="columnheader"
-		:aria-label="$t('project.gantt.timelineHeader')"
+		aria-hidden="true"
 	>
 		<!-- Upper timeunit for months -->
-		<div
-			class="gantt-timeline-months"
-			role="row"
-			:aria-label="$t('project.gantt.monthsRow')"
-		>
+		<div class="gantt-timeline-months">
 			<div
 				v-for="monthGroup in monthGroups"
 				:key="monthGroup.key"
 				class="timeunit-month"
 				:style="{ width: `${monthGroup.width}px` }"
-				role="columnheader"
-				:aria-label="$t('project.gantt.monthLabel', {month: monthGroup.label})"
 			>
-				{{ monthGroup.label }}
+				<span class="timeunit-month__label">{{ monthGroup.label }}</span>
 			</div>
 		</div>
-        
+
 		<!-- Lower timeunit for days -->
-		<div
-			class="gantt-timeline-days"
-			role="row"
-			:aria-label="$t('project.gantt.daysRow')"
-		>
+		<div class="gantt-timeline-days">
 			<div
 				v-for="date in timelineData"
 				:key="date.toISOString()"
 				class="timeunit"
+				:class="{'is-weekend': isWeekend(date)}"
 				:style="{ width: `${dayWidthPixels}px` }"
-				role="columnheader"
-				:aria-label="dateIsToday(date) 
-					? $t('project.gantt.dayLabelToday', {
-						date: date.toLocaleDateString(),
-						weekday: weekDayFromDate(date)
-					})
-					: $t('project.gantt.dayLabel', {
-						date: date.toLocaleDateString(),
-						weekday: weekDayFromDate(date)
-					})"
 			>
 				<div
 					class="timeunit-wrapper"
 					:class="{'today': dateIsToday(date)}"
 				>
-					<span>{{ date.getDate() }}</span>
+					<span class="timeunit-day">{{ date.getDate() }}</span>
 					<span class="weekday">
 						{{ weekDayFromDate(date) }}
 					</span>
@@ -65,17 +46,21 @@ import {useWeekDayFromDate} from '@/helpers/time/formatDate'
 import dayjs from 'dayjs'
 
 const props = defineProps<{
-    timelineData: Date[]
-    dayWidthPixels: number
+	timelineData: Date[]
+	dayWidthPixels: number
 }>()
 
 const weekDayFromDate = useWeekDayFromDate()
-const { now: today } = useGlobalNow()
+const {now: today} = useGlobalNow()
 
 const dateIsToday = computed(() => {
 	const todayStr = today.value.toDateString()
 	return (date: Date) => date.toDateString() === todayStr
 })
+
+function isWeekend(date: Date) {
+	return date.getDay() === 0 || date.getDay() === 6
+}
 
 const monthGroups = computed(() => {
 	const groups = props.timelineData.reduce(
@@ -106,52 +91,74 @@ const monthGroups = computed(() => {
 
 <style scoped lang="scss">
 .gantt-timeline {
-	background: var(--white);
-	border-block-end: 1px solid var(--grey-200);
 	position: sticky;
 	inset-block-start: 0;
-	z-index: 10;
+	z-index: var(--layer-sticky);
+	background: var(--surface);
+	box-shadow: inset 0 -1px 0 var(--border-default);
 }
 
 .gantt-timeline-months {
 	display: flex;
+	border-block-end: 1px solid var(--border-subtle);
 
 	.timeunit-month {
-		background: var(--white);
-		font-family: $vikunja-font;
-		font-weight: bold;
-		border-inline-end: 1px solid var(--grey-200);
-		padding: 0.5rem 0;
-		text-align: center;
-		font-size: 1rem;
-		color: var(--grey-800);
+		flex-shrink: 0;
+		padding: var(--space-1) 0;
+		border-inline-end: 1px solid var(--border-subtle);
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		white-space: nowrap;
 	}
+}
+
+// The month name rides along the start edge while its month scrolls past.
+.timeunit-month__label {
+	display: inline-block;
+	position: sticky;
+	inset-inline-start: 0;
+	padding-inline: var(--space-2);
 }
 
 .gantt-timeline-days {
 	display: flex;
 
 	.timeunit {
-		.timeunit-wrapper {
-			padding: 0.5rem 0;
-			font-size: 1rem;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			inline-size: 100%;
-			font-family: $vikunja-font;
+		flex-shrink: 0;
 
-			&.today {
-				background: var(--primary);
-				color: var(--white);
-				border-radius: 5px 5px 0 0;
-				font-weight: bold;
-			}
+		&.is-weekend {
+			background: var(--surface-hover);
+		}
+	}
+
+	.timeunit-wrapper {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		inline-size: 100%;
+		padding: var(--space-1) 0;
+		color: var(--text-primary);
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+		line-height: var(--leading-tight);
+
+		&.today {
+			border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+			background: var(--surface-selected-strong);
+			box-shadow: inset 0 -2px 0 var(--primary);
+			color: var(--accent-text);
+			font-weight: var(--weight-semibold);
 
 			.weekday {
-				font-size: 0.8rem;
+				color: var(--accent-text);
 			}
 		}
+	}
+
+	.weekday {
+		color: var(--text-tertiary);
+		font-size: var(--text-2xs);
 	}
 }
 </style>

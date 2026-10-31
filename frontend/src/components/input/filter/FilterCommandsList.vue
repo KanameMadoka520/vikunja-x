@@ -116,13 +116,13 @@ defineExpose({
 <style lang="scss" scoped>
 .filter-autocompletes {
 	position: relative;
-	border-radius: $radius;
-	background: var(--white);
-	color: var(--grey-900);
-	overflow: hidden;
-	font-size: 0.875rem;
-	box-shadow: var(--shadow-md);
-	border: 1px solid var(--grey-200);
+	padding: var(--space-1);
+	border-radius: var(--radius-md);
+	background-color: var(--surface-raised);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+	box-shadow: var(--elevation-3);
+	border: 1px solid var(--border-subtle);
 	max-block-size: 12rem;
 	overflow-y: auto;
 }
@@ -132,24 +132,29 @@ defineExpose({
 	align-items: center;
 	margin: 0;
 	inline-size: 100%;
+	min-block-size: 2rem;
 	text-align: start;
 	background: transparent;
 	color: inherit;
-	border-radius: $radius;
+	border-radius: var(--radius-sm);
 	border: 0;
-	padding: 0.375rem 0.5rem;
-	transition: background-color var(--transition);
+	padding: var(--space-1) var(--space-2);
+	transition: background-color var(--motion-fast) var(--ease-standard);
 	cursor: pointer;
 
 	&.is-selected,
 	&:hover {
-		background: var(--grey-100);
+		background-color: var(--surface-hover);
+	}
+
+	&.is-selected {
+		background-color: var(--surface-selected);
 	}
 
 	&.no-results {
-		color: var(--grey-500);
+		color: var(--text-tertiary);
 		cursor: default;
-		
+
 		&:hover {
 			background: transparent;
 		}
@@ -163,15 +168,15 @@ defineExpose({
 }
 
 .filter-autocomplete__label {
-	font-size: 0.75rem;
+	font-size: var(--text-xs);
 }
 
 .filter-autocomplete__user {
-	font-size: 0.875rem;
+	font-size: var(--text-md);
 }
 
 .filter-autocomplete__project {
-	color: var(--grey-800);
-	font-weight: 500;
+	color: var(--text-primary);
+	font-weight: var(--weight-medium);
 }
 </style>

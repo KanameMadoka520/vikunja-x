@@ -2,7 +2,10 @@
 	<div
 		class="loader-container is-loading"
 		:class="{'is-small': variant === 'small'}"
-	/>
+		role="status"
+	>
+		<span class="is-sr-only">{{ $t('misc.loading') }}</span>
+	</div>
 </template>
 
 <script lang="ts" setup>
@@ -14,12 +17,12 @@ withDefaults(defineProps<{
 </script>
 
 <style scoped lang="scss">
+// Fills its container; the minimum only has to hold the spinner, so phones never overflow.
 .loader-container {
 	block-size: 100%;
 	min-block-size: 200px;
 	inline-size: 100%;
-	min-inline-size: 600px;
-	max-inline-size: 100vw;
+	min-inline-size: 5rem;
 
 	&.is-loading-small {
 		min-block-size: 50px;
@@ -27,16 +30,8 @@ withDefaults(defineProps<{
 	}
 
 	&.is-small {
-		min-inline-size: 100%;
 		block-size: 150px;
-
-		&.is-loading::after {
-			inline-size: 3rem;
-			block-size: 3rem;
-			inset-block-start: calc(50% - 1.5rem);
-			inset-inline-start: calc(50% - 1.5rem);
-			border-width: 3px;
-		}
+		min-block-size: 0;
 	}
 }
 </style>

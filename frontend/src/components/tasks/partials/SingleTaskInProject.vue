@@ -5,7 +5,7 @@
 	>
 		<div
 			ref="taskRoot"
-			:class="{'is-loading': isLoading}"
+			:class="{'is-loading': isLoading, 'is-done': task.done, 'has-project-context': showProjectContext}"
 			class="task loader-container single-task"
 			tabindex="-1"
 			:data-is-overdue="isOverdue || undefined"
@@ -14,51 +14,27 @@
 		>
 			<span
 				v-tooltip="!canMarkAsDone ? $t('task.readOnlyCheckbox') : ''"
-				class="is-inline-flex is-align-items-center"
+				class="single-task__check"
 			>
 				<FancyCheckbox
 					:model-value="task.done ?? false"
 					:disabled="isArchived || disabled || !canMarkAsDone"
-					:aria-label="$t('task.detail.markAsDone', {task: task.title})"
+					:aria-label="checkboxLabel"
 					@update:modelValue="markAsDone"
 					@click.stop
 				/>
 			</span>
 
-			<ColorBubble
-				v-if="!showProjectSeparately && projectColor !== '' && currentProject?.id !== task.project_id"
-				:color="projectColor"
-				class="mie-1"
-			/>
-
 			<div
-				:class="{ 'done': task.done, 'show-project': showProject && project}"
+				:class="{'done': task.done, 'show-project': showProjectContext}"
 				class="tasktext"
 			>
-				<span>
-					<RouterLink
-						v-if="showProject && typeof project !== 'undefined'"
-						v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
-						:to="{ name: 'project.index', params: { projectId: task.project_id } }"
-						class="task-project mie-1"
-						:class="{'mie-2': task.hex_color !== ''}"
-						@click.stop
-					>
-						{{ project.title }}
-					</RouterLink>
-
+				<span class="tasktext__title">
 					<ColorBubble
 						v-if="task.hex_color !== ''"
 						:color="getHexColor(task.hex_color)"
-						class="mie-1"
+						class="tasktext__task-color"
 					/>
-	
-					<PriorityLabel
-						:priority="task.priority ?? 0"
-						:done="task.done"
-						class="pis-2 mie-1"
-					/>
-
 					<TaskGlanceTooltip :task="task">
 						<RouterLink
 							ref="taskLinkRef"
@@ -69,19 +45,102 @@
 						</RouterLink>
 					</TaskGlanceTooltip>
 				</span>
+				<span
+					v-if="showProjectContext"
+					class="tasktext__context"
+				>
+					<ColorBubble
+						v-if="projectColor !== '' && currentProject?.id !== task.project_id"
+						:color="projectColor"
+						class="tasktext__project-color"
+					/>
+					<RouterLink
+						v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
+						:to="{ name: 'project.index', params: { projectId: task.project_id } }"
+						class="task-project"
+						@click.stop
+					>
+						{{ project.title }}
+					</RouterLink>
+				</span>
+			</div>
+
+			<div class="single-task__meta">
+				<PriorityLabel
+					:priority="task.priority ?? 0"
+					:done="task.done"
+					class="single-task__priority"
+				/>
 
 				<Labels
 					v-if="(task.labels?.length ?? 0) > 0"
-					class="labels mis-2 mie-1"
+					class="labels"
 					:labels="task.labels ?? []"
+					:max="2"
+					compact
 				/>
+
+				<span
+					v-if="hasIcons"
+					class="single-task__icons"
+				>
+					<span
+						v-if="(task.attachments?.length ?? 0) > 0"
+						class="project-task-icon"
+						role="img"
+						:aria-label="$t('task.attributes.attachment', (task.attachments?.length ?? 0))"
+					>
+						<Icon icon="paperclip" />
+					</span>
+					<span
+						v-if="hasDescription"
+						class="project-task-icon is-mirrored-rtl"
+						role="img"
+						:aria-label="$t('task.attributes.description')"
+					>
+						<Icon icon="align-left" />
+					</span>
+					<span
+						v-if="isRepeating"
+						class="project-task-icon"
+						role="img"
+						:aria-label="$t('task.attributes.repeat')"
+					>
+						<Icon icon="history" />
+					</span>
+					<CommentCount
+						:task="task"
+						class="project-task-icon"
+					/>
+				</span>
+
+				<ChecklistSummary
+					:task="task"
+					compact
+				/>
+
+				<span
+					v-if="percentDone > 0"
+					class="single-task__progress"
+				>
+					<ProgressBar
+						:value="percentDone"
+						:aria-label="$t('task.attributes.percentDone')"
+					/>
+					<span
+						class="single-task__percent"
+						aria-hidden="true"
+					>{{ percentDone }}%</span>
+				</span>
 
 				<AssigneeList
 					v-if="(task.assignees?.length ?? 0) > 0"
 					:assignees="task.assignees ?? []"
-					:avatar-size="25"
-					class="mis-1"
+					:avatar-size="20"
 					:inline="true"
+					:show-usernames="false"
+					:max="3"
+					class="single-task__assignees"
 				/>
 
 				<Popup
@@ -96,15 +155,17 @@
 							ref="dueDateTrigger"
 							v-tooltip="formatDateLong(task.due_date)"
 							class="dueDate"
+							:class="{'is-overdue': isOverdue, 'is-today': isDueToday}"
+							:aria-label="dueDateLabel"
+							:aria-expanded="isOpen ? 'true' : 'false'"
 							@click.prevent.stop="toggle()"
-						>	
-							<time
-								:datetime="formatISO(task.due_date)"
-								class="is-italic"
-								:aria-expanded="isOpen ? 'true' : 'false'"
-							>
-								– {{ $t('task.detail.due', {at: dueDateFormatted}) }}
-							</time>
+						>
+							<Icon
+								:icon="isOverdue ? 'exclamation-circle' : ['far', 'calendar-alt']"
+								class="dueDate__icon"
+								aria-hidden="true"
+							/>
+							<time :datetime="formatISO(task.due_date)">{{ dueDateFormatted }}</time>
 						</BaseButton>
 					</template>
 					<template #content="{isOpen}">
@@ -114,76 +175,29 @@
 						/>
 					</template>
 				</Popup>
-
-				<span>
-					<span
-						v-if="(task.attachments?.length ?? 0) > 0"
-						class="project-task-icon"
-						role="img"
-						:aria-label="$t('task.attributes.attachment', (task.attachments?.length ?? 0))"
-					>
-						<Icon icon="paperclip" />
-					</span>
-					<span
-						v-if="!isEditorContentEmpty((task.description ?? ''))"
-						class="project-task-icon is-mirrored-rtl"
-					>
-						<Icon icon="align-left" />
-					</span>
-					<span
-						v-if="isRepeating"
-						class="project-task-icon"
-					>
-						<Icon icon="history" />
-					</span>
-					<CommentCount
-						:task="task"
-						class="project-task-icon"
-					/>
-				</span>
-
-				<ChecklistSummary :task="task" />
 			</div>
 
-			<ProgressBar
-				v-if="(task.percent_done ?? 0) > 0"
-				:value="(task.percent_done ?? 0) * 100"
-				is-small
-			/>
+			<div class="single-task__end">
+				<BaseButton
+					:class="{'is-favorite': task.is_favorite}"
+					class="favorite"
+					@click.stop="toggleFavorite"
+				>
+					<span class="is-sr-only">{{
+						task.is_favorite ? $t('task.detail.actions.unfavorite') : $t('task.detail.actions.favorite')
+					}}</span>
+					<Icon
+						v-if="task.is_favorite"
+						icon="star"
+					/>
+					<Icon
+						v-else
+						:icon="['far', 'star']"
+					/>
+				</BaseButton>
+				<slot />
+			</div>
 
-			<ColorBubble
-				v-if="showProjectSeparately && projectColor !== '' && currentProject?.id !== task.project_id"
-				:color="projectColor"
-				class="mie-1"
-			/>
-
-			<RouterLink
-				v-if="showProjectSeparately"
-				v-tooltip="$t('task.detail.belongsToProject', {project: project.title})"
-				:to="{ name: 'project.index', params: { projectId: task.project_id } }"
-				class="task-project"
-				@click.stop
-			>
-				{{ project.title }}
-			</RouterLink>
-
-			<BaseButton
-				:class="{'is-favorite': task.is_favorite}"
-				class="favorite"
-				@click.stop="toggleFavorite"
-			>
-				<span class="is-sr-only">{{
-					task.is_favorite ? $t('task.detail.actions.unfavorite') : $t('task.detail.actions.favorite')
-				}}</span>
-				<Icon
-					v-if="task.is_favorite"
-					icon="star"
-				/>
-				<Icon
-					v-else
-					:icon="['far', 'star']"
-				/>
-			</BaseButton>
 			<TaskHierarchySummary
 				class="list-task-hierarchy"
 				:task="task"
@@ -191,8 +205,6 @@
 				:expanded="childrenExpanded"
 				@toggle="childrenExpanded = !childrenExpanded"
 			/>
-
-			<slot />
 		</div>
 		<div
 			v-if="childrenExpanded && nestedChildren.length"
@@ -253,6 +265,9 @@ import {isEditorContentEmpty} from '@/helpers/editorContentEmpty'
 import {TASK_REPEAT_MODES} from '@/types/IRepeatMode'
 import {useGlobalNow} from '@/composables/useGlobalNow'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
+import {dueGroupOf} from '@/helpers/workspaceTasks'
+import {resolveUserTimezone} from '@/helpers/time/userTimezone'
+import {useAuthStore} from '@/stores/auth'
 
 const props = withDefaults(defineProps<{
 	theTask: ITask,
@@ -298,11 +313,25 @@ const isLoading = useDelayedLoading(() => updateTask.isPending.value || favorite
 const project = computed(() => projectList.projects[task.value.project_id ?? 0])
 const projectColor = computed(() => project.value?.hex_color ?? '')
 
-const showProjectSeparately = computed(() => !props.showProject
-	&& currentProject.value?.id !== task.value.project_id
-	&& project.value)
-
 const {currentProject} = useCurrentProject()
+
+// Overviews always name the project; inside a project only tasks from elsewhere (saved filters,
+// favourites) do.
+const showProjectContext = computed(() => Boolean(project.value) && (props.showProject
+	|| currentProject.value?.id !== task.value.project_id))
+
+const checkboxLabel = computed(() => {
+	const label = t('task.detail.markAsDone', {task: task.value.title})
+	// The tooltip on a disabled checkbox never reaches keyboard or screen reader users.
+	return props.canMarkAsDone ? label : `${label}. ${t('task.readOnlyCheckbox')}`
+})
+
+const hasDescription = computed(() => !isEditorContentEmpty(task.value.description ?? ''))
+const hasIcons = computed(() => (task.value.attachments?.length ?? 0) > 0
+	|| hasDescription.value
+	|| isRepeating.value
+	|| (task.value.comment_count ?? 0) > 0)
+const percentDone = computed(() => Math.round((task.value.percent_done ?? 0) * 100))
 
 const taskDetailRoute = computed(() => ({
 	name: 'task.detail',
@@ -334,6 +363,16 @@ const isOverdue = computed(() => (
 	new Date(task.value.due_date ?? 0).getTime() > 0 &&
 	new Date(task.value.due_date ?? 0).getTime() <= now.value.getTime()
 ))
+
+const authStore = useAuthStore()
+const isDueToday = computed(() => !task.value.done
+	&& !isOverdue.value
+	&& dueGroupOf(task.value.due_date, now.value, resolveUserTimezone(authStore.settings?.timezone)) === 'today')
+
+const dueDateLabel = computed(() => {
+	const due = t('task.detail.due', {at: dueDateFormatted.value})
+	return isOverdue.value ? `${t('workspace.groups.overdue')}: ${due}` : due
+})
 
 let oldTask: ITask
 
@@ -375,11 +414,17 @@ async function markAsDone(checked: boolean, wasReverted: boolean = false) {
 		}])
 	}
 
-	if (checked) {
+	if (checked && !prefersReducedMotion()) {
 		setTimeout(finish, 300) // Delay only the follow-up to show the animation when marking a task as done
+	} else if (checked) {
+		await finish()
 	} else {
 		await finish() // Don't delay it when un-marking it as it doesn't have an animation the other way around
 	}
+}
+
+function prefersReducedMotion() {
+	return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 function undoDone(checked: boolean) {
@@ -419,237 +464,374 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-.task {
-	display: flex;
-	flex-wrap: wrap;
-	padding: .4rem;
-	transition: background-color $transition;
-	align-items: center;
-	cursor: pointer;
+// Row grid: checkbox | title (+ muted project line) | meta rail | star.
+// The meta rail drops under the title on phones; the hierarchy summary always gets its own line.
+.single-task {
+	display: grid;
+	grid-template-columns: auto minmax(min(12rem, 100%), 1fr) minmax(0, auto) auto;
+	grid-template-areas:
+		"check text meta end"
+		".     hier hier hier";
+	// Checkbox, meta rail and star line up with the first title line; the project line sits below.
+	align-items: start;
+	column-gap: var(--space-2);
+	min-block-size: 2.25rem;
+	padding: var(--space-1) var(--space-2);
 	border-radius: $radius;
-	border: 2px solid transparent;
+	color: var(--text-primary);
+	cursor: pointer;
 
-	&:hover {
-		background-color: var(--grey-100);
+	// Enough block padding for the 44px checkbox and star targets to stay inside the row.
+	@media (pointer: coarse) {
+		min-block-size: var(--target-min);
+		padding-block: var(--space-2);
 	}
 
-	&:has(*:focus-visible), &:focus {
-		box-shadow: 0 0 0 2px hsla(var(--primary-hsl), 0.5);
-
-		a.task-link {
-			box-shadow: none;
-		}
+	@media screen and (max-width: $tablet) {
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-areas:
+			"check text end"
+			".     meta meta"
+			".     hier hier";
+		padding-block: var(--space-2);
 	}
 
-	@supports not selector(:focus-within) {
-		:focus {
-			box-shadow: 0 0 0 2px hsla(var(--primary-hsl), 0.5);
-
-			a.task-link {
-				box-shadow: none;
-			}
-		}
+	&:hover,
+	&:has(:focus-visible) {
+		background-color: var(--surface-hover);
 	}
 
-	.tasktext,
-	&.tasktext {
-		text-overflow: ellipsis;
-		word-wrap: break-word;
-		word-break: break-word;
-		display: -webkit-box;
-		hyphens: auto;
-		-webkit-line-clamp: 4;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-
-		flex: 1 0 50%;
-
+	// Rows sit flush in a card, so the j/k focus ring is drawn inside the row.
+	&:focus-visible {
+		outline-offset: -2px;
 	}
 
-	.dueDate {
-		display: inline-block;
-		margin-inline-start: 5px;
-
-		&:focus-visible {
-			box-shadow: none;
-
-			time {
-				box-shadow: 0 0 0 1px hsla(var(--primary-hsl), 0.5);
-				border-radius: 3px;
-			}
-		}
-	}
-
-	&[data-is-overdue] .dueDate {
-		color: var(--danger-text);
-	}
-
-	.task-project {
-		inline-size: auto;
-		color: var(--grey-400);
-		font-size: .9rem;
-		white-space: nowrap;
-	}
-
-	.tasktext :deep(.color-bubble),
-	.tasktext :deep(.avatar-wrapper),
-	.tasktext :deep(.labels .tag) {
-		vertical-align: middle;
-		transform: translateY(-2px);
-	}
-
-	.avatar {
-		border-radius: 50%;
-		vertical-align: bottom;
-		margin-inline-start: 5px;
-		block-size: 27px;
-		inline-size: 27px;
-	}
-
-	.project-task-icon {
-		margin-inline-start: 6px;
-
-		&:not(:first-of-type) {
-			margin-inline-start: 8px;
-		}
-
-	}
-
-	a {
-		color: var(--text);
-		transition: color ease $transition-duration;
-
-		&:hover {
-			color: var(--grey-900);
-		}
-	}
-
-	.favorite {
-		opacity: 1;
-		text-align: center;
-		inline-size: 27px;
-		transition: opacity $transition, color $transition;
-		border-radius: $radius;
-
-		&:hover {
-			color: var(--warning);
-		}
-
-		&.is-favorite {
-			opacity: 1;
-			color: var(--warning);
-		}
-	}
-
-	@media(hover: hover) and (pointer: fine) {
-		& .favorite {
-			opacity: 0;
-		}
-
-		&:hover .favorite {
-			opacity: 1;
-		}
-	}
-
-	.favorite:focus {
-		opacity: 1;
-	}
-
-	:deep(.fancy-checkbox) {
-		block-size: 18px;
-		padding-block-start: 0;
-		padding-inline-end: .5rem;
-
-		span {
-			display: none;
-		}
-
-		// Extend the hit target to >=44x44 without affecting layout (WCAG 2.5.5).
-		.base-checkbox__label {
-			position: relative;
-
-			&::before {
-				content: '';
-				position: absolute;
-				inset-block-start: 50%;
-				inset-inline-start: 50%;
-				min-block-size: 44px;
-				min-inline-size: 44px;
-				block-size: 100%;
-				inline-size: 100%;
-				transform: translate(-50%, -50%);
-			}
-		}
-	}
-
-	.tasktext.done {
-		text-decoration: line-through;
-		color: var(--grey-500);
-	}
-
-	span.parent-tasks {
-		color: var(--grey-500);
-		inline-size: auto;
-	}
-
-	.show-project .parent-tasks {
-		padding-inline-start: .25rem;
-	}
-
-	.remove {
-		color: var(--danger);
-	}
-
-	input[type='checkbox'] {
-		vertical-align: middle;
-	}
-
-	.settings {
-		float: inline-end;
-		inline-size: 24px;
-		cursor: pointer;
-	}
-
-	&.loader-container.is-loading:after {
+	&.loader-container.is-loading::after {
 		inset-block-start: calc(50% - 1rem);
 		inset-inline-start: calc(50% - 1rem);
 		inline-size: 2rem;
 		block-size: 2rem;
-		border-inline-start-color: var(--grey-300);
-		border-block-end-color: var(--grey-300);
+		border-inline-start-color: var(--border-strong);
+		border-block-end-color: var(--border-strong);
+	}
+}
+
+.single-task__check {
+	// Layout footprint of the checkbox: the bare icon on fine pointers; a title-line square on coarse
+	// ones, so its 44px target spills only into the row padding and the column gap, never onto the title.
+	--check-footprint: 1.125rem;
+
+	grid-area: check;
+	display: inline-flex;
+	align-items: center;
+	min-block-size: 1.75rem;
+
+	@media (pointer: coarse) {
+		--check-footprint: 1.75rem;
+	}
+
+	:deep(.fancy-checkbox) {
+		// The default stroke is ~1.6:1; checkboxes need 3:1 against the row.
+		--stroke-color: var(--text-tertiary);
+
+		display: inline-flex;
+		padding: 0;
+
+		.fancy-checkbox__content {
+			display: none;
+		}
+
+		// FancyCheckbox sizes the label to --target-min; negative margins keep that real target while
+		// the row lays it out at the footprint, so rows keep their height and the title its position.
+		.base-checkbox__label {
+			justify-content: center;
+			margin: calc((var(--check-footprint) - var(--target-min)) / 2);
+		}
+	}
+}
+
+.tasktext {
+	grid-area: text;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-inline-size: 0;
+	line-height: var(--leading-tight);
+}
+
+.tasktext__title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-inline-size: 0;
+	min-block-size: 1.75rem;
+
+	:deep(.task-glance-trigger) {
+		display: block;
+		min-inline-size: 0;
+	}
+}
+
+.task-link {
+	display: block;
+	overflow: hidden;
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	&:hover {
+		color: var(--text-primary);
+		text-decoration: underline;
+		text-decoration-color: var(--border-strong);
+		text-underline-offset: .2em;
+	}
+
+	@media screen and (max-width: $tablet) {
+		display: -webkit-box;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+}
+
+.tasktext.done .task-link {
+	color: var(--text-tertiary);
+	text-decoration: line-through;
+}
+
+.tasktext__context {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-inline-size: 0;
+	margin-block-start: .125rem;
+	font-size: var(--text-xs);
+}
+
+.task-project {
+	overflow: hidden;
+	color: var(--text-tertiary);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	&:hover {
+		color: var(--text-secondary);
+		text-decoration: underline;
+	}
+}
+
+.tasktext__task-color,
+.tasktext__project-color {
+	flex-shrink: 0;
+}
+
+.tasktext__project-color {
+	inline-size: .5rem;
+	block-size: .5rem;
+}
+
+.single-task__meta {
+	grid-area: meta;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--space-1) var(--space-3);
+	min-inline-size: 0;
+	min-block-size: 1.75rem;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+
+	&:empty {
+		display: none;
+	}
+
+	@media screen and (max-width: $tablet) {
+		justify-content: flex-start;
+		gap: var(--space-1) var(--space-2);
+		min-block-size: 0;
+		margin-block-start: var(--space-1);
+	}
+}
+
+.single-task__priority {
+	font-size: var(--text-xs);
+
+	// Medium stays an icon in rows; the word remains for screen readers and the table view.
+	&.not-so-high :deep(.priority-label__text) {
+		position: absolute;
+		inline-size: 1px;
+		block-size: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+.single-task__icons {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+}
+
+.single-task__progress {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+
+	:deep(.progress-bar) {
+		--progress-height: 4px;
+
+		flex: none;
+		order: 0;
+		inline-size: 2.5rem;
+		min-inline-size: 0;
+		margin: 0;
+		border-radius: var(--radius-full);
+	}
+}
+
+.single-task__percent {
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.single-task__assignees {
+	flex-shrink: 0;
+}
+
+.dueDate {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: 1.5rem;
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-full);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+
+	&:hover {
+		background-color: var(--surface-active);
+	}
+
+	&.is-today {
+		background-color: var(--tint-info);
+		color: var(--accent-text);
+	}
+
+	&.is-overdue {
+		background-color: var(--tint-danger);
+		color: var(--danger-text);
+		font-weight: var(--weight-medium);
+	}
+
+	&.is-today:hover,
+	&.is-overdue:hover {
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
+	}
+
+	@media (pointer: coarse) {
+		&::before {
+			content: '';
+			position: absolute;
+			inset: calc((var(--target-min) - 1.5rem) / -2) 0;
+		}
+	}
+}
+
+.dueDate__icon {
+	font-size: .8em;
+}
+
+.single-task__end {
+	grid-area: end;
+	display: flex;
+	align-items: center;
+	min-block-size: 1.75rem;
+}
+
+.favorite {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: 1.75rem;
+	block-size: 1.75rem;
+	border-radius: $radius;
+	color: var(--text-tertiary);
+	transition: opacity var(--motion-fast) var(--ease-standard);
+
+	&:hover,
+	&.is-favorite {
+		color: var(--warning);
+	}
+
+	&.is-favorite {
+		opacity: 1;
+	}
+
+	@media (pointer: coarse) {
+		&::before {
+			content: '';
+			position: absolute;
+			inset: calc((var(--target-min) - 1.75rem) / -2);
+		}
+	}
+}
+
+// Opacity, not visibility, so the star stays clickable and "visible" to the e2e tests.
+@media (hover: hover) and (pointer: fine) {
+	.favorite:not(.is-favorite) {
+		opacity: 0;
+	}
+
+	.single-task:hover .favorite,
+	.single-task:focus-within .favorite {
+		opacity: 1;
 	}
 }
 
 .list-task-hierarchy {
-	flex: 1 0 100%;
-	padding-inline-start: 1.8rem;
+	grid-area: hier;
+	min-inline-size: 0;
 }
+
 .subtask-branch {
-	border-inline-start: 2px solid var(--grey-300);
+	border-inline-start: 2px solid var(--border-default);
 	margin-inline-start: 1rem;
 }
+
 .subtask-nested {
 	margin-inline-start: 1rem;
 	position: relative;
 }
+
 .subtask-nested::before {
 	content: '';
 	position: absolute;
 	inset-inline-start: -1rem;
 	inset-block-start: 1.1rem;
 	inline-size: .8rem;
-	border-block-start: 2px solid var(--grey-300);
+	border-block-start: 2px solid var(--border-default);
 }
 
 :deep(.popup) {
-	border-radius: $radius;
-	background-color: var(--white);
-	box-shadow: var(--shadow-lg);
-	color: var(--text);
+	border-radius: var(--radius-md);
+	background-color: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
 
 	&.is-open {
-		padding: 1rem;
-		border: 1px solid var(--grey-200);
+		padding: var(--space-4);
+		border: 1px solid var(--border-subtle);
 	}
 }
 </style>

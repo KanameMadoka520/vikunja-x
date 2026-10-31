@@ -297,12 +297,21 @@ defineExpose({
 <style lang="scss">
 .filter-input {
 	border: 1px solid var(--input-border-color);
-	border-radius: var(--input-radius);
-	background: var(--white);
-	transition: border-color 0.2s ease;
+	border-radius: $radius;
+	background: var(--input-background-color);
+	transition: border-color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		border-color: var(--input-hover-border-color);
+	}
 
 	&:focus-within {
-		border-color: var(--primary);
+		border-color: var(--input-focus-border-color);
+	}
+
+	// Same keyboard-only ring as .input fields (see styles/theme/form.scss).
+	.user-is-tabbing &:focus-within {
+		@include focus-ring;
 	}
 
 	.filter-datepicker {
@@ -323,26 +332,26 @@ defineExpose({
 		}
 		
 		.value {
-			border-radius: $radius;
-			padding: .125rem .25rem;
-			background: var(--grey-100);
+			border-radius: var(--radius-xs);
+			padding: 2px var(--space-1);
+			background: var(--surface-active);
 		}
 		
 		.label-value {
-			border-radius: $radius;
-			padding: .125rem .25rem;
+			border-radius: var(--radius-xs);
+			padding: 2px var(--space-1);
 		}
 		
 		.date-value {
-			background-color: var(--primary);
-			color: var(--white);
-			border-radius: $radius;
+			background-color: var(--surface-selected-strong);
+			color: var(--accent-text);
+			border-radius: var(--radius-xs);
 			padding: 0.125em 0.25em;
 			cursor: pointer;
-			transition: background-color var(--transition);
+			transition: background-color var(--motion-fast) var(--ease-standard);
 			
 			&:hover {
-				background-color: var(--primary-dark);
+				background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
 			}
 		}
 		
@@ -362,8 +371,8 @@ defineExpose({
 				transform: translateY(-50%);
 				inline-size: 1.2em;
 				block-size: 1.2em;
-				background-color: #3b82f6;
-				color: white;
+				background-color: var(--primary);
+				color: var(--text-on-accent);
 				border-radius: 50%;
 				font-size: 0.8em;
 				display: flex;
@@ -374,7 +383,7 @@ defineExpose({
 		}
 		
 		p.is-editor-empty:first-child::before {
-			color: var(--grey-500);
+			color: var(--input-placeholder-color);
 			content: attr(data-placeholder);
 			float: inline-start;
 			block-size: 0;

@@ -2,6 +2,7 @@
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {ChatTurn, ReviewInput} from '@/client/generated'
+import {DESTRUCTIVE_TOOLS, toolLabels} from './toolLabels'
 const props = defineProps<{turn: ChatTurn; busy: boolean}>()
 const emit = defineEmits<{review: [input: ReviewInput]}>()
 const {t} = useI18n({useScope: 'global'})
@@ -9,6 +10,11 @@ const args = ref('')
 const answer = ref('')
 const editing = ref(false)
 const pending = computed(() => props.turn.result?.pending)
+const toolName = computed(() => {
+	const tool = pending.value?.tool ?? ''
+	return toolLabels(t)[tool] || tool
+})
+const destructive = computed(() => DESTRUCTIVE_TOOLS.has(pending.value?.tool ?? ''))
 const canContinue = computed(() => (props.turn.result?.budget?.round_limit ?? 0) < 200 && (props.turn.result?.budget?.operation_limit ?? 0) < 1000)
 const pause = computed(() => props.turn.result?.pause)
 watch(() => pending.value?.id, () => {
@@ -47,12 +53,23 @@ function decide(decision: ReviewInput['decision']) {
 	<section
 		v-if="pause"
 		class="agent-review"
+		:class="{'is-destructive': pause === 'review' && destructive}"
 		:aria-label="t('agent.reviewTitle')"
 	>
 		<template v-if="pause === 'review' && pending">
 			<h3><Icon icon="eye" /> {{ t('agent.reviewTitle') }}</h3>
-			<p>{{ t('agent.reviewDescription') }}</p>
-			<p><strong>{{ pending.tool }}</strong> · {{ t('agent.targets', {count: pending.units}) }}</p>
+			<p class="review-description">
+				{{ t('agent.reviewDescription') }}
+			</p>
+			<p class="review-target">
+				<strong :title="pending.tool">{{ toolName }}</strong> · {{ t('agent.targets', {count: pending.units}) }}
+			</p>
+			<p
+				v-if="destructive"
+				class="destructive-warning"
+			>
+				<Icon icon="exclamation-circle" />{{ t('agent.destructiveWarning') }}
+			</p>
 			<div
 				v-if="rows.length"
 				class="change-table"
@@ -107,6 +124,8 @@ function decide(decision: ReviewInput['decision']) {
 				</XButton>
 				<XButton
 					variant="secondary"
+					class="reject-button"
+					danger
 					:disabled="busy"
 					@click="decide('reject')"
 				>
@@ -158,54 +177,127 @@ function decide(decision: ReviewInput['decision']) {
 
 <style scoped lang="scss">
 .agent-review {
-	padding: 1rem;
-	border: 1px solid var(--primary);
-	border-radius: .75rem;
-	background: var(--grey-50);
-	margin-block: 1rem;
+	margin-block: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--border-default);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
+	color: var(--text-primary);
+	font-size: var(--text-md);
 	overflow-wrap: anywhere;
+
+	&.is-destructive {
+		border-inline-start-color: var(--danger);
+	}
 }
+
 h3 {
-	font-size: 1rem;
-	margin-block: 0 .5rem;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-block: 0 var(--space-2);
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	font-weight: var(--weight-semibold);
+
+	svg {
+		color: var(--text-tertiary);
+	}
 }
-p, label, details {
-	margin-block: .75rem;
+
+p,
+label,
+details {
+	margin-block: var(--space-2);
 }
+
+.review-description {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+
+.destructive-warning {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-sm);
+	background: var(--tint-danger);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+
+	svg {
+		flex-shrink: 0;
+		color: var(--danger-text);
+	}
+}
+
 label {
 	display: block;
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
 }
+
+summary {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	cursor: pointer;
+}
+
 .review-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .5rem;
-	margin-block-start: .75rem;
+	gap: var(--space-2);
+	margin-block-start: var(--space-3);
 }
+
 .change-table {
-	overflow-x: auto;
 	max-inline-size: 100%;
+	overflow-x: auto;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
 }
+
 table {
 	inline-size: 100%;
-	font-size: .8rem;
 	border-collapse: collapse;
+	font-size: var(--text-sm);
 }
-th, td {
-	text-align: start;
-	border-block-end: 1px solid var(--grey-200);
-	padding: .5rem;
+
+th,
+td {
 	min-inline-size: 6rem;
 	max-inline-size: 20rem;
+	padding: var(--space-2);
+	border-block-end: 1px solid var(--border-subtle);
+	text-align: start;
+	white-space: pre-wrap;
 	overflow-wrap: anywhere;
-	white-space: pre-wrap;
 }
+
+th {
+	background: var(--surface-sunken);
+	color: var(--text-secondary);
+	font-weight: var(--weight-semibold);
+}
+
+tbody tr:last-child td {
+	border-block-end: 0;
+}
+
 pre {
-	white-space: pre-wrap;
 	max-block-size: 20rem;
 	overflow: auto;
-	font-size: .8rem;
+	white-space: pre-wrap;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
 }
+
 .argument-editor {
-	font-family: monospace;
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
 }
 </style>

@@ -4,6 +4,8 @@
 			v-if="isQuickAddMode"
 			v-tooltip="$t('task.quickAddMagic.quickEntryHint')"
 			class="icon is-small show-helper-text"
+			role="img"
+			:aria-label="$t('task.quickAddMagic.quickEntryHint')"
 		>
 			<Icon :icon="['far', 'circle-question']" />
 		</span>

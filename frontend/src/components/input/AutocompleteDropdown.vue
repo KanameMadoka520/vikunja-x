@@ -168,6 +168,7 @@ function onUpdateField(e: Event) {
 						v-for="(item, index) in options"
 						:key="item"
 						:ref="(el: Element | ComponentPublicInstance | null) => setResultRefs(el, index)"
+						type="button"
 						class="item"
 						:class="{ selected: index === selectedIndex }"
 						@click="onSelectValue(item)"
@@ -192,43 +193,48 @@ function onUpdateField(e: Event) {
 
 	.suggestion-list {
 		position: absolute;
-
-		background: var(--white);
-		border-radius: 0 0 var(--input-radius) var(--input-radius);
-		border: 1px solid var(--primary);
-		border-block-start: none;
-
-		max-block-size: 50vh;
-		overflow-x: auto;
-		z-index: 100;
-		max-inline-size: 100%;
+		z-index: var(--layer-dropdown);
 		min-inline-size: 100%;
-		margin-block-start: -2px;
-		margin-inline: -1px;
+		max-inline-size: 100%;
+		max-block-size: 50vh;
+		overflow: auto;
+		margin-block-start: var(--space-1);
+		padding: var(--space-1);
+
+		background-color: var(--surface-raised);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		box-shadow: var(--elevation-3);
 
 		button {
-			background: transparent;
-
-			font-size: .9rem;
+			display: flex;
+			align-items: center;
 			inline-size: 100%;
-			color: var(--grey-800);
-			text-align: start;
-			box-shadow: none;
-			text-transform: none;
-			font-family: $family-sans-serif;
-			font-weight: normal;
-			padding: .5rem .75rem;
+			min-block-size: 2rem;
+			padding: 0 var(--space-2);
 			border: none;
+			border-radius: var(--radius-sm);
+			background: transparent;
+			color: var(--text-primary);
+			font-family: $family-sans-serif;
+			font-size: var(--text-md);
+			font-weight: var(--weight-regular);
+			text-align: start;
+			text-transform: none;
 			cursor: pointer;
 
+			&:hover,
 			&:focus,
-			&:hover {
-				background: var(--grey-100);
-				box-shadow: none !important;
+			&.selected {
+				background-color: var(--surface-hover);
+			}
+
+			&:focus-visible {
+				outline-offset: -2px;
 			}
 
 			&:active {
-				background: var(--grey-100);
+				background-color: var(--surface-active);
 			}
 		}
 	}

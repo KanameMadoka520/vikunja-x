@@ -1,5 +1,15 @@
 <template>
-	<BaseButton :aria-label="label ? $t('project.table.sortBy', {column: label}) : $t('project.list.sort')">
+	<BaseButton
+		class="sort"
+		:class="{'is-sorted': order === 'asc' || order === 'desc'}"
+		:aria-label="label ? $t('project.table.sortBy', {column: label}) : $t('project.list.sort')"
+	>
+		<span
+			v-if="$slots.default"
+			class="sort__label"
+		>
+			<slot />
+		</span>
 		<Icon
 			v-if="order === 'asc'"
 			icon="sort-up"
@@ -32,7 +42,29 @@ withDefaults(defineProps<{
 </script>
 
 <style lang="scss" scoped>
+.sort {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	border-radius: var(--radius-xs);
+	color: inherit;
+	font: inherit;
+
+	&:hover .sort__icon {
+		color: var(--text-secondary);
+	}
+
+	&:focus-visible {
+		@include focus-ring;
+	}
+}
+
 .sort__icon {
-	color: var(--grey-400);
+	color: var(--text-tertiary);
+	font-size: .85em;
+}
+
+.is-sorted .sort__icon {
+	color: var(--accent-text);
 }
 </style>

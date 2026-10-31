@@ -1,8 +1,13 @@
 import {setupApiUrl} from '../../support/authenticateUser'
 import {test, expect} from '../../support/fixtures'
+import {apiV1Url} from '../../support/apiUrl'
 
 test.describe('OpenID Login', () => {
-	test('logs in via Dex provider', async ({page}) => {
+	test('logs in via Dex provider', async ({page, request}) => {
+		// The Dex container and provider config come from outside `mage test:e2e` (tests/e2e/README.md).
+		const info = await (await request.get(`${apiV1Url()}/info`)).json()
+		const providers: {name?: string}[] = info.auth?.openid_connect?.providers ?? []
+		test.skip(!providers.some(provider => provider.name === 'Dex'), 'needs the Dex OpenID provider from tests/e2e/README.md')
 		await setupApiUrl(page)
 		await page.goto('/login')
 		await page.locator('text=Dex').click()

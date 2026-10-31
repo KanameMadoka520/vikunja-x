@@ -2,10 +2,10 @@
 	<svg
 		class="gantt-row-bars"
 		:width="totalWidth"
-		height="40"
+		:height="ROW_HEIGHT"
 		xmlns="http://www.w3.org/2000/svg"
-		role="img"
-		:aria-label="$t('project.gantt.taskBarsForRow', { rowId })"
+		role="group"
+		:aria-label="$t('project.gantt.taskBarsFor', {task: bars[0]?.meta?.label || ''})"
 		:data-row-id="rowId"
 	>
 		<GanttBarPrimitive
@@ -14,6 +14,7 @@
 			:model="bar"
 			:timeline-start="dateFromDate"
 			:timeline-end="dateToDate"
+			:aria-label="getBarAriaLabel(bar)"
 			:on-update="(id, start, end) => emit('updateTask', id, start, end)"
 		>
 			<!-- Gradient definitions for partial-date bars -->
@@ -57,19 +58,16 @@
 				v-if="!bar.meta?.isParent"
 				v-tooltip="getBarTooltip(bar)"
 				:x="getBarX(bar)"
-				:y="4"
+				:y="BAR_INSET"
 				:width="getBarWidth(bar)"
-				:height="32"
-				:rx="4"
+				:height="BAR_HEIGHT"
+				:rx="BAR_RADIUS"
 				:fill="getBarFillAttr(bar)"
 				:opacity="bar.meta?.isDone ? 0.5 : 1"
 				:stroke="getBarStroke(bar)"
 				:stroke-width="getBarStrokeWidth(bar)"
 				:stroke-dasharray="isDateless(bar) ? '5,5' : 'none'"
 				class="gantt-bar"
-				role="button"
-				:aria-label="getBarAriaLabel(bar)"
-				:aria-pressed="isRowFocused"
 				@pointerdown="handleBarPointerDown(bar, $event)"
 			/>
 
@@ -78,17 +76,14 @@
 				v-if="bar.meta?.isParent"
 				v-tooltip="getBarTooltip(bar)"
 				class="gantt-bar gantt-parent-bar"
-				role="button"
-				:aria-label="getBarAriaLabel(bar)"
-				:aria-pressed="isRowFocused"
 				@pointerdown="handleBarPointerDown(bar, $event)"
 			>
 				<rect
 					:x="getBarX(bar)"
-					:y="4"
+					:y="BAR_INSET"
 					:width="getBarWidth(bar)"
-					:height="32"
-					:rx="4"
+					:height="BAR_HEIGHT"
+					:rx="BAR_RADIUS"
 					:fill="getBarFillAttr(bar)"
 					:opacity="bar.meta?.isDone ? 0.5 : 1"
 					:stroke="getBarStroke(bar)"
@@ -98,7 +93,7 @@
 				<!-- Left diamond -->
 				<polygon
 					:points="getLeftDiamondPoints(bar)"
-					:fill="getParentDiamondFill(bar)"
+					:fill="getParentDiamondFill()"
 					:stroke="getBarFillAttr(bar)"
 					stroke-width="1"
 					:opacity="bar.meta?.isDone ? 0.5 : 1"
@@ -106,7 +101,7 @@
 				<!-- Right diamond -->
 				<polygon
 					:points="getRightDiamondPoints(bar)"
-					:fill="getParentDiamondFill(bar)"
+					:fill="getParentDiamondFill()"
 					:stroke="getBarFillAttr(bar)"
 					stroke-width="1"
 					:opacity="bar.meta?.isDone ? 0.5 : 1"
@@ -117,16 +112,15 @@
 			<rect
 				v-if="bar.meta?.dateType !== 'endOnly'"
 				:x="getBarX(bar) - RESIZE_HANDLE_OFFSET"
-				:y="4"
+				:y="BAR_INSET"
 				:width="6"
-				:height="32"
+				:height="BAR_HEIGHT"
 				:rx="3"
-				fill="var(--white)"
+				fill="var(--surface)"
 				stroke="var(--primary)"
 				stroke-width="1"
 				class="gantt-resize-handle gantt-resize-left"
-				role="button"
-				:aria-label="$t('project.gantt.resizeStartDate', { task: bar.meta?.label || bar.id })"
+				aria-hidden="true"
 				@pointerdown="startResize(bar, 'start', $event)"
 			/>
 
@@ -134,16 +128,15 @@
 			<rect
 				v-if="bar.meta?.dateType !== 'startOnly'"
 				:x="getBarX(bar) + getBarWidth(bar) - RESIZE_HANDLE_OFFSET"
-				:y="4"
+				:y="BAR_INSET"
 				:width="6"
-				:height="32"
+				:height="BAR_HEIGHT"
 				:rx="3"
-				fill="var(--white)"
+				fill="var(--surface)"
 				stroke="var(--primary)"
 				stroke-width="1"
 				class="gantt-resize-handle gantt-resize-right"
-				role="button"
-				:aria-label="$t('project.gantt.resizeEndDate', { task: bar.meta?.label || bar.id })"
+				aria-hidden="true"
 				@pointerdown="startResize(bar, 'end', $event)"
 			/>
 
@@ -152,16 +145,17 @@
 				<clipPath :id="`clip-${bar.id}`">
 					<rect
 						:x="getBarX(bar) + 2"
-						:y="4"
+						:y="BAR_INSET"
 						:width="getBarWidth(bar) - 4"
-						:height="32"
-						:rx="4"
+						:height="BAR_HEIGHT"
+						:rx="BAR_RADIUS"
 					/>
 				</clipPath>
 			</defs>
 			<text
 				:x="getBarTextX(bar)"
-				:y="24"
+				:y="ROW_CENTER"
+				dominant-baseline="central"
 				:text-anchor="bar.meta?.dateType === 'endOnly' ? 'end' : 'start'"
 				class="gantt-bar-text"
 				:fill="getBarTextColor(bar)"
@@ -177,7 +171,7 @@
 		<g
 			v-if="isParent && bars[0]"
 			class="gantt-collapse-toggle"
-			:transform="`translate(${Math.max(0, getBarX(bars[0]) - 14)}, 14)`"
+			:transform="`translate(${Math.max(0, getBarX(bars[0]) - 14)}, ${ROW_CENTER - 5})`"
 			role="button"
 			:aria-label="isCollapsed
 				? $t('project.gantt.expandGroup', { task: bars[0]?.meta?.label || '' })
@@ -185,6 +179,7 @@
 			tabindex="0"
 			@pointerdown.stop="emit('toggleCollapse')"
 			@keydown.enter.stop="emit('toggleCollapse')"
+			@keydown.space.prevent.stop="emit('toggleCollapse')"
 		>
 			<rect
 				x="-2"
@@ -196,12 +191,12 @@
 			<polygon
 				v-if="isCollapsed"
 				points="2,0 10,5 2,10"
-				fill="var(--grey-500)"
+				fill="var(--text-secondary)"
 			/>
 			<polygon
 				v-else
 				points="0,2 10,2 5,10"
-				fill="var(--grey-500)"
+				fill="var(--text-secondary)"
 			/>
 		</g>
 	</svg>
@@ -213,10 +208,16 @@ import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
 
 import type {GanttBarModel} from '@/composables/useGanttBar'
-import {getTextColor, LIGHT} from '@/helpers/color/getTextColor'
+import {getTextColor} from '@/helpers/color/getTextColor'
 import {getNaturalDayCount} from '@/helpers/time/roundToNaturalDayBoundary'
 
 import GanttBarPrimitive from './primitives/GanttBarPrimitive.vue'
+import {
+	GANTT_BAR_HEIGHT as BAR_HEIGHT,
+	GANTT_BAR_INSET as BAR_INSET,
+	GANTT_ROW_CENTER as ROW_CENTER,
+	GANTT_ROW_HEIGHT as ROW_HEIGHT,
+} from './ganttGeometry'
 
 const props = defineProps<{
 	bars: GanttBarModel[]
@@ -251,6 +252,9 @@ const emit = defineEmits<{
 const {t} = useI18n({useScope: 'global'})
 
 const RESIZE_HANDLE_OFFSET = 3
+const BAR_RADIUS = 4
+// White label text needs the darker accent the active view tab also uses in dark mode.
+const DEFAULT_BAR_FILL = 'var(--switch-view-active-background)'
 const LABEL_PADDING = 8
 
 let measureCtx: CanvasRenderingContext2D | null | undefined
@@ -260,7 +264,7 @@ function measureLabel(text: string): number {
 		if (measureCtx) {
 			const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
 			// Must match .gantt-bar-text font-size
-			measureCtx.font = `${rootFontSize * 0.85}px ${getComputedStyle(document.body).fontFamily}`
+			measureCtx.font = `${rootFontSize * 0.8125}px ${getComputedStyle(document.body).fontFamily}`
 		}
 	}
 	return measureCtx ? measureCtx.measureText(text).width : text.length * 8
@@ -281,8 +285,6 @@ function addDays(dateOrValue: Date | string | number, days: number): Date {
 	newDate.setDate(newDate.getDate() + days)
 	return newDate
 }
-
-const isRowFocused = computed(() => props.focusedRow === props.rowId)
 
 function computeBarX(startDate: Date) {
 	const daysDiff = dayjs(startDate).diff(dayjs(props.dateFromDate), 'day')
@@ -345,22 +347,18 @@ const DIAMOND_SIZE = 5
 
 function getLeftDiamondPoints(bar: GanttBarModel): string {
 	const x = getBarX.value(bar) - DIAMOND_SIZE
-	const cy = 20 // vertical center of the bar
+	const cy = ROW_CENTER
 	return `${x},${cy} ${x + DIAMOND_SIZE},${cy - DIAMOND_SIZE} ${x + DIAMOND_SIZE * 2},${cy} ${x + DIAMOND_SIZE},${cy + DIAMOND_SIZE}`
 }
 
 function getRightDiamondPoints(bar: GanttBarModel): string {
 	const x = getBarX.value(bar) + getBarWidth.value(bar) + DIAMOND_SIZE
-	const cy = 20
+	const cy = ROW_CENTER
 	return `${x - DIAMOND_SIZE * 2},${cy} ${x - DIAMOND_SIZE},${cy - DIAMOND_SIZE} ${x},${cy} ${x - DIAMOND_SIZE},${cy + DIAMOND_SIZE}`
 }
 
-function getParentDiamondFill(bar: GanttBarModel): string {
-	// Use a darker shade for contrast on the full-height bar
-	if (bar.meta?.color) {
-		return 'var(--white)'
-	}
-	return 'var(--white)'
+function getParentDiamondFill(): string {
+	return 'var(--surface)'
 }
 
 function isPartialDate(bar: GanttBarModel) {
@@ -377,17 +375,17 @@ function getBarFill(bar: GanttBarModel) {
 		if (bar.meta?.color) {
 			return bar.meta.color
 		}
-		return 'var(--primary)'
+		return DEFAULT_BAR_FILL
 	}
 
 	if (bar.meta?.hasActualDates) {
 		if (bar.meta?.color) {
 			return bar.meta.color
 		}
-		return 'var(--primary)'
+		return DEFAULT_BAR_FILL
 	}
 
-	return 'var(--grey-100)'
+	return 'var(--surface-sunken)'
 }
 
 function getBarFillAttr(bar: GanttBarModel): string {
@@ -399,7 +397,7 @@ function getBarFillAttr(bar: GanttBarModel): string {
 
 function getBarStroke(bar: GanttBarModel) {
 	if (isDateless(bar)) {
-		return 'var(--grey-300)' // Gray for dashed border
+		return 'var(--border-strong)'
 	}
 	return 'none'
 }
@@ -413,14 +411,14 @@ function getBarStrokeWidth(bar: GanttBarModel) {
 
 function getBarTextColor(bar: GanttBarModel) {
 	if (isDateless(bar)) {
-		return 'var(--grey-800)'
+		return 'var(--text-primary)'
 	}
 
 	if (bar.meta?.color) {
 		return getTextColor(bar.meta.color)
 	}
 
-	return LIGHT
+	return 'var(--text-on-accent)'
 }
 
 function getBarAriaLabel(bar: GanttBarModel): string {
@@ -458,13 +456,14 @@ function startResize(bar: GanttBarModel, edge: 'start' | 'end', event: PointerEv
 	inset-inline-start: 0;
 	pointer-events: none;
 	z-index: 4;
+	overflow: visible;
 
 	.gantt-bar {
 		cursor: grab;
 		pointer-events: all;
 
 		&:hover {
-			opacity: 0.8;
+			opacity: .85;
 		}
 
 		&:active {
@@ -483,20 +482,25 @@ function startResize(bar: GanttBarModel, edge: 'start' | 'end', event: PointerEv
 	cursor: pointer;
 
 	&:hover polygon {
-		fill: var(--grey-700);
+		fill: var(--text-primary);
 	}
 
 	&:focus {
 		outline: none;
+	}
 
-		polygon {
-			fill: var(--primary);
-		}
+	&:focus-visible {
+		@include focus-ring;
+	}
+
+	&:focus polygon {
+		fill: var(--accent-text);
 	}
 }
 
 .gantt-bar-text {
-	font-size: .85rem;
+	font-size: var(--text-sm);
+	font-weight: var(--weight-medium);
 	pointer-events: none;
 	user-select: none;
 }
@@ -509,13 +513,13 @@ function startResize(bar: GanttBarModel, edge: 'start' | 'end', event: PointerEv
 :deep(.gantt-resize-handle) {
 	cursor: col-resize !important;
 	opacity: 0;
-	transition: opacity 0.2s ease;
+	transition: opacity var(--motion-fast) var(--ease-standard);
 	pointer-events: all; // Ensure they receive pointer events
 }
 
 // Show resize handles on bar hover
 :deep(g:hover) .gantt-resize-handle {
-	opacity: 0.8;
+	opacity: .8;
 
 	&:hover {
 		opacity: 1;
@@ -523,13 +527,13 @@ function startResize(bar: GanttBarModel, edge: 'start' | 'end', event: PointerEv
 	}
 }
 
-// Focus styles for task bars
+// The focused bar gets a contrasting outline stroke: the text colour, not the accent the bar is filled with.
 :deep(g[role="slider"]:focus) {
-	outline: none; // Remove default browser outline
-	
+	outline: none;
+
 	.gantt-bar {
-		stroke: var(--primary) !important;
-		stroke-width: 3 !important;
+		stroke: var(--text-primary) !important;
+		stroke-width: 2 !important;
 	}
 }
 </style>

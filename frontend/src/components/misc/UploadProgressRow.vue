@@ -54,24 +54,50 @@ function size(bytes: number) {
 <style scoped lang="scss">
 .upload-row {
 	display: grid;
-	gap: .4rem;
-	padding-block: .65rem;
-	font-size: .85rem;
-	overflow-wrap: anywhere;
+	gap: var(--space-1);
 	min-inline-size: 0;
+	padding-block: var(--space-2);
+	font-size: var(--text-sm);
+	overflow-wrap: anywhere;
+
+	& + & {
+		border-block-start: 1px solid var(--border-subtle);
+	}
+
+	strong {
+		font-weight: var(--weight-medium);
+	}
+
+	small,
+	span {
+		color: var(--text-secondary);
+	}
+
+	small {
+		font-size: var(--text-xs);
+	}
+
+	progress {
+		inline-size: 100%;
+		block-size: .25rem;
+		accent-color: var(--primary);
+	}
+
+	.upload-error {
+		color: var(--danger-text);
+	}
 }
+
 .upload-metrics {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .35rem .75rem;
+	gap: var(--space-1) var(--space-3);
+	font-size: var(--text-xs);
 	font-variant-numeric: tabular-nums;
 }
-.upload-percent { color: var(--primary); }
-.upload-row progress {
-	inline-size: 100%;
-	block-size: .4rem;
-	accent-color: var(--primary);
+
+.upload-percent {
+	color: var(--accent-text);
+	font-weight: var(--weight-semibold);
 }
-.upload-row small, .upload-row span { color: var(--text-light); }
-.upload-row .upload-error { color: var(--danger); }
 </style>

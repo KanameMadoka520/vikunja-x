@@ -23,12 +23,12 @@
 			/>
 		</template>
 		<template #share="{share}">
-			<td>{{ getDisplayName(share) }}</td>
-			<td>
-				<b
+			<td class="sharing-name">
+				<span>{{ getDisplayName(share) }}</span>
+				<span
 					v-if="share.id === authStore.info?.id"
-					class="is-success"
-				>{{ $t('project.share.userTeam.you') }}</b>
+					class="sharing-you"
+				>{{ $t('project.share.userTeam.you') }}</span>
 			</td>
 		</template>
 	</SharingList>
@@ -65,3 +65,21 @@ const createShare = useCreateProjectUserShareMutation()
 const updateShare = useUpdateProjectUserShareMutation()
 const deleteShare = useDeleteProjectUserShareMutation()
 </script>
+
+<style lang="scss" scoped>
+.sharing-name {
+	overflow-wrap: anywhere;
+}
+
+.sharing-you {
+	display: inline-block;
+	margin-inline-start: var(--space-2);
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-normal);
+}
+</style>

@@ -22,8 +22,9 @@
 
 		<template #default>
 			<div
-				:class="{ 'is-loading': showLoading }"
+				:class="{'is-loading': showLoading, 'is-refreshing': showRefreshing}"
 				class="loader-container is-max-width-desktop list-view"
+				:aria-busy="showRefreshing || undefined"
 			>
 				<Card
 					:padding="false"
@@ -63,7 +64,7 @@
 							},
 							type: 'transition-group'
 						}"
-						:animation="100"
+						:animation="reducedMotion ? 0 : 150"
 						:handle="dragHandle"
 						:delay-on-touch-only="!isTouchDevice"
 						:delay="isTouchDevice ? 0 : 1000"
@@ -105,6 +106,7 @@
 <script setup lang="ts">
 import {useUpdateTaskPositionMutation} from '@/client/queries/taskMutations'
 import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, toRef} from 'vue'
+import {useMediaQuery} from '@vueuse/core'
 import {draggableFor} from '@/components/base/Draggable'
 
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
@@ -161,7 +163,9 @@ const {
 		? ['comment_count', 'is_unread']
 		: ['subtasks', 'comment_count', 'is_unread'],
 )
-const showLoading = useDelayedLoading(loading)
+// The spinner overlay is for a first load only; a background refetch keeps the rows usable.
+const showLoading = useDelayedLoading(() => loading.value && allTasks.value.length === 0)
+const showRefreshing = useDelayedLoading(() => loading.value && allTasks.value.length > 0)
 
 const positionMutation = useUpdateTaskPositionMutation()
 
@@ -194,6 +198,8 @@ onMounted(async () => {
 })
 
 const canDragTasks = computed(() => canWrite.value || isSavedFilterProject(project.value))
+
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
 const isTouchDevice = ref(false)
 if (typeof window !== 'undefined') {
@@ -354,21 +360,21 @@ onBeforeUnmount(() => {
 .filter-container {
 	display: flex;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-2);
 
 	:deep(.popup) {
-		max-inline-size: 300px;
+		max-inline-size: min(20rem, calc(100vw - 2 * var(--space-4)));
 	}
 }
 
 .tasks {
-	padding: .5rem;
+	padding: var(--space-1) var(--space-2) var(--space-2);
 }
 
 .task-ghost {
-	border-radius: $radius;
-	background: var(--grey-100);
-	border: 2px dashed var(--grey-300);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface-sunken);
 
 	* {
 		opacity: 0;
@@ -376,7 +382,7 @@ onBeforeUnmount(() => {
 }
 
 .list-view__add-task {
-	padding: 1rem 1rem 0;
+	padding: var(--space-3) var(--space-3) 0;
 }
 
 .link-share-view .card {
@@ -386,8 +392,8 @@ onBeforeUnmount(() => {
 
 :deep(.single-task .handle) {
 	cursor: grab;
-	margin-inline-end: .25rem;
-	color: var(--grey-400);
+	margin-inline-end: var(--space-1);
+	color: var(--text-tertiary);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -408,7 +414,12 @@ onBeforeUnmount(() => {
 }
 
 .list-view {
-	padding-block-end: 1rem;
+	padding-block-end: var(--space-4);
+	transition: opacity var(--motion-fast) var(--ease-standard);
+
+	&.is-refreshing {
+		opacity: .85;
+	}
 
 	:deep(.card) {
 		margin-block-end: 0;

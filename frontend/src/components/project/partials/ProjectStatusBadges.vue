@@ -47,42 +47,47 @@ withDefaults(defineProps<{
 	display: inline-flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: .25rem;
+	gap: var(--space-1);
 }
 
+// Text stays in the normal colour for contrast; the icon and the tint carry the status.
 .project-status {
 	display: inline-flex;
 	align-items: center;
-	gap: .25rem;
-	padding: .125rem .5rem;
+	gap: var(--space-1);
+	padding: 1px var(--space-2);
 	border: 1px solid transparent;
-	border-radius: 999px;
-	font-size: .75rem;
-	font-weight: 600;
-	line-height: 1.4;
+	border-radius: var(--radius-full);
+	color: var(--text-primary);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-normal);
 	white-space: nowrap;
 
 	&.status-completed {
-		background: hsla(var(--success-h), var(--success-s), var(--success-l), .14);
 		border-color: hsla(var(--success-h), var(--success-s), var(--success-l), .35);
-		color: color-mix(in srgb, var(--success) 42%, var(--text-strong));
+		background: var(--tint-success);
+
+		.project-status-icon {
+			color: var(--success);
+		}
 	}
 
 	&.status-archived {
-		background: var(--grey-100);
-		border-color: var(--grey-200);
-		color: var(--text-muted);
+		border-color: var(--border-default);
+		background: var(--surface-active);
+		color: var(--text-secondary);
 	}
 
 	&.status-active {
-		background: hsla(var(--primary-hsl), .08);
 		border-color: hsla(var(--primary-hsl), .25);
-		color: var(--primary);
+		background: var(--tint-info);
+		color: var(--accent-text);
 	}
 }
 
 .project-status-icon {
-	inline-size: .65rem;
-	block-size: .65rem;
+	inline-size: .625rem;
+	block-size: .625rem;
 }
 </style>

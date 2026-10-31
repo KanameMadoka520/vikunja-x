@@ -81,7 +81,7 @@ test.describe('Filter Autocomplete', () => {
 			await expect(filterInput).toContainText('project = Inbox')
 
 			// Save the filter and verify no error
-			await page.locator('button.is-primary.is-fullwidth').click()
+			await page.locator('footer.card-footer .button').filter({hasText: 'Create saved filter'}).click()
 			await expect(page.locator('.notification.is-danger')).not.toBeVisible()
 		})
 
@@ -113,7 +113,7 @@ test.describe('Filter Autocomplete', () => {
 			await expect(filterInput).toContainText('project = Work To Do')
 
 			// Save the filter and verify no error
-			await page.locator('button.is-primary.is-fullwidth').click()
+			await page.locator('footer.card-footer .button').filter({hasText: 'Create saved filter'}).click()
 			await expect(page.locator('.notification.is-danger')).not.toBeVisible()
 		})
 
@@ -142,7 +142,7 @@ test.describe('Filter Autocomplete', () => {
 			await expect(filterInput).toContainText('done = false && project = Personal Tasks')
 
 			// Save and verify no error
-			await page.locator('button.is-primary.is-fullwidth').click()
+			await page.locator('footer.card-footer .button').filter({hasText: 'Create saved filter'}).click()
 			await expect(page.locator('.notification.is-danger')).not.toBeVisible()
 		})
 	})
@@ -190,7 +190,7 @@ test.describe('Filter Autocomplete', () => {
 			await expect(filterInput).toContainText('project in Work To Do, Inbox')
 
 			// Step 2: Save the filter and verify no error
-			await page.locator('button.is-primary.is-fullwidth').click()
+			await page.locator('footer.card-footer .button').filter({hasText: 'Create saved filter'}).click()
 			await expect(page.locator('.notification.is-danger')).not.toBeVisible()
 
 			// Wait for navigation to the saved filter view

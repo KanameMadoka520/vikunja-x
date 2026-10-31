@@ -1,63 +1,56 @@
 <template>
 	<div
 		v-cy="'projects-list'"
-		class="project-list loader-container"
+		class="project-list project-overview loader-container"
 		:class="{'is-loading': loading}"
 	>
-		<header class="project-header">
-			<h1 class="project-list-title">
-				{{ $t('project.projects') }}
-			</h1>
-
-			<div class="action-buttons">
-				<XButton
-					:to="{name: 'filters.create'}"
-					variant="secondary"
-					icon="filter"
-				>
-					{{ $t('filters.create.title') }}
-				</XButton>
-				<XButton
-					v-cy="'new-project'"
-					:to="{name: 'project.create'}"
-					icon="plus"
-				>
-					{{ $t('project.create.header') }}
-				</XButton>
-			</div>
-		</header>
-
-		<div
-			v-if="loadFailed"
-			class="project-list-empty project-list-error"
-			role="alert"
+		<PageHeader
+			class="project-header"
+			:title="$t('project.projects')"
+			:description="$t('projectList.description')"
 		>
-			<p>{{ $t('projectList.loadError') }}</p>
-			<XButton
-				variant="secondary"
-				icon="arrow-rotate-right"
-				@click="projectList.refetch()"
-			>
-				{{ $t('projectHistory.retry') }}
-			</XButton>
-		</div>
+			<template #actions>
+				<div class="action-buttons">
+					<XButton
+						:to="{name: 'filters.create'}"
+						variant="secondary"
+						icon="filter"
+					>
+						{{ $t('filters.create.title') }}
+					</XButton>
+					<XButton
+						v-cy="'new-project'"
+						:to="{name: 'project.create'}"
+						icon="plus"
+					>
+						{{ $t('project.create.header') }}
+					</XButton>
+				</div>
+			</template>
+		</PageHeader>
 
-		<div
+		<LoadError
+			v-if="loadFailed"
+			class="project-list-error"
+			:message="$t('projectList.loadError')"
+			:retry="() => projectList.refetch()"
+		/>
+
+		<EmptyState
 			v-else-if="showFirstProjectHint"
 			class="project-list-first"
 			data-empty="no-projects"
+			icon="layer-group"
+			:title="$t('projectList.emptyTitle')"
+			:description="$t('projectList.emptyText')"
 		>
-			<p class="project-list-first-title">
-				{{ $t('projectList.emptyTitle') }}
-			</p>
-			<p>{{ $t('projectList.emptyText') }}</p>
 			<XButton
 				:to="{name: 'project.create'}"
 				icon="plus"
 			>
 				{{ $t('project.create.header') }}
 			</XButton>
-		</div>
+		</EmptyState>
 
 		<div
 			v-else
@@ -111,18 +104,19 @@
 			:projects="sections.projects"
 			show-archived
 		/>
-		<div
+		<EmptyState
 			v-else-if="showNoMatches"
 			class="project-list-empty"
+			icon="search"
+			:title="$t('projectList.noMatches')"
 		>
-			<p>{{ $t('projectList.noMatches') }}</p>
 			<XButton
 				variant="secondary"
 				@click="clearFilters"
 			>
 				{{ $t('filters.clear') }}
 			</XButton>
-		</div>
+		</EmptyState>
 
 		<section
 			v-if="sections.others.length > 0"
@@ -150,6 +144,9 @@ import {useStorage} from '@vueuse/core'
 
 import Icon from '@/components/misc/Icon'
 import SegmentedControl from '@/components/input/SegmentedControl.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
+import EmptyState from '@/components/misc/state/EmptyState.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 import ProjectCardGrid from '@/components/project/partials/ProjectCardGrid.vue'
 
 import {useTitle} from '@/composables/useTitle'
@@ -250,29 +247,21 @@ function clearFilters() {
 </script>
 
 <style lang="scss" scoped>
-.project-header {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	align-items: center;
-	gap: .75rem 1rem;
-	margin-block-end: 1rem;
+.project-overview {
+	max-inline-size: var(--page-max-width);
+	margin-inline: auto;
 }
 
-.project-list-title {
-	margin: 0;
-	color: var(--text-strong);
-	font-size: 1.5rem;
-	font-weight: 700;
-	line-height: 1.25;
+.project-header {
+	margin-block-end: var(--space-4);
 }
 
 .action-buttons {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .5rem;
+	gap: var(--space-2);
 
-	@media screen and (width <= 30rem) {
+	@media screen and (max-width: $tablet) {
 		inline-size: 100%;
 
 		> * {
@@ -281,19 +270,12 @@ function clearFilters() {
 	}
 }
 
-.action-buttons .button,
-.project-list-empty .button {
-	@media (pointer: coarse) {
-		min-block-size: 2.75rem;
-	}
-}
-
 .project-toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: .75rem 1rem;
-	margin-block-end: 1rem;
+	gap: var(--space-2) var(--space-3);
+	margin-block-end: var(--space-4);
 }
 
 .project-search {
@@ -310,88 +292,50 @@ function clearFilters() {
 .project-search-icon {
 	position: absolute;
 	inset-block-start: 50%;
-	inset-inline-start: .75rem;
+	inset-inline-start: var(--space-3);
 	inline-size: .875rem;
 	block-size: .875rem;
 	z-index: 1; // Bulma positions .input, which would otherwise paint over the icon
-	color: var(--text-muted);
+	color: var(--text-tertiary);
 	transform: translateY(-50%);
 	pointer-events: none;
 }
 
 .project-search-input {
 	inline-size: 100%;
+	min-block-size: var(--control-height);
 	padding-inline-start: 2.25rem;
-
-	@media (pointer: coarse) {
-		min-block-size: 2.75rem;
-	}
 }
 
 .project-status-filter {
 	flex: 0 1 auto;
+	max-inline-size: 100%;
 }
 
+.project-list-error,
 .project-list-empty {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: .75rem 1rem;
-	padding: 1.5rem 1rem;
-	border: 1px dashed var(--grey-200);
-	border-radius: $radius;
-	color: var(--text-muted);
-
-	p {
-		margin: 0;
-	}
-}
-
-.project-list-error {
-	border-style: solid;
-	border-color: hsla(var(--danger-h), var(--danger-s), var(--danger-l), .4);
-	color: var(--text);
+	margin-block-end: var(--space-4);
 }
 
 .project-list-first {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: .5rem;
 	max-inline-size: 36rem;
-	padding: 1.5rem 0;
-	color: var(--text-muted);
-
-	p {
-		margin: 0;
-	}
-
-	.button {
-		margin-block-start: .5rem;
-	}
-}
-
-.project-list-first-title {
-	color: var(--text-strong);
-	font-size: 1.125rem;
-	font-weight: 600;
 }
 
 .project-list-help {
-	margin: -.25rem 0 1rem;
-	color: var(--text-muted);
-	font-size: .8125rem;
+	margin: 0 0 var(--space-4);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
 }
 
 .project-list-other {
-	margin-block-start: 2rem;
+	margin-block-start: var(--space-8);
 }
 
 .project-list-section-title {
-	margin: 0 0 .75rem;
-	color: var(--text-muted);
-	font-size: .875rem;
-	font-weight: 600;
-	line-height: 1.4;
+	margin: 0 0 var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
 }
 </style>

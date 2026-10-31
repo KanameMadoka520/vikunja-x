@@ -13,7 +13,7 @@
 		<template #searchResult="{option}">
 			<span
 				v-if="projectList.getAncestors(option).length > 1"
-				class="has-text-grey"
+				class="project-search-path"
 			>
 				{{ projectList.getAncestors(option).slice(0, -1).map(p => getProjectTitle(p)).join(' &gt; ') }} &gt;
 			</span>
@@ -84,3 +84,9 @@ function select(p: ProjectResponse | null) {
 	emit('update:modelValue', project)
 }
 </script>
+
+<style lang="scss" scoped>
+.project-search-path {
+	color: var(--text-tertiary);
+}
+</style>

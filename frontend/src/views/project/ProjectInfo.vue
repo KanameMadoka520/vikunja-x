@@ -17,7 +17,7 @@
 			/>
 			<p
 				v-else
-				class="is-italic"
+				class="project-info-empty"
 			>
 				{{ $t('project.noDescriptionAvailable') }}
 			</p>
@@ -54,3 +54,9 @@ const htmlDescription = computed(() => {
 	return sanitizeProjectDescription(description)
 })
 </script>
+
+<style lang="scss" scoped>
+.project-info-empty {
+	color: var(--text-secondary);
+}
+</style>

@@ -1,6 +1,7 @@
 <template>
 	<CreateEdit
 		v-model:loading="loadingModel"
+		class="filter-edit-dialog"
 		:title="$t('filters.edit.title')"
 		primary-icon=""
 		:primary-label="$t('misc.save')"
@@ -126,3 +127,10 @@ async function save() {
 	}
 }
 </script>
+
+<style lang="scss">
+// CreateEdit renders Delete as its tertiary action; it is destructive, so it reads as such.
+.filter-edit-dialog .card-footer .button.is-text {
+	color: var(--danger-text);
+}
+</style>

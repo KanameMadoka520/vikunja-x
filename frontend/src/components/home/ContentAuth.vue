@@ -2,25 +2,33 @@
 	<div class="content-auth">
 		<GuidedTour />
 		<FloatingArona />
-		<BaseButton
-			v-show="menuActive"
-			:aria-label="$t('navigation.closeSidebar')"
-			class="menu-hide-button d-print-none"
-			@click="baseStore.setMenuActive(false)"
-		>
-			<Icon icon="times" />
-		</BaseButton>
+		<CustomTransition name="fade">
+			<!-- The drawer's own close button is the keyboard path; the scrim only catches pointer taps. -->
+			<div
+				v-if="drawerOpen"
+				class="sidebar-scrim d-print-none"
+				aria-hidden="true"
+				@click="closeDrawer"
+			/>
+		</CustomTransition>
 		<div
 			class="app-container"
 			:class="{'has-background': background || blurHash}"
-			:style="{'background-image': blurHash && `url(${blurHash})`}"
 		>
+			<div
+				v-if="blurHash"
+				class="app-container-blurhash d-print-none"
+				:style="{
+					'background-image': `url(${blurHash})`,
+					'filter': brightnessFilter,
+				}"
+			/>
 			<div
 				:class="{'is-visible': background}"
 				class="app-container-background background-fade-in d-print-none"
 				:style="{
 					'background-image': background && `url(${background})`,
-					'filter': backgroundBrightness ? `brightness(${backgroundBrightness}%)` : undefined
+					'filter': brightnessFilter,
 				}"
 			/>
 			<Navigation class="d-print-none" />
@@ -33,14 +41,8 @@
 					$route.name,
 				]"
 				:style="{'--sidebar-width': sidebarWidthStyle}"
+				:inert="drawerOpen"
 			>
-				<BaseButton
-					v-show="menuActive"
-					:aria-label="$t('navigation.closeSidebar')"
-					class="mobile-overlay d-print-none"
-					@click="baseStore.setMenuActive(false)"
-				/>
-
 				<QuickActions />
 				<AddToHomeScreen v-if="route.name !== 'tcy-ai'" />
 
@@ -66,14 +68,14 @@
 					/>
 				</Modal>
 
-				<BaseButton
+				<!-- Shift+/ needs a mounted target; the visible entry lives in the account menu. -->
+				<button
 					v-shortcut="SHORTCUTS.showKeyboardShortcuts"
-					class="keyboard-shortcuts-button d-print-none"
+					type="button"
+					class="keyboard-shortcuts-button"
+					hidden
 					@click="showKeyboardShortcuts()"
-				>
-					<span class="is-sr-only">{{ $t('keyboardShortcuts.title') }}</span>
-					<Icon icon="keyboard" />
-				</BaseButton>
+				/>
 			</main>
 		</div>
 	</div>
@@ -81,7 +83,7 @@
 
 <script lang="ts" setup>
 import AddToHomeScreen from './AddToHomeScreen.vue'
-import {watch, computed, onBeforeUnmount} from 'vue'
+import {watch, computed, nextTick, onBeforeUnmount} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 
 import {SHORTCUTS} from '@/constants/shortcuts'
@@ -89,7 +91,7 @@ import Navigation from '@/components/home/Navigation.vue'
 import GuidedTour from '@/components/home/GuidedTour.vue'
 import FloatingArona from '@/components/ai/FloatingArona.vue'
 import QuickActions from '@/components/quick-actions/QuickActions.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import CustomTransition from '@/components/misc/CustomTransition.vue'
 
 import {useBaseStore} from '@/stores/base'
 
@@ -98,14 +100,16 @@ import {useRenewTokenOnFocus} from '@/composables/useRenewTokenOnFocus'
 import {useSidebarResize} from '@/composables/useSidebarResize'
 import {useWebSocket} from '@/composables/useWebSocket'
 import {useServerCacheEvents} from '@/composables/useServerCacheEvents'
+import {useAronaRunObserver} from '@/composables/useAronaRunObserver'
 import {useAuthStore} from '@/stores/auth'
 
 const authStore = useAuthStore()
-const backgroundBrightness = computed(() =>
-	authStore.settings?.frontend_settings?.background_brightness,
-)
+const brightnessFilter = computed(() => {
+	const brightness = authStore.settings?.frontend_settings?.background_brightness
+	return brightness ? `brightness(${brightness}%)` : undefined
+})
 
-const {sidebarWidthStyle} = useSidebarResize()
+const {sidebarWidthStyle, isMobile} = useSidebarResize()
 
 const {routeWithModal, currentModal, closeModal} = useRouteWithModal()
 
@@ -113,6 +117,14 @@ const baseStore = useBaseStore()
 const background = computed(() => baseStore.background)
 const blurHash = computed(() => baseStore.blurHash)
 const menuActive = computed(() => baseStore.menuActive)
+// On phones the open sidebar is a modal drawer: the page behind it is inert.
+const drawerOpen = computed(() => isMobile.value && menuActive.value)
+
+function closeDrawer() {
+	baseStore.setMenuActive(false)
+	// The header stays inert until the next render, so focus can only move afterwards.
+	void nextTick(() => document.querySelector<HTMLElement>('.menu-show-button')?.focus())
+}
 
 function showKeyboardShortcuts() {
 	baseStore.setKeyboardShortcutsActive(true)
@@ -136,6 +148,8 @@ watch(() => route.fullPath, () => {
 useRenewTokenOnFocus()
 
 useServerCacheEvents()
+// Arona receipts keep applying after leaving the assistant, with or without the floating panel open.
+useAronaRunObserver()
 const {connect} = useWebSocket()
 connect()
 
@@ -153,125 +167,54 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-.menu-hide-button {
+.sidebar-scrim {
 	position: fixed;
-	inset-block-start: 0.5rem;
-	inset-inline-end: 0.5rem;
-	z-index: 31;
-	inline-size: 3rem;
-	block-size: 3rem;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	font-size: 2rem;
-	color: var(--grey-400);
-	line-height: 1;
-	transition: all $transition;
+	inset: 0;
+	// Above the header, below the drawer.
+	z-index: calc(var(--layer-sidebar) - 1);
+	background: var(--scrim);
 
 	@media screen and (min-width: $tablet) {
 		display: none;
 	}
-
-	&:hover,
-	&:focus {
-		color: var(--grey-600);
-	}
 }
 
 .app-container {
-	min-block-size: calc(100vh - 65px);
-
-	@media screen and (max-width: $tablet) {
-		padding-block-start: $navbar-height;
-	}
+	min-block-size: 100dvh;
 }
 
 .app-content {
 	--sidebar-width: #{$navbar-width};
 
+	position: relative;
+	z-index: 1;
 	display: flow-root;
 	overflow-wrap: anywhere;
-	z-index: 10;
-	position: relative;
-	padding: 1.5rem 0.5rem 0;
-	// TODO refactor: DRY `transition-timing-function` with `./Navigation.vue`.
-	transition: margin-inline-start $transition-duration;
+	min-block-size: 100dvh;
+	padding-block: calc(var(--header-height) + var(--space-6)) calc(var(--dock-reserve) + var(--app-update-banner-height, 0px));
+	padding-inline: var(--page-gutter);
 
-	@media screen and (max-width: $tablet) {
-		margin-inline-start: 0;
-		margin-inline-end: 0;
-		min-block-size: calc(100vh - 4rem);
+	@media screen and (max-width: $tablet - 1px) {
+		padding-block-start: calc(var(--header-height) + var(--space-4));
 	}
 
-	@media screen and (min-width: $tablet) {
-		padding: $navbar-height + 1.5rem 1.5rem 0 1.5rem;
-	}
-
+	// Content snaps to the sidebar edge instead of animating its margin: a margin transition
+	// would re-layout Gantt and Kanban on every frame while the sidebar slides.
 	&.is-menu-enabled {
 		@media screen and (min-width: $tablet) {
 			margin-inline-start: var(--sidebar-width);
 		}
 	}
 
-	padding-block-end: calc(var(--app-update-banner-height, 0px) + 2rem + env(safe-area-inset-bottom, 0px));
-
 	// Used to make sure the spinner is always in the middle while loading
 	> .loader-container {
-		min-block-size: calc(100vh - #{$navbar-height + 1.5rem + 1rem});
-	}
-
-	// FIXME: This should be somehow defined inside Card.vue
-	.card {
-		background: var(--white);
-	}
-}
-
-.mobile-overlay {
-	display: none;
-	position: fixed;
-	inset-block-start: 0;
-	inset-block-end: 0;
-	inset-inline-start: 0;
-	inset-inline-end: 0;
-	block-size: 100vh;
-	inline-size: 100vw;
-	background: hsla(var(--grey-100-hsl), 0.8);
-	z-index: 5;
-	opacity: 0;
-	transition: all $transition;
-
-	@media screen and (max-width: $tablet) {
-		display: block;
-		opacity: 1;
-	}
-}
-
-.keyboard-shortcuts-button {
-	position: fixed;
-	inset-block-end: calc(1rem - 4px);
-	inset-inline-end: 1rem;
-	z-index: 4500;
-// The modal has a z-index of 4000
-	color: var(--grey-500);
-	transition: color $transition;
-
-	@media screen and (max-width: $tablet) {
-		display: none;
+		min-block-size: calc(100dvh - var(--header-height) - var(--space-6) - var(--space-4));
 	}
 }
 
 .app-content.tcy-ai {
- block-size: 100dvh;
- padding: $navbar-height 0 0;
- @media screen and (max-width: $tablet) {
-block-size: calc(100dvh - #{$navbar-height});
-min-block-size: 0;
-padding: 0;
-}
-}
-
-.content-auth {
-	position: relative;
-	z-index: 1;
+	block-size: 100dvh;
+	min-block-size: 0;
+	padding: var(--header-height) 0 0;
 }
 </style>

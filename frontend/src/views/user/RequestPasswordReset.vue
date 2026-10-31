@@ -9,15 +9,12 @@
 		</Message>
 		<div
 			v-if="isSuccess"
-			class="has-text-centered mbe-4"
+			class="auth-success has-text-centered mbe-4"
 		>
 			<Message variant="success">
 				{{ $t('user.auth.resetPasswordSuccess') }}
 			</Message>
-			<XButton
-				:to="{ name: 'user.login' }"
-				class="mbs-4"
-			>
+			<XButton :to="{ name: 'user.login' }">
 				{{ $t('user.auth.login') }}
 			</XButton>
 		</div>
@@ -37,7 +34,7 @@
 				autocomplete="email"
 			/>
 
-			<div class="is-flex">
+			<div class="auth-actions">
 				<XButton
 					type="submit"
 					:loading="passwordResetMutation.isPending.value"
@@ -81,8 +78,20 @@ async function requestPasswordReset() {
 }
 </script>
 
-<style scoped>
-.button {
-	margin: 0 0.4rem 0 0;
+<style lang="scss" scoped>
+.auth-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block-start: var(--space-4);
+}
+
+.auth-success {
+	display: grid;
+	gap: var(--space-4);
+
+	.button {
+		justify-self: center;
+	}
 }
 </style>

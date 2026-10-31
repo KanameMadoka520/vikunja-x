@@ -11,3 +11,14 @@
 [dir="rtl"] .is-pulled-end {
   float: left !important;
 }
+
+// The one floating surface for popovers, pickers and result lists (docs/whole-site-design.md):
+// raised surface, hairline, 8px corners and the menu elevation. Positioned owners add their own
+// z-index (--layer-dropdown) unless they live in the top layer.
+.popover-surface {
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-3);
+}

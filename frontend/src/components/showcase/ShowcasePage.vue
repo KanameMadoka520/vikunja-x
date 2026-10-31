@@ -1,35 +1,135 @@
 <script setup lang="ts">
+import {computed, nextTick, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-const props = defineProps<{page: TcyShowcasePublicResponse}>()
-const {t, locale} = useI18n({useScope: 'global'})
-import {computed} from 'vue'
 import {marked} from 'marked'
 import DOMPurify from 'dompurify'
 import type {TcyShowcasePublicResponse} from '@/client/generated'
 import TcyBrand from '@/components/home/TcyBrand.vue'
+import {useColorScheme} from '@/composables/useColorScheme'
+
+const props = withDefaults(defineProps<{
+	page: TcyShowcasePublicResponse
+	// Inside the settings preview the page sits below the editor's own h1 and h2.
+	embedded?: boolean
+}>(), {
+	embedded: false,
+})
+const {t, locale} = useI18n({useScope: 'global'})
 
 const events = computed(() => props.page.events ?? [])
 const free = computed(() => props.page.free ?? [])
 const projects = computed(() => props.page.projects ?? [])
-const formatTime = (value?: string) => value ? new Date(value).toLocaleString(locale.value, {timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short'}) : ''
-const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+const headingBase = computed(() => props.embedded ? 3 : 1)
+const titleTag = computed(() => `h${headingBase.value}`)
+const sectionTag = computed(() => `h${headingBase.value + 1}`)
+const itemTag = computed(() => `h${headingBase.value + 2}`)
+
+const formatTime = (value?: string) => value
+	? new Date(value).toLocaleString(locale.value, {
+		timeZone: 'Asia/Shanghai',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		weekday: 'short',
+	})
+	: ''
+const escape = (value: string) => value
+	.replaceAll('&', '&amp;')
+	.replaceAll('<', '&lt;')
+	.replaceAll('>', '&gt;')
+	.replaceAll('"', '&quot;')
+
+// The sandboxed frame is a separate document without the app's stylesheets, so it receives the
+// current token values. They are read after the colour-scheme class on <html> has switched.
+const {isDark} = useColorScheme()
+function readFrameTheme() {
+	const style = getComputedStyle(document.documentElement)
+	const token = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
+	return {
+		scheme: isDark.value ? 'dark' : 'light',
+		text: token('--text-primary', 'CanvasText'),
+		muted: token('--text-secondary', 'GrayText'),
+		link: token('--accent-text', 'LinkText'),
+		border: token('--border-default', 'GrayText'),
+		surface: token('--surface', 'Canvas'),
+		font: token('--font-ui', 'system-ui, sans-serif'),
+		mono: token('--font-mono', 'monospace'),
+		size: token('--text-base', '1rem'),
+		leading: token('--leading-normal', '1.5'),
+		gap: token('--space-4', '1rem'),
+		itemGap: token('--space-2', '.5rem'),
+		radius: token('--radius-sm', '4px'),
+	}
+}
+const frameTheme = ref(readFrameTheme())
+watch(isDark, () => nextTick(() => {
+	frameTheme.value = readFrameTheme()
+}), {flush: 'post'})
+
+const frameStyle = computed(() => {
+	const theme = frameTheme.value
+	return [
+		`:root{color-scheme:${theme.scheme}}`,
+		`body{margin:${theme.gap};font-family:${theme.font};font-size:${theme.size};line-height:${theme.leading};`
+		+ `color:${theme.text};background:${theme.surface};overflow-wrap:anywhere}`,
+		`img{max-width:100%;height:auto;border-radius:${theme.radius}}`,
+		`a{color:${theme.link}}`,
+		`li{margin:${theme.itemGap} 0}`,
+		`hr{border:0;border-top:1px solid ${theme.border}}`,
+		`blockquote{margin-inline:0;padding-inline-start:${theme.gap};border-inline-start:3px solid ${theme.border};color:${theme.muted}}`,
+		`code,pre{font-family:${theme.mono}}`,
+		`table{border-collapse:collapse}th,td{padding:${theme.itemGap};border:1px solid ${theme.border}}`,
+	].join('')
+})
+
 const custom = computed(() => {
 	if (!props.page.content) return ''
-	const schedule = '<ul>' + events.value.map(e => `<li>${escape(formatTime(e.start))}${e.kind === 'busy' ? ' — ' + escape(formatTime(e.end)) : t('tcymc.text.due')} · ${escape(e.title ?? '')} · ${escape(e.project ?? '')}</li>`).join('') + '</ul>'
-	const availability = '<ul>' + free.value.map(f => `<li>${escape(formatTime(f.start))} — ${escape(formatTime(f.end))}</li>`).join('') + '</ul>'
+	const schedule = '<ul>' + events.value.map(e => {
+		const end = e.kind === 'busy' ? ' — ' + escape(formatTime(e.end)) : t('tcymc.text.due')
+		return `<li>${escape(formatTime(e.start))}${end} · ${escape(e.title ?? '')} · ${escape(e.project ?? '')}</li>`
+	}).join('') + '</ul>'
+	const availability = '<ul>'
+		+ free.value.map(f => `<li>${escape(formatTime(f.start))} — ${escape(formatTime(f.end))}</li>`).join('')
+		+ '</ul>'
 	const names = '<ul>' + projects.value.map(p => `<li>${escape(p)}</li>`).join('') + '</ul>'
 	const raw = props.page.format === 'html' ? props.page.content : marked.parse(props.page.content, {async: false})
-	const content = DOMPurify.sanitize(raw, {ADD_TAGS: ['style']}).replaceAll('{{schedule}}', schedule).replaceAll('{{availability}}', availability).replaceAll('{{projects}}', names)
-	return `<!doctype html><html lang="${escape(locale.value)}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https:; base-uri 'none'; form-action 'none'"><style>
-body{font:16px/1.7 system-ui,sans-serif;color:#26314a;margin:20px;overflow-wrap:anywhere}img{max-width:100%}a{color:#4568ca}li{margin:8px 0}
-</style></head><body>${content}</body></html>`
+	const content = DOMPurify.sanitize(raw, {ADD_TAGS: ['style']})
+		.replaceAll('{{schedule}}', schedule)
+		.replaceAll('{{availability}}', availability)
+		.replaceAll('{{projects}}', names)
+	return `<!doctype html><html lang="${escape(locale.value)}"><head><meta charset="utf-8">`
+		+ '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; '
+		+ 'img-src https: data:; font-src https:; base-uri \'none\'; form-action \'none\'">'
+		+ `<style>${frameStyle.value}</style></head><body>${content}</body></html>`
 })
 </script>
 
 <template>
-	<article class="showcase-page">
+	<article
+		class="showcase-page"
+		:class="{'is-embedded': embedded}"
+	>
 		<header class="showcase-hero">
-			<span class="eyebrow">{{ t('tcymc.publicEyebrow') }}</span><h1>{{ page.title }}</h1><p>{{ page.intro }}</p><span class="timezone">{{ t('tcymc.text.asia_shanghai_china_standard_time') }}</span>
+			<p class="showcase-eyebrow">
+				{{ t('tcymc.publicEyebrow') }}
+			</p>
+			<component
+				:is="titleTag"
+				class="showcase-title"
+			>
+				{{ page.title }}
+			</component>
+			<p
+				v-if="page.intro"
+				class="showcase-intro"
+			>
+				{{ page.intro }}
+			</p>
+			<p class="showcase-timezone">
+				<Icon :icon="['far', 'clock']" />
+				<span>{{ t('tcymc.text.asia_shanghai_china_standard_time') }}</span>
+			</p>
 		</header>
 		<iframe
 			v-if="custom"
@@ -43,148 +143,327 @@ body{font:16px/1.7 system-ui,sans-serif;color:#26314a;margin:20px;overflow-wrap:
 			v-if="!page.custom_layout"
 			class="showcase-columns"
 		>
-			<section>
-				<h2>{{ t('tcymc.text.upcoming_schedule') }}</h2><p
+			<section class="showcase-section">
+				<component
+					:is="sectionTag"
+					class="showcase-section-title"
+				>
+					{{ t('tcymc.text.upcoming_schedule') }}
+				</component>
+				<p
 					v-if="!events.length"
-					class="empty"
+					class="showcase-empty"
 				>
 					{{ t('tcymc.text.there_are_no_published_events_for_this_period') }}
-				</p><div
-					v-for="(event, index) in events"
-					:key="index"
-					class="schedule-event"
+				</p>
+				<ol
+					v-else
+					class="schedule-list"
 				>
-					<span class="event-kind">{{ event.kind === 'busy' ? t('tcymc.text.time_block') : t('tcymc.text.due_item') }}</span><h3>{{ event.title }}</h3><p>{{ event.project }}</p><time>{{ formatTime(event.start) }}<template v-if="event.kind === 'busy'"> — {{ formatTime(event.end) }}</template></time>
-				</div>
+					<li
+						v-for="(event, index) in events"
+						:key="index"
+						class="schedule-event"
+						:class="event.kind === 'busy' ? 'is-busy' : 'is-due'"
+					>
+						<p class="event-when">
+							<time :datetime="event.start">{{ formatTime(event.start) }}</time>
+							<template v-if="event.kind === 'busy'">
+								{{ ' – ' }}<time :datetime="event.end">{{ formatTime(event.end) }}</time>
+							</template>
+						</p>
+						<component
+							:is="itemTag"
+							v-if="event.title"
+							class="event-title"
+						>
+							{{ event.title }}
+						</component>
+						<p class="event-meta">
+							<span class="event-kind">
+								<Icon :icon="event.kind === 'busy' ? ['far', 'clock'] : 'flag-checkered'" />
+								{{ event.kind === 'busy' ? t('tcymc.text.time_block') : t('tcymc.text.due_item') }}
+							</span>
+							<span
+								v-if="event.project"
+								class="event-project"
+							>{{ event.project }}</span>
+						</p>
+					</li>
+				</ol>
 			</section>
-			<section>
-				<h2>{{ t('tcymc.text.available_times') }}</h2><p class="explanation">
-					{{ t('tcymc.text.these_times_are_not_occupied_by_your_published') }}
-				</p><p
-					v-if="!free.length"
-					class="empty"
+			<div class="showcase-aside">
+				<section class="showcase-section">
+					<component
+						:is="sectionTag"
+						class="showcase-section-title"
+					>
+						{{ t('tcymc.text.available_times') }}
+					</component>
+					<p class="showcase-explanation">
+						{{ t('tcymc.text.these_times_are_not_occupied_by_your_published') }}
+					</p>
+					<p
+						v-if="!free.length"
+						class="showcase-empty"
+					>
+						{{ t('tcymc.text.there_are_no_available_times_to_show') }}
+					</p>
+					<ul
+						v-else
+						class="free-list"
+					>
+						<li
+							v-for="(slot, index) in free"
+							:key="index"
+							class="free-slot"
+						>
+							<time :datetime="slot.start">{{ formatTime(slot.start) }}</time>
+							<span class="free-to">{{ ` ${t('tcymc.text.to')} ` }}</span>
+							<time :datetime="slot.end">{{ formatTime(slot.end) }}</time>
+						</li>
+					</ul>
+				</section>
+				<section
+					v-if="projects.length"
+					class="showcase-section"
 				>
-					{{ t('tcymc.text.there_are_no_available_times_to_show') }}
-				</p><div
-					v-for="(slot, index) in free"
-					:key="index"
-					class="free-slot"
-				>
-					{{ formatTime(slot.start) }}<br>{{ t('tcymc.text.to') }}{{ formatTime(slot.end) }}
-				</div><h2 class="projects-heading">
-					{{ t('tcymc.text.current_projects') }}
-				</h2><span
-					v-for="(project, index) in projects"
-					:key="index"
-					class="project-pill"
-				>{{ project }}</span>
-			</section>
+					<component
+						:is="sectionTag"
+						class="showcase-section-title"
+					>
+						{{ t('tcymc.text.current_projects') }}
+					</component>
+					<ul class="project-chips">
+						<li
+							v-for="(project, index) in projects"
+							:key="index"
+						>
+							{{ project }}
+						</li>
+					</ul>
+				</section>
+			</div>
 		</div>
-		<footer><p>{{ t('tcymc.text.schedule_generated_at') }} {{ formatTime(page.generated_at) }} · {{ t('tcymc.text.showing_until') }} {{ formatTime(page.until) }}</p><TcyBrand /></footer>
+		<footer class="showcase-footer">
+			<p>
+				{{ `${t('tcymc.text.schedule_generated_at')} ` }}<time :datetime="page.generated_at">{{ formatTime(page.generated_at) }}</time>
+				{{ `${t('tcymc.text.showing_until')} ` }}<time :datetime="page.until">{{ formatTime(page.until) }}</time>
+			</p>
+			<TcyBrand />
+		</footer>
 	</article>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .showcase-page {
-	overflow-wrap: anywhere;
-	max-inline-size: 1100px;
+	container: showcase / inline-size;
+	display: grid;
+	gap: var(--space-6);
+	max-inline-size: var(--page-narrow-width);
 	margin-inline: auto;
-	padding: 2rem;
-	color: var(--grey-800);
+	padding: var(--space-8) var(--page-gutter) var(--space-6);
+	color: var(--text-primary);
+	overflow-wrap: anywhere;
+
+	&.is-embedded {
+		max-inline-size: none;
+		padding: 0;
 	}
+}
+
 .showcase-hero {
-	padding-block: 2rem;
-	border-block-end: 1px solid var(--grey-200);
+	display: grid;
+	justify-items: start;
+	gap: var(--space-2);
+	padding-block-end: var(--space-5);
+	border-block-end: 1px solid var(--border-subtle);
+}
+
+.showcase-eyebrow {
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	letter-spacing: .04em;
+	line-height: var(--leading-tight);
+}
+
+.showcase-title {
+	margin: 0;
+	color: var(--text-primary);
+	font-size: var(--text-2xl);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+
+	.is-embedded & {
+		font-size: var(--text-xl);
 	}
-.eyebrow {
-	color: var(--primary);
-	font-size: .75rem;
-	letter-spacing: .18em;
-	}
-h1 {
-	margin-block: .7rem;
-	font-size: clamp(2rem, 5vw, 3.5rem);
-	}
-h2 {
-	margin-block-end: 1rem;
-	font-size: 1.3rem;
-	}
-h3 {
-	margin-block: .4rem;
-	font-size: 1.1rem;
-	}
-.timezone {
-	display: inline-block;
-	margin-block-start: 1rem;
-	font-size: .8rem;
-	color: var(--grey-600);
-	}
+}
+
+.showcase-intro {
+	max-inline-size: 65ch;
+	color: var(--text-secondary);
+	font-size: var(--text-base);
+	line-height: var(--leading-normal);
+	white-space: pre-line;
+}
+
+.showcase-timezone {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+}
+
+.custom-page {
+	display: block;
+	inline-size: 100%;
+	block-size: min(70dvh, 40rem);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	resize: vertical;
+}
+
 .showcase-columns {
 	display: grid;
-	grid-template-columns: 1.4fr 1fr;
-	gap: 2rem;
-	margin-block: 2rem;
-	}
-.schedule-event {
-	margin-block-end: 1rem;
-	padding: 1.1rem;
-	border: 1px solid var(--grey-200);
-	border-inline-start: 3px solid var(--primary);
-	border-radius: .5rem;
-	background: var(--white);
-	}
-.event-kind, time {
-	font-size: .8rem;
-	color: var(--grey-600);
-	}
-.schedule-event p {
-	margin-block-end: .5rem;
-	}
-.free-slot {
-	padding: .8rem;
-	margin-block-end: .7rem;
-	border-radius: .5rem;
-	background: var(--grey-100);
-	font-size: .9rem;
-	}
-.explanation, .empty {
-	margin-block-end: 1rem;
-	color: var(--grey-600);
-	font-size: .9rem;
-	}
-.projects-heading {
-	margin-block-start: 2rem;
-	}
-.project-pill {
-	display: inline-block;
-	padding: .4rem .8rem;
-	margin: .2rem;
-	background: var(--grey-100);
-	border-radius: 2rem;
-	font-size: .85rem;
-	}
-.custom-page {
-	inline-size: 100%;
-	block-size: 440px;
-	resize: vertical;
-	border: 1px solid var(--grey-200);
-	border-radius: .5rem;
-	margin-block-start: 1rem;
-	background: white;
-	}
-footer {
-	border-block-start: 1px solid var(--grey-200);
-	padding-block-start: 1rem;
-	text-align: center;
-	font-size: .8rem;
-	color: var(--grey-600);
-	}
-@media (width <= 700px) {
+	gap: var(--space-6);
+	align-items: start;
+}
+
+@container showcase (min-width: 40rem) {
 	.showcase-columns {
-	grid-template-columns: 1fr;
-	} .showcase-page {
-	overflow-wrap: anywhere;
-	padding: 1rem;
+		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 	}
+}
+
+.showcase-aside {
+	display: grid;
+	gap: var(--space-6);
+}
+
+.showcase-section-title {
+	margin-block: 0 var(--space-3);
+	color: var(--text-primary);
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+}
+
+.showcase-empty,
+.showcase-explanation {
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	line-height: var(--leading-normal);
+}
+
+.showcase-explanation {
+	margin-block-end: var(--space-3);
+}
+
+.schedule-list,
+.free-list,
+.project-chips {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.schedule-list,
+.free-list {
+	overflow: hidden;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
+}
+
+.schedule-event {
+	display: grid;
+	gap: var(--space-1);
+	padding: var(--space-3) var(--space-4);
+	border-inline-start: 3px solid var(--primary);
+
+	&.is-due {
+		border-inline-start-color: var(--warning);
+	}
+
+	& + & {
+		border-block-start: 1px solid var(--border-subtle);
+	}
+}
+
+.event-when {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.event-title {
+	margin: 0;
+	color: var(--text-primary);
+	font-size: var(--text-base);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+}
+
+.event-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-3);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+}
+
+.event-kind {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-weight: var(--weight-medium);
+}
+
+.free-slot {
+	padding: var(--space-2) var(--space-4);
+	font-size: var(--text-md);
+	font-variant-numeric: tabular-nums;
+
+	& + & {
+		border-block-start: 1px solid var(--border-subtle);
+	}
+}
+
+.free-to {
+	color: var(--text-tertiary);
+}
+
+.project-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+
+	li {
+		padding: var(--space-1) var(--space-3);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-full);
+		background: var(--surface);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+	}
+}
+
+.showcase-footer {
+	display: grid;
+	justify-items: center;
+	gap: var(--space-2);
+	padding-block-start: var(--space-4);
+	border-block-start: 1px solid var(--border-subtle);
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+	text-align: center;
 }
 </style>

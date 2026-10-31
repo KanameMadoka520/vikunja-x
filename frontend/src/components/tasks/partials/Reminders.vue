@@ -98,16 +98,19 @@ function removeReminderByIndex(index: number) {
 </script>
 
 <style lang="scss" scoped>
+.reminders {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
 .reminder-input {
 	display: flex;
 	align-items: center;
+	gap: var(--space-1);
 
 	&[data-is-overdue] :deep(.datepicker .show) {
 		color: var(--danger-text);
-	}
-
-	&:last-child {
-		margin-block-end: 0.75rem;
 	}
 }
 
@@ -116,9 +119,22 @@ function removeReminderByIndex(index: number) {
 }
 
 .remove {
-	color: var(--danger);
-	vertical-align: top;
-	padding-inline-start: .5rem;
-	line-height: 1;
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	inline-size: max(1.5rem, var(--target-min));
+	block-size: max(1.5rem, var(--target-min));
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		background: var(--tint-danger);
+		color: var(--danger-text);
+	}
 }
 </style>

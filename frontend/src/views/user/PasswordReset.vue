@@ -2,21 +2,19 @@
 	<div>
 		<Message
 			v-if="errorMsg"
+			variant="danger"
 			class="mbe-4"
 		>
 			{{ errorMsg }}
 		</Message>
 		<div
 			v-if="successMessage"
-			class="has-text-centered mbe-4"
+			class="auth-success has-text-centered mbe-4"
 		>
 			<Message variant="success">
 				{{ successMessage }}
 			</Message>
-			<XButton
-				:to="{ name: 'user.login' }"
-				class="mbs-4"
-			>
+			<XButton :to="{ name: 'user.login' }">
 				{{ $t('user.auth.login') }}
 			</XButton>
 		</div>
@@ -36,15 +34,14 @@
 				/>
 			</div>
 
-			<div class="field is-grouped">
-				<div class="control">
-					<XButton
-						:loading="passwordResetMutation.isPending.value"
-						@click="resetPassword"
-					>
-						{{ $t('user.auth.resetPassword') }}
-					</XButton>
-				</div>
+			<div class="auth-actions">
+				<XButton
+					:loading="passwordResetMutation.isPending.value"
+					class="is-fullwidth"
+					@click="resetPassword"
+				>
+					{{ $t('user.auth.resetPassword') }}
+				</XButton>
 			</div>
 		</form>
 	</div>
@@ -99,8 +96,20 @@ async function resetPassword() {
 }
 </script>
 
-<style scoped>
-.button {
-	margin: 0 0.4rem 0 0;
+<style lang="scss" scoped>
+.auth-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin-block-start: var(--space-4);
+}
+
+.auth-success {
+	display: grid;
+	gap: var(--space-4);
+
+	.button {
+		justify-self: center;
+	}
 }
 </style>

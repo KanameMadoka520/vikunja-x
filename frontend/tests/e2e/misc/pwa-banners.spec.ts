@@ -16,8 +16,15 @@ test.describe('PWA banners', () => {
 		await setupApiUrl(page)
 		await page.goto('/login')
 		await expect(page.locator('input[id=username]')).toBeVisible()
-		// Service workers are blocked in e2e, so fake the event registerServiceWorker.ts dispatches
-		await page.evaluate(() => document.dispatchEvent(new CustomEvent('swUpdated', {detail: {waiting: null}})))
+		// Service workers are blocked in e2e, so fake the event registerServiceWorker.ts dispatches. The banner
+		// only trusts a waiting worker that reports a newer build (same-version cases live in tcy-updates.spec.ts).
+		await page.evaluate(() => {
+			const registration = {waiting: {postMessage(message: string, ports?: MessagePort[]) {
+				if (message === 'getVersion') ports?.[0].postMessage({version: 'v99.0.0-tcymc.1'})
+			}}}
+			Object.defineProperty(navigator.serviceWorker, 'getRegistration', {value: async () => registration, configurable: true})
+			document.dispatchEvent(new CustomEvent('swUpdated', {detail: registration}))
+		})
 	})
 
 	test('Are hidden on the login page', async ({page}) => {
@@ -32,7 +39,7 @@ test.describe('PWA banners', () => {
 		await page.locator('.button').filter({hasText: 'Login'}).click()
 		await expect(page).toHaveURL('/')
 
-		await expect(page.locator('.update-notification')).toBeVisible()
+		await expect(page.locator('.update-notification')).toContainText('v99.0.0-tcymc.1')
 		await expect(page.locator('.add-to-home-screen')).toBeVisible()
 	})
 })

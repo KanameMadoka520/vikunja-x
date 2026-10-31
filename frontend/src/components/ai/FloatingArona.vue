@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, nextTick, ref, watch, onMounted, onBeforeUnmount, shallowRef} from 'vue'
+import {computed, defineAsyncComponent, nextTick, ref, watch, onMounted, onBeforeUnmount, shallowRef, useId} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useBaseStore} from '@/stores/base'
 import {useAuthStore} from '@/stores/auth'
+import {useIsMobile} from '@/composables/useIsMobile'
 import {captureClientRequestContext} from '@/client/requestContext'
 import AronaAvatar from './AronaAvatar.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
@@ -20,6 +21,7 @@ const navigationBusy = ref(false)
 const conversation = ref('')
 const launcher = ref<InstanceType<typeof BaseButton>>()
 const panel = ref<HTMLElement>()
+const activityId = useId()
 const portal = shallowRef<string | HTMLElement>('body')
 let modalObserver: MutationObserver | undefined
 onMounted(() => {
@@ -30,6 +32,9 @@ onMounted(() => {
 })
 onBeforeUnmount(() => modalObserver?.disconnect())
 const fullPage = computed(() => route.name === 'tcy-ai')
+// The phone drawer is modal; the dock steps aside (state and streaming stay mounted).
+const isMobile = useIsMobile()
+const underDrawer = computed(() => isMobile.value && base.menuActive)
 const taskID = computed(() => route.name === 'task.detail' ? Number(route.params.id) || 0 : 0)
 const accountKey = computed(() => {
 	// Depend on the reactive account too: token renewals must not reset a conversation.
@@ -55,6 +60,7 @@ function expand() { open.value = false; void router.push({name: 'tcy-ai', query:
 		<div
 			v-if="!fullPage"
 			class="floating-arona d-print-none"
+			:class="{'is-under-drawer': underDrawer}"
 			@mousedown.stop
 			@pointerdown.stop
 			@click.stop
@@ -69,27 +75,6 @@ function expand() { open.value = false; void router.push({name: 'tcy-ai', query:
 				:aria-label="t('floatingArona.title')"
 				@keydown.esc.prevent.stop="minimize"
 			>
-				<header class="panel-header">
-					<strong>{{ t('floatingArona.title') }}</strong>
-					<span class="panel-hint">{{ t(running ? 'floatingArona.working' : 'floatingArona.context') }}</span>
-					<BaseButton
-						class="panel-button"
-						:aria-label="t('floatingArona.expand')"
-						:title="t('floatingArona.expand')"
-						:disabled="navigationBusy"
-						@click="expand"
-					>
-						<Icon icon="arrow-up-right-from-square" />
-					</BaseButton>
-					<BaseButton
-						class="panel-button"
-						:aria-label="t('floatingArona.minimize')"
-						:title="t('floatingArona.minimize')"
-						@click="minimize"
-					>
-						<Icon icon="minus" />
-					</BaseButton>
-				</header>
 				<div class="panel-body">
 					<Assistant
 						v-if="loaded"
@@ -100,7 +85,27 @@ function expand() { open.value = false; void router.push({name: 'tcy-ai', query:
 						:context-task-id="taskID"
 						@activity="running = $event"
 						@navigationBusy="navigationBusy = $event"
-					/>
+					>
+						<template #panel-actions>
+							<BaseButton
+								class="panel-button"
+								:aria-label="t('floatingArona.expand')"
+								:title="t('floatingArona.expand')"
+								:disabled="navigationBusy"
+								@click="expand"
+							>
+								<Icon icon="arrow-up-right-from-square" />
+							</BaseButton>
+							<BaseButton
+								class="panel-button"
+								:aria-label="t('floatingArona.minimize')"
+								:title="t('floatingArona.minimize')"
+								@click="minimize"
+							>
+								<Icon icon="minus" />
+							</BaseButton>
+						</template>
+					</Assistant>
 				</div>
 			</section>
 			<BaseButton
@@ -109,6 +114,7 @@ function expand() { open.value = false; void router.push({name: 'tcy-ai', query:
 				:class="{working: running}"
 				:aria-label="t(open ? 'floatingArona.minimize' : 'floatingArona.open')"
 				:aria-expanded="open"
+				:aria-describedby="running ? activityId : undefined"
 				:title="t('floatingArona.open')"
 				@click="toggle"
 			>
@@ -116,87 +122,109 @@ function expand() { open.value = false; void router.push({name: 'tcy-ai', query:
 				<span
 					v-if="running"
 					class="activity-dot"
-					:aria-label="t('floatingArona.working')"
+					aria-hidden="true"
+					:title="t('floatingArona.working')"
 				/>
 			</BaseButton>
+			<!-- The launcher keeps its name; the running state is its description. -->
+			<span
+				:id="activityId"
+				class="is-sr-only"
+			>{{ t('floatingArona.working') }}</span>
 		</div>
 	</Teleport>
 </template>
 
 <style scoped lang="scss">
-.floating-arona { position: fixed;
-inset-inline-end: max(1rem, env(safe-area-inset-right));
-inset-block-end: max(1rem, env(safe-area-inset-bottom));
-z-index: 60;
+.floating-arona {
+	position: fixed;
+	inset-inline-end: var(--dock-inset-inline);
+	inset-block-end: var(--dock-inset-block);
+	z-index: var(--layer-floating);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: var(--space-3);
+
+	&.is-under-drawer {
+		visibility: hidden;
+	}
 }
-.arona-launcher { display: flex;
-align-items: center;
-justify-content: center;
-inline-size: 3.25rem;
-block-size: 3.25rem;
-margin-inline-start: auto;
-padding: 0;
-border: 1px solid var(--grey-200);
-border-radius: 50%;
-background: var(--white);
-box-shadow: 0 3px 16px #00000022;
-position: relative;
-transition: transform .16s ease;
+
+.arona-launcher {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--dock-launcher-size);
+	block-size: var(--dock-launcher-size);
+	padding: 0;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-2);
+	transition: transform var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		transform: translateY(-1px);
+	}
 }
-.arona-launcher:hover { transform: translateY(-2px);
+
+.activity-dot {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-end: 0;
+	inline-size: .625rem;
+	block-size: .625rem;
+	border: 2px solid var(--surface-raised);
+	border-radius: var(--radius-full);
+	background: var(--success);
+	box-sizing: content-box;
 }
-.activity-dot { position: absolute;
-inset: .1rem .1rem auto auto;
-inline-size: .65rem;
-block-size: .65rem;
-border-radius: 50%;
-background: var(--success);
-border: 2px solid var(--white);
+
+.arona-panel {
+	display: flex;
+	flex-direction: column;
+	inline-size: min(460px, calc(100vw - 2 * var(--dock-inset-inline)));
+	// Leaves the header usable above the panel and the launcher below it.
+	block-size: min(720px, calc(100dvh - var(--header-height) - var(--dock-reserve) - var(--space-2)));
+	overflow: hidden;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	outline: none;
 }
-.arona-panel { display: flex;
-flex-direction: column;
-inline-size: min(460px, calc(100vw - 2rem));
-block-size: min(720px, calc(100dvh - 6.5rem));
-margin-block-end: .75rem;
-border: 1px solid var(--grey-200);
-border-radius: 1.25rem;
-background: var(--white);
-box-shadow: 0 10px 50px #00000033;
-overflow: hidden;
-outline: none;
+
+// Same shape as the assistant's toolbar buttons in the row they join.
+.panel-button {
+	display: grid;
+	flex-shrink: 0;
+	place-items: center;
+	inline-size: var(--control-height);
+	block-size: var(--control-height);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	&:disabled {
+		opacity: .5;
+		cursor: not-allowed;
+	}
+
+	@media (pointer: coarse) {
+		inline-size: var(--target-min);
+		block-size: var(--target-min);
+	}
 }
-.panel-header { display: flex;
-align-items: center;
-gap: .35rem;
-padding: .35rem .6rem;
-border-block-end: 1px solid var(--grey-100);
-flex-shrink: 0;
+
+.panel-body {
+	flex: 1;
+	min-block-size: 0;
+	overflow: hidden;
 }
-.panel-header strong { font-size: .85rem;
-white-space: nowrap;
-}
-.panel-hint { flex: 1;
-color: var(--grey-600);
-font-size: .65rem;
-}
-.panel-button { display: grid;
-place-items: center;
-inline-size: 2.5rem;
-block-size: 2.5rem;
-border-radius: .6rem;
-flex-shrink: 0;
-}
-.panel-button:hover { background: var(--grey-100);
-}
-.panel-body { flex: 1;
-min-block-size: 0;
-overflow: hidden;
-}
-@media (width <= 540px) { .floating-arona { inset-inline-end: .5rem;
-inset-block-end: max(.5rem, env(safe-area-inset-bottom));
-} .arona-panel { inline-size: calc(100vw - 1rem);
-block-size: calc(100dvh - 6rem - env(safe-area-inset-bottom));
-} }
-@media (prefers-reduced-motion: reduce) { .arona-launcher { transition: none;
-} }
 </style>

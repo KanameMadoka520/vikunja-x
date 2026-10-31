@@ -396,7 +396,7 @@ function onPointerUp(event: PointerEvent) {
 	-webkit-user-drag: none;
 	cursor: zoom-in;
 	opacity: 0;
-	transition: opacity $transition;
+	transition: opacity var(--motion-base) var(--ease-standard);
 	will-change: transform;
 
 	&:focus-visible {
@@ -425,25 +425,25 @@ function onPointerUp(event: PointerEvent) {
 	transform: translateX(-50%);
 	display: flex;
 	align-items: center;
-	gap: .25rem;
-	padding: .35rem;
-	border-radius: 999px;
+	gap: var(--space-1);
+	padding: var(--space-1);
+	border-radius: var(--radius-full);
 	// literal colors: the scrim never flips with the theme
 	background: rgba(0, 0, 0, .72);
-	box-shadow: 0 10px 20px rgba(0, 0, 0, .3);
+	box-shadow: var(--elevation-3);
 }
 
 .image-lightbox__button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-inline-size: 2.25rem;
-	block-size: 2.25rem;
-	padding: 0 .5rem;
-	border-radius: 999px;
+	min-inline-size: max(2.25rem, var(--target-min));
+	block-size: max(2.25rem, var(--target-min));
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-full);
 	color: #ffffff;
 	cursor: pointer;
-	transition: background-color $transition;
+	transition: background-color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
 		background: rgba(255, 255, 255, .18);
@@ -454,7 +454,7 @@ function onPointerUp(event: PointerEvent) {
 	min-inline-size: 3rem;
 	text-align: center;
 	color: #ffffff;
-	font-size: .85rem;
+	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
 	user-select: none;
 }

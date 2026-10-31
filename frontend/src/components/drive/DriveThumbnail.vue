@@ -1,15 +1,17 @@
 <template>
 	<img
 		v-if="url"
+		class="drive-thumbnail"
 		:src="url"
-		:alt="file.file?.name || ''"
+		:alt="decorative ? '' : (file.file?.name || '')"
 		loading="lazy"
+		decoding="async"
 	>
 	<span
 		v-else
 		class="drive-file-symbol"
 		aria-hidden="true"
-	><Icon :icon="image ? 'image' : 'file'" /></span>
+	><Icon :icon="symbol" /></span>
 </template>
 
 <script setup lang="ts">
@@ -18,23 +20,44 @@ import {useQuery} from '@tanstack/vue-query'
 import {useObjectUrl} from '@vueuse/core'
 import type {DriveEntry} from '@/client/queries/drive'
 import {drivePreviewQuery} from '@/client/queries/drive'
-const props = defineProps<{file: DriveEntry}>()
-const image = computed(() => /^image\/(png|jpeg|webp|gif)$/.test(props.file.file?.mime ?? '') && (props.file.file?.size ?? 0) < 50 * 1024 * 1024)
-const query = useQuery(computed(() => ({...drivePreviewQuery(props.file.file_id), enabled: image.value && !props.file.purging})))
+
+const props = withDefaults(defineProps<{
+	file: DriveEntry
+	// Next to the file name the picture adds nothing for screen readers.
+	decorative?: boolean
+}>(), {
+	decorative: false,
+})
+const PREVIEWABLE = /^image\/(png|jpeg|webp|gif)$/
+const MAX_PREVIEW_BYTES = 50 * 1024 * 1024
+
+const mime = computed(() => props.file.file?.mime ?? '')
+const image = computed(() => PREVIEWABLE.test(mime.value) && (props.file.file?.size ?? 0) < MAX_PREVIEW_BYTES)
+const symbol = computed(() => {
+	if (mime.value.startsWith('image/')) return 'file-image'
+	return mime.value === 'application/pdf' ? 'file-pdf' : 'file'
+})
+const query = useQuery(computed(() => ({
+	...drivePreviewQuery(props.file.file_id),
+	enabled: image.value && !props.file.purging,
+})))
 const url = useObjectUrl(computed(() => image.value ? query.data.value : undefined))
 </script>
 
 <style scoped>
-img {
-inline-size: 100%;
-block-size: 100%;
-object-fit: cover;
+.drive-thumbnail {
+	display: block;
+	inline-size: 100%;
+	block-size: 100%;
+	object-fit: cover;
 }
+
 .drive-file-symbol {
-display: grid;
-place-items: center;
-block-size: 100%;
-font-size: 2.5rem;
-color: var(--primary);
+	display: grid;
+	place-items: center;
+	inline-size: 100%;
+	block-size: 100%;
+	color: var(--accent-text);
+	font-size: var(--thumb-icon-size, var(--text-2xl));
 }
 </style>

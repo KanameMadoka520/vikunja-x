@@ -70,17 +70,17 @@ const {t} = useI18n({useScope: 'global'})
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	gap: 1.25rem;
+	gap: var(--space-4);
 	inline-size: min(100%, 34rem);
 	min-block-size: 100%;
 	margin-inline: auto;
-	padding-block: 1.5rem;
+	padding-block: var(--space-6);
 }
 
 .welcome-intro {
 	display: flex;
 	align-items: flex-start;
-	gap: .75rem;
+	gap: var(--space-3);
 }
 
 .welcome-avatar {
@@ -93,78 +93,69 @@ const {t} = useI18n({useScope: 'global'})
 }
 
 h2 {
-	margin: 0 0 .25rem;
-	color: var(--text-strong);
-	font-family: inherit;
-	font-size: 1.25rem;
-	font-weight: 600;
-	line-height: 1.3;
+	margin: 0 0 var(--space-1);
+	color: var(--text-primary);
+	font-size: var(--text-xl);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
 }
 
 p {
 	margin: 0;
-	color: var(--text-muted);
-	font-size: .9rem;
-	line-height: 1.55;
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+	line-height: var(--leading-normal);
 }
 
 .suggestions {
 	margin: 0;
 	padding: 0;
-	border: 1px solid var(--grey-200);
-	border-radius: .75rem;
+	overflow: hidden;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface);
 	list-style: none;
 }
 
 li + li {
-	border-block-start: 1px solid var(--grey-200);
+	border-block-start: 1px solid var(--border-subtle);
 }
 
 .suggestion {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: .25rem .65rem;
+	gap: var(--space-1) var(--space-3);
 	inline-size: 100%;
-	min-block-size: 44px;
-	padding: .6rem .85rem;
+	min-block-size: var(--control-height-lg);
+	padding: var(--space-2) var(--space-3);
 	border: 0;
 	background: transparent;
-	color: var(--text);
+	color: var(--text-primary);
 	font: inherit;
-	font-size: .9rem;
+	font-size: var(--text-md);
 	text-align: start;
 	cursor: pointer;
-	transition: background-color .15s ease;
 
 	&:hover:not(:disabled) {
-		background: var(--grey-100);
+		background: var(--surface-hover);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--focus-ring-color);
+		outline-offset: -2px;
 	}
 
 	&:disabled {
 		opacity: .6;
 		cursor: not-allowed;
 	}
-
-	@media (prefers-reduced-motion: reduce) {
-		transition: none;
-	}
-}
-
-li:first-child .suggestion {
-	border-start-start-radius: .75rem;
-	border-start-end-radius: .75rem;
-}
-
-li:last-child .suggestion {
-	border-end-start-radius: .75rem;
-	border-end-end-radius: .75rem;
 }
 
 .suggestion-icon {
 	flex-shrink: 0;
 	inline-size: 1rem;
-	color: var(--text-muted);
+	color: var(--text-tertiary);
 }
 
 .suggestion-label {
@@ -174,12 +165,13 @@ li:last-child .suggestion {
 }
 
 .scenario-tag {
-	padding: .1rem .5rem;
-	border-radius: 999px;
-	background: hsla(var(--primary-hsl), .12);
-	color: var(--text);
-	font-size: .75rem;
-	font-weight: 600;
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-full);
+	background: var(--surface-selected);
+	color: var(--accent-text);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	line-height: 1.6;
 	white-space: nowrap;
 }
 
@@ -187,36 +179,44 @@ li:last-child .suggestion {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: .5rem;
-	padding: .85rem 1rem;
-	border: 1px solid var(--grey-200);
-	border-radius: .75rem;
-	background: var(--grey-100);
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--border-subtle);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--tint-info);
 
 	p {
-		color: var(--text);
+		color: var(--text-primary);
 	}
 }
 
 .setup-link {
 	display: inline-flex;
 	align-items: center;
-	gap: .45rem;
-	min-block-size: 36px;
-	font-weight: 600;
-
-	@media (pointer: coarse) {
-		min-block-size: 44px;
-	}
+	gap: var(--space-2);
+	min-block-size: var(--control-height);
+	font-weight: var(--weight-semibold);
 }
 
-// Short viewports usually mean an open on-screen keyboard: keep only what blocks sending.
+// Short viewports (often an open on-screen keyboard): a compact welcome rather than an empty thread.
 @media (height <= 600px) {
-	.welcome:not(.needs-setup) {
-		display: none;
+	.welcome {
+		gap: var(--space-2);
+		padding-block: var(--space-2);
 	}
 
-	.needs-setup .welcome-intro {
+	.welcome-avatar {
+		inline-size: 1.75rem;
+		block-size: 1.75rem;
+	}
+
+	h2 {
+		font-size: var(--text-lg);
+	}
+
+	.welcome-text p,
+	.suggestions li:nth-child(n + 3) {
 		display: none;
 	}
 }

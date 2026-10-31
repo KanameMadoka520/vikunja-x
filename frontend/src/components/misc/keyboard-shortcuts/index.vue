@@ -67,25 +67,40 @@ function close() {
 	text-align: start;
 }
 
+h3 {
+	margin-block: var(--space-5) var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+
+h3:first-child {
+	margin-block-start: 0;
+}
+
 .message:not(:last-child) {
-	margin-block-end: 1rem;
+	margin-block-end: var(--space-3);
 }
 
 .message-body {
-	padding: .75rem;
+	padding: var(--space-3);
 }
 
 .shortcut-list {
 	display: grid;
-	grid-template-columns: 2fr 1fr;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+	align-items: center;
+	gap: var(--space-1) var(--space-4);
+	margin: 0;
+	font-size: var(--text-md);
 }
 
 .shortcut-title {
-	margin-block-end: .5rem;
+	padding-block: var(--space-1);
+	color: var(--text-primary);
 }
 
 .shortcut-keys {
 	justify-content: end;
-	margin-block-end: .5rem;
+	margin: 0;
 }
 </style>

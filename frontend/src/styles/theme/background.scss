@@ -1,17 +1,20 @@
+// Project backgrounds: a blurhash layer first, then the full image fades in on top of it. Both layers are
+// fixed to the viewport, so the page scrolls over them without background-attachment: fixed repaints.
+.app-container-blurhash,
+.app-container-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
 .app-container.has-background,
 .link-share-container.has-background {
   position: relative;
 
-  &, .app-container-background {
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    min-height: 100vh;
-  }
-
-  .box,
-  .card,
   .switch-view,
   .project-table .button,
   .filter-container .button,
@@ -36,17 +39,32 @@
   }
 }
 
-.app-container-background {
-  width: 100vw;
-  height: 100vh;
-  position: fixed;
-  z-index: 0;
+// Header and sidebar become translucent surfaces over the picture; content cards stay opaque.
+.app-container.has-background .menu-container {
+  @media screen and (min-width: $tablet) {
+    background: color-mix(in srgb, var(--surface-app) 78%, transparent);
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+}
+
+// Link shares paint their background straight on the container.
+.link-share-container.has-background {
+  min-block-size: 100dvh;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
+  .box,
+  .card {
+    box-shadow: none;
+  }
 }
 
 .background-fade-in {
   opacity: 0;
-  transition: opacity $transition;
-  transition-delay: $transition-duration * 2; // To fake an appearing background
+  // The short delay lets the blurhash show first, so the image appears to resolve rather than pop.
+  transition: opacity var(--motion-slow) var(--ease-standard) var(--motion-base);
 
   &.is-visible {
     opacity: 1;

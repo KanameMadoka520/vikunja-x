@@ -32,20 +32,26 @@ async function start() {
 </script>
 
 <template>
+	<!-- Escape belongs to this dialog alone; the floating panel around it minimizes on Escape. -->
 	<dialog
 		ref="dialog"
 		class="export-dialog"
 		aria-labelledby="chat-export-title"
+		@keydown.esc.stop
 		@close="emit('close')"
 	>
 		<h2 id="chat-export-title">
 			{{ t('chatFiles.export') }}
 		</h2>
-		<p>{{ t('chatFiles.exportHint') }}</p>
-		<label>{{ t('chatFiles.format') }}<select
-			v-model="format"
-			:disabled="working"
-		><option value="pdf">{{ t('chatFiles.pdf') }}</option><option value="zip">{{ t('chatFiles.zip') }}</option><option value="md">{{ t('chatFiles.md') }}</option><option value="json">JSON</option></select></label>
+		<p class="export-hint">
+			{{ t('chatFiles.exportHint') }}
+		</p>
+		<label class="export-format">{{ t('chatFiles.format') }}<span class="select">
+			<select
+				v-model="format"
+				:disabled="working"
+			><option value="pdf">{{ t('chatFiles.pdf') }}</option><option value="zip">{{ t('chatFiles.zip') }}</option><option value="md">{{ t('chatFiles.md') }}</option><option value="json">JSON</option></select>
+		</span></label>
 		<p class="export-note">
 			{{ t(`chatFiles.hint_${format}`) }}
 		</p>
@@ -59,70 +65,113 @@ async function start() {
 			v-if="working"
 			:aria-label="status"
 		/>
-		<p role="status">
+		<p
+			role="status"
+			class="export-status"
+		>
 			{{ status }}
 		</p><p
 			v-if="failure"
 			role="alert"
+			class="export-failure"
 		>
 			{{ failure }}
 		</p>
 		<div class="export-actions">
-			<button
-				type="button"
+			<XButton
+				variant="secondary"
+				:shadow="false"
 				@click="controller?.abort(); dialog?.close()"
 			>
 				{{ t('misc.close') }}
-			</button><button
-				type="button"
-				:disabled="working"
+			</XButton><XButton
+				icon="download"
+				:shadow="false"
+				:loading="working"
 				@click="start"
 			>
 				{{ t('chatFiles.download') }}
-			</button>
+			</XButton>
 		</div>
 	</dialog>
 </template>
 
 <style scoped lang="scss">
-.export-dialog { inline-size: min(520px, calc(100vw - 2rem));
-max-block-size: 85dvh;
-overflow: auto;
-padding: 1.5rem;
-border: 1px solid var(--grey-200);
-border-radius: 1rem;
-color: var(--text);
-background: var(--white);
+.export-dialog {
+	inline-size: min(32rem, calc(100vw - 2rem));
+	max-block-size: 85dvh;
+	padding: var(--space-5);
+	overflow: auto;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+
+	&::backdrop {
+		background: var(--scrim);
+	}
 }
-.export-dialog::backdrop { background: #00000066;
+
+h2 {
+	margin-block: 0 var(--space-2);
+	font-size: var(--text-lg);
+	font-weight: var(--weight-semibold);
 }
-h2 { font-size: 1.2rem;
+
+p {
+	margin-block: var(--space-2);
+	font-size: var(--text-md);
+	line-height: var(--leading-normal);
 }
-p { font-size: .9rem;
-line-height: 1.6;
+
+.export-hint,
+.export-note {
+	color: var(--text-secondary);
 }
-label, select { display: block;
-inline-size: 100%;
+
+.export-note {
+	font-size: var(--text-sm);
 }
-select { margin-block: .5rem;
-padding: .6rem;
-background: var(--white);
-color: var(--text);
-border: 1px solid var(--grey-300);
-border-radius: .5rem;
+
+.export-format {
+	display: grid;
+	gap: var(--space-1);
+	margin-block-start: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+
+	.select,
+	select {
+		inline-size: 100%;
+	}
+
+	select {
+		font-weight: var(--weight-regular);
+	}
 }
-.export-note { color: var(--text-light);
+
+.export-status:empty {
+	display: none;
 }
-.export-actions { display: flex;
-justify-content: flex-end;
-gap: .75rem;
+
+.export-failure {
+	padding: var(--space-2) var(--space-3);
+	border-inline-start: 3px solid var(--danger);
+	border-radius: var(--radius-sm);
+	background: var(--tint-danger);
 }
-button { min-block-size: 44px;
-padding: .6rem 1rem;
-border: 1px solid var(--grey-300);
-border-radius: .5rem;
-cursor: pointer;
+
+progress {
+	inline-size: 100%;
 }
-progress { inline-size: 100%;
+
+.export-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	margin-block-start: var(--space-4);
 }
 </style>

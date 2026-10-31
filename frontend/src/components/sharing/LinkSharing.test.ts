@@ -47,6 +47,8 @@ describe('LinkSharing', () => {
 	])('keeps no password in the mutation cache after a create %s', async (_outcome, arrange) => {
 		arrange()
 		wrapper = mount(LinkSharing, {
+			// Share submits the create form, which jsdom only does for a connected form.
+			attachTo: document.body,
 			props: {projectId: 7},
 			global: {
 				plugins: [i18n, [VueQueryPlugin, {queryClient: client}]],

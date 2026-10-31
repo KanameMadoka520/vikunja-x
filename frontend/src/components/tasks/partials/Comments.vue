@@ -4,32 +4,37 @@
 		ref="commentsRef"
 		class="content details comments-container"
 	>
-		<h2
+		<div
 			v-if="canWrite || comments.length > 0"
-			class="comments-heading task-section-title"
+			class="task-section-header"
 			:class="{'d-print-none': comments.length === 0}"
 		>
-			<span>
+			<h2 class="comments-heading task-section-title">
 				<span class="icon is-grey">
 					<Icon :icon="['far', 'comments']" />
 				</span>
 				{{ $t('task.comment.title') }}
-			</span>
+			</h2>
 			<BaseButton
 				v-if="comments.length > 0"
-				class="comment-sort-button"
+				class="comment-sort-button d-print-none"
 				@click="toggleSortOrder"
 			>
 				<Icon :icon="commentSortOrder === 'asc' ? 'arrow-down-short-wide' : 'arrow-up-short-wide'" />
-				{{ commentSortOrder === 'asc' ? $t('task.comment.sortOldestFirst') : $t('task.comment.sortNewestFirst') }}
+				{{ $t('task.comment.sortLabel', {
+					order: commentSortOrder === 'asc'
+						? $t('task.comment.sortOldestFirst')
+						: $t('task.comment.sortNewestFirst'),
+				}) }}
 			</BaseButton>
-		</h2>
+		</div>
 		<div class="comments">
 			<span
 				v-if="listPending"
-				class="is-flex is-align-items-center mbs-4 mbe-4 mis-2"
+				class="comments-loading"
+				role="status"
 			>
-				<span class="loader is-inline-block mie-2" />
+				<span class="loader is-inline-block" />
 				{{ $t('task.comment.loading') }}
 			</span>
 			<div
@@ -38,10 +43,10 @@
 				:key="c.id"
 				class="media comment"
 			>
-				<figure class="media-left is-hidden-mobile">
+				<figure class="media-left">
 					<UserAvatar
 						:user="c.author"
-						:size="48"
+						:size="32"
 						class="image is-avatar"
 					/>
 					<figcaption class="is-sr-only">
@@ -50,21 +55,17 @@
 				</figure>
 				<div class="media-content">
 					<div class="comment-info">
-						<UserAvatar
-							:user="c.author"
-							:size="20"
-							class="image is-avatar d-print-none"
-						/>
-						<strong>{{ getDisplayName(c.author) }}</strong>
+						<strong class="comment-author">{{ getDisplayName(c.author) }}</strong>
 						<span
 							v-tooltip="formatDateLong(c.created)"
-							class="has-text-grey"
+							class="comment-date"
 						>
 							{{ formatDisplayDate(c.created) }}
 						</span>
 						<span
 							v-if="c.created && c.updated && +new Date(c.created) !== +new Date(c.updated)"
 							v-tooltip="formatDateLong(c.updated)"
+							class="comment-date"
 						>
 							· {{ $t('task.comment.edited', {date: formatDisplayDate(c.updated)}) }}
 						</span>
@@ -78,27 +79,32 @@
 							<span class="is-sr-only">{{ $t('task.comment.permalink') }}</span>
 							<Icon icon="link" />
 						</a>
-						<CustomTransition name="fade">
-							<span
-								v-if="
-									showLoading &&
-										saving === c.id
-								"
-								class="is-inline-flex"
-							>
-								<span class="loader is-inline-block mie-2" />
-								{{ $t('misc.saving') }}
-							</span>
-							<span
-								v-else-if="
-									!showLoading &&
-										saved === c.id
-								"
-								class="has-text-success"
-							>
-								{{ $t('misc.saved') }}
-							</span>
-						</CustomTransition>
+						<span
+							class="comment-save-status"
+							role="status"
+						>
+							<CustomTransition name="fade">
+								<span
+									v-if="
+										showLoading &&
+											saving === c.id
+									"
+									class="comment-save-state"
+								>
+									<span class="loader is-inline-block" />
+									{{ $t('misc.saving') }}
+								</span>
+								<span
+									v-else-if="
+										!showLoading &&
+											saved === c.id
+									"
+									class="comment-save-state has-text-success"
+								>
+									{{ $t('misc.saved') }}
+								</span>
+							</CustomTransition>
+						</span>
 					</div>
 					<Editor
 						:model-value="commentDrafts[c.id] ?? c.comment"
@@ -140,10 +146,10 @@
 				class="media comment d-print-none"
 				:class="{'new-comment-top': commentSortOrder === 'desc'}"
 			>
-				<figure class="media-left is-hidden-mobile">
+				<figure class="media-left">
 					<UserAvatar
 						:user="authStore.info"
-						:size="48"
+						:size="32"
 						class="image is-avatar"
 					/>
 					<figcaption class="is-sr-only">
@@ -155,9 +161,10 @@
 						<CustomTransition name="fade">
 							<span
 								v-if="showLoading && creating"
-								class="is-inline-flex"
+								class="comment-save-state"
+								role="status"
 							>
-								<span class="loader is-inline-block mie-2" />
+								<span class="loader is-inline-block" />
 								{{ $t('task.comment.creating') }}
 							</span>
 						</CustomTransition>
@@ -197,6 +204,7 @@
 
 		<Modal
 			:enabled="showDeleteModal"
+			danger
 			@close="showDeleteModal = false"
 			@submit="() => deleteComment(commentToDelete)"
 		>
@@ -207,7 +215,7 @@
 			<template #text>
 				<p>
 					{{ $t('task.comment.deleteText1') }}<br>
-					<strong class="has-text-white">{{ $t('misc.cannotBeUndone') }}</strong>
+					<strong class="delete-warning">{{ $t('misc.cannotBeUndone') }}</strong>
 				</p>
 			</template>
 		</Modal>
@@ -247,6 +255,7 @@ import Reactions from '@/components/input/Reactions.vue'
 import {useCopyToClipboard} from '@/composables/useCopyToClipboard'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import {commentReplyContextKey, scrollAndHighlightComment} from '@/components/tasks/partials/commentReplyContext'
+import {smoothScrollBehavior} from '@/helpers/scrollIntoView'
 
 const props = withDefaults(defineProps<{
 	taskId: number,
@@ -384,7 +393,11 @@ function attachmentUpload(files: File[] | FileList): Promise<string[]> {
 }
 
 async function changePage(page: number) {
-	commentsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' })
+	commentsRef.value?.scrollIntoView({
+		behavior: smoothScrollBehavior(),
+		block: 'start',
+		inline: 'nearest',
+	})
 	currentPage.value = page
 }
 
@@ -437,7 +450,12 @@ async function addComment() {
 			newCommentText.value = ''
 			clearEditorDraft(commentStorageKey.value)
 		}
-		if (commentSortOrder.value === 'desc') commentsRef.value?.scrollIntoView({behavior: 'smooth', block: 'start'})
+		if (commentSortOrder.value === 'desc') {
+			commentsRef.value?.scrollIntoView({
+				behavior: smoothScrollBehavior(),
+				block: 'start',
+			})
+		}
 	} catch {
 		return
 	} finally {
@@ -534,90 +552,116 @@ function getCommentUrl(commentId: string) {
 
 <style lang="scss" scoped>
 .media {
-	align-items: flex-start;
 	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--space-2);
 	text-align: inherit;
-	padding-block-start: .5rem;
 
 	& + .media {
-		margin-block-start: .5rem;
+		margin-block-start: var(--space-1);
 	}
 }
 
 .media-left {
-	flex-basis: auto;
-	flex-grow: 0;
-	flex-shrink: 0;
-	margin: 0 .5rem !important;
+	flex: 0 0 auto;
+	margin: 0;
+	padding-block-start: 2px;
+}
+
+.image.is-avatar {
+	border-radius: var(--radius-full);
+}
+
+.media-content {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	text-align: inherit;
 }
 
 .comment-info {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: .5rem;
+	gap: var(--space-1) var(--space-2);
+	min-block-size: var(--target-min);
+	font-size: var(--text-sm);
+	line-height: var(--leading-tight);
+}
 
-	img {
-		@media screen and (max-width: $tablet) {
-			display: block;
-			inline-size: 20px;
-			block-size: 20px;
-			padding-inline-end: 0;
-			margin-inline-end: .5rem;
-		}
+.comment-author {
+	color: var(--text-primary);
+	font-weight: var(--weight-semibold);
+}
 
-		@media screen and (min-width: $tablet) {
-			display: none;
-		}
-	}
+.comment-date {
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+}
 
+.comment-permalink {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--target-min);
+	block-size: var(--target-min);
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
-	span,
-	.comment-permalink {
-		font-size: .75rem;
-		line-height: 1;
-	}
-
-	.comment-permalink {
-		font-size: 1rem;
-		border: 1px solid transparent;
-		padding: 0.25rem;
-		border-radius: 1rem;
-		color: var(--grey, hsl(0, 0%, 48%));
-	}
-	.comment-permalink:hover {
-		color: var(--grey-dark, hsl(0, 0%, 29%));
-		border-color: var(--grey-dark, hsl(0, 0%, 29%));
+	&:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
 }
 
-.image.is-avatar {
-	border-radius: 100%;
+.comment-save-status {
+	display: inline-flex;
+	font-size: var(--text-xs);
+	color: var(--text-secondary);
 }
 
-.media-content {
-	flex-basis: auto;
-	flex-grow: 1;
-	flex-shrink: 1;
-	text-align: inherit;
-	inline-size: calc(100% - 48px - 2rem);
+.comment-save-state {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-xs);
+
+	.loader {
+		inline-size: .75rem;
+		block-size: .75rem;
+	}
 }
 
-.comments-heading {
+.comments-loading {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
 }
 
 .comment-sort-button {
-	font-size: .75rem;
-	font-weight: normal;
-	color: var(--grey-500);
 	display: inline-flex;
 	align-items: center;
-	gap: .25rem;
+	gap: var(--space-1);
+	min-block-size: var(--target-min);
+	padding-inline: var(--space-2);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-regular);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		color: var(--grey-700);
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
 }
 
@@ -630,18 +674,22 @@ function getCommentUrl(commentId: string) {
 	order: -1;
 }
 
+.delete-warning {
+	color: inherit;
+}
+
 .comments-container {
-	scroll-margin-block-start: 4rem;
+	scroll-margin-block-start: calc(var(--header-height) + var(--space-3));
 }
 
 .media.comment {
-	scroll-margin-block-start: 4rem;
-	transition: background-color .3s ease-out;
-	border-radius: $radius;
+	scroll-margin-block-start: calc(var(--header-height) + var(--space-3));
+	border-radius: var(--radius-md);
+	transition: background-color var(--motion-slow) var(--ease-exit);
 }
 
 .media.comment.comment-highlight {
-	background-color: hsla(var(--primary-hsl), 0.18);
-	transition: background-color .15s ease-in;
+	background-color: var(--surface-selected-strong);
+	transition: background-color var(--motion-fast) var(--ease-enter);
 }
 </style>

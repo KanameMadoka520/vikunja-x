@@ -1,17 +1,26 @@
 <template>
 	<div class="task-relations">
-		<XButton
-			v-if="editEnabled && Object.keys(relatedTasks).length > 0"
-			id="showRelatedTasksFormButton"
-			v-tooltip="$t('task.relation.add')"
-			:aria-label="$t('task.relation.add')"
-			class="is-pulled-end add-task-relation-button d-print-none"
-			:class="{'is-active': showNewRelationForm}"
-			variant="secondary"
-			icon="plus"
-			:shadow="false"
-			@click="showNewRelationForm = !showNewRelationForm"
-		/>
+		<div class="task-section-header">
+			<h2 class="task-section-title">
+				<span class="icon is-grey">
+					<Icon icon="sitemap" />
+				</span>
+				{{ $t('task.attributes.relatedTasks') }}
+			</h2>
+			<XButton
+				v-if="editEnabled && Object.keys(relatedTasks).length > 0"
+				id="showRelatedTasksFormButton"
+				v-tooltip="$t('task.relation.add')"
+				:aria-label="$t('task.relation.add')"
+				:aria-expanded="showNewRelationForm"
+				class="add-task-relation-button d-print-none"
+				:class="{'is-active': showNewRelationForm}"
+				variant="secondary"
+				icon="plus"
+				:shadow="false"
+				@click="showNewRelationForm = !showNewRelationForm"
+			/>
+		</div>
 		<transition-group name="fade">
 			<template v-if="editEnabled && showCreate">
 				<label
@@ -166,6 +175,7 @@
 
 		<Modal
 			:enabled="relationToDelete !== undefined"
+			danger
 			@close="relationToDelete = undefined"
 			@submit="removeTaskRelation()"
 		>
@@ -176,7 +186,7 @@
 			<template #text>
 				<p>
 					{{ $t('task.relation.deleteText1') }}<br>
-					<strong class="has-text-white">{{ $t('misc.cannotBeUndone') }}</strong>
+					<strong class="delete-warning">{{ $t('misc.cannotBeUndone') }}</strong>
 				</p>
 			</template>
 		</Modal>
@@ -341,6 +351,12 @@ async function removeTaskRelation() {
 	}
 }
 
+function openNewRelationForm() {
+	showNewRelationForm.value = true
+}
+
+defineExpose({openNewRelationForm})
+
 async function createAndRelateTask(title: string) {
 	const newTask = await createNewTask({title, project_id: props.projectId})
 	newTaskRelation.task = newTask
@@ -360,77 +376,126 @@ async function toggleTaskDone(task: ITask) {
 
 <style lang="scss" scoped>
 .add-task-relation-button {
-	margin-block-start: -3rem;
+	min-block-size: var(--control-height-sm);
+	min-inline-size: var(--control-height-sm);
 
-	svg {
-		transition: transform $transition;
+	:deep(svg) {
+		transition: transform var(--motion-fast) var(--ease-standard);
 	}
 
-	&.is-active svg {
+	&.is-active :deep(svg) {
 		transform: rotate(45deg);
 	}
 }
 
+.label {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+
+	.loader {
+		inline-size: .75rem;
+		block-size: .75rem;
+	}
+}
+
 .different-project {
-	color: var(--grey-500);
+	color: var(--text-tertiary);
 	inline-size: auto;
 }
 
 .task-identifier {
-	color: var(--grey-500);
-	margin-inline-end: .35rem;
+	color: var(--text-tertiary);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	margin-inline-end: var(--space-1);
+}
+
+.related-tasks + .related-tasks {
+	margin-block-start: var(--space-3);
 }
 
 .title {
-	font-size: 1rem;
+	display: block;
 	margin: 0;
+	padding-inline: var(--space-2);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-normal);
 }
 
 .tasks {
-	padding: .5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding-block: var(--space-1);
 }
 
 .task {
 	display: flex;
-	flex-wrap: wrap;
+	align-items: center;
 	justify-content: space-between;
-	padding: .75rem;
-	transition: background-color $transition;
-	border-radius: $radius;
+	gap: var(--space-2);
+	min-block-size: max(2.25rem, var(--target-min));
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	transition: background-color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		background-color: var(--grey-200);
+		background-color: var(--surface-hover);
+	}
+
+	> .is-flex {
+		min-inline-size: 0;
 	}
 
 	a {
-		color: var(--text);
-		transition: color ease $transition-duration;
+		color: var(--text-primary);
+		overflow-wrap: anywhere;
 
 		&:hover {
-			color: var(--grey-900);
+			color: var(--accent-text);
 		}
 	}
-
 }
 
+// Low emphasis but always visible, so touch and keyboard users can reach it.
 .remove {
-	text-align: center;
-	color: var(--danger);
-	opacity: 0;
-	transition: opacity $transition;
-}
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	inline-size: max(1.75rem, var(--target-min));
+	block-size: max(1.75rem, var(--target-min));
+	border-radius: var(--radius-sm);
+	color: var(--text-tertiary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
-.task:hover .remove {
-	opacity: 1;
+	&:hover,
+	&:focus-visible {
+		background-color: var(--tint-danger);
+		color: var(--danger-text);
+	}
 }
 
 .none {
-	font-style: italic;
-	text-align: center;
+	margin: 0;
+	color: var(--text-tertiary);
+	font-size: var(--text-sm);
+}
+
+.delete-warning {
+	color: inherit;
 }
 
 :deep(.multiselect .search-results button) {
-	padding: 0.5rem;
+	padding: var(--space-2);
 }
 
 .task-relation-search-field {
@@ -444,12 +509,12 @@ async function toggleTaskDone(task: ITask) {
 	}
 }
 
-// FIXME: The height of the actual checkbox in the <FancyCheckbox/> component is too much resulting in a 
-//  weired positioning of the checkbox. Setting the height here is a workaround until we fix the styling 
+// FIXME: The height of the actual checkbox in the <FancyCheckbox/> component is too much resulting in a
+//  weired positioning of the checkbox. Setting the height here is a workaround until we fix the styling
 //  of the component.
 .task-done-checkbox {
 	padding: 0;
 	block-size: 18px; // The exact height of the checkbox in the container
-	margin-inline-end: .75rem;
+	margin-inline-end: var(--space-2);
 }
 </style>

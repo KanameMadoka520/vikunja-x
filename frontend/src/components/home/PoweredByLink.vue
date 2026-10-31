@@ -21,12 +21,16 @@ const computedUrl = computed(() => `${poweredByUrl}&utm_medium=${props.utmMedium
 </script>
 
 <style lang="scss">
+// Unscoped: link shares and the sidebar footer restyle it from their own components.
 .menu-bottom-link {
-	color: var(--grey-300);
-	text-align: center;
 	display: block;
-	padding-block-start: 1rem;
-	padding-block-end: 1rem;
-	font-size: .8rem;
+	padding-block: var(--space-4);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+	text-align: center;
+
+	&:hover {
+		color: var(--text-primary);
+	}
 }
 </style>

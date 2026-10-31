@@ -70,6 +70,22 @@ async function addLabelToTaskAndVerify(page: Page, labelTitle: string) {
 	await expect(page.locator('.task-view .details.labels-list .multiselect .input-wrapper span.tag')).toContainText(labelTitle)
 }
 
+// Long view titles do not fit beside the view actions, so the project header shows a dropdown instead
+// of the inline buttons (which stay in the DOM, hidden, to measure). Switch through whichever is on screen.
+async function switchProjectView(page: Page, projectId: number, viewId: number) {
+	const href = `/projects/${projectId}/${viewId}`
+	const inlineButton = page.locator(`.switch-view-button[href^="${href}"]`)
+	const dropdownTrigger = page.locator('.switch-view-dropdown-trigger')
+	await expect(inlineButton.or(dropdownTrigger).filter({visible: true})).toHaveCount(1)
+	if (await inlineButton.isVisible()) {
+		await inlineButton.click()
+	} else {
+		await dropdownTrigger.click()
+		await page.locator(`.switch-view-dropdown .dropdown-item[href^="${href}"]`).click()
+	}
+	await expect(page).toHaveURL(new RegExp(`${href}(\\?|$)`))
+}
+
 async function uploadAttachmentAndVerify(page: Page, taskId: number, file = 'tests/fixtures/image.jpg') {
 	const uploadAttachmentPromise = page.waitForResponse(response =>
 		response.url().includes(`/api/v2/tasks/${taskId}/attachments`) && response.request().method() === 'POST',
@@ -310,12 +326,13 @@ test.describe('Task', () => {
 			})
 			await page.goto(`/tasks/${tasks[0].id}`)
 
-			await page.locator('.task-view .action-buttons .button').filter({hasText: 'Mark task done!'}).click()
+			// The done toggle sits in the header band next to the title, not in the properties rail.
+			await page.locator('.task-view .task-primary-actions .button--mark-done').filter({hasText: 'Mark task done!'}).click()
 
 			await expect(page.locator('.task-view .heading .is-done')).toBeVisible()
 			await expect(page.locator('.task-view .heading .is-done')).toContainText('Done')
 			await expect(page.locator('.global-notification')).toContainText('Success')
-			await expect(page.locator('.task-view .action-buttons .button').filter({hasText: 'Mark as undone'})).toBeVisible()
+			await expect(page.locator('.task-view .task-primary-actions .button--mark-done').filter({hasText: 'Mark as undone'})).toBeVisible()
 		})
 
 		test('Shows a task identifier since the project has one', async ({authenticatedPage: page}) => {
@@ -478,11 +495,11 @@ test.describe('Task', () => {
 			// Client-side navigation only: the cached list and board must already carry the new title.
 			await page.locator('.task-view nav.subtitle a').first().click()
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
-			await page.locator(`.switch-view-button[href^="/projects/${projects[0].id}/1"]`).click()
+			await switchProjectView(page, projects[0].id, 1)
 			await expect(page.locator('.tasks .task').filter({hasText: 'After rename'})).toBeVisible()
 			await expect(page.locator('.tasks .task').filter({hasText: 'Before rename'})).toHaveCount(0)
 
-			await page.locator(`.switch-view-button[href^="/projects/${projects[0].id}/4"]`).click()
+			await switchProjectView(page, projects[0].id, 4)
 			const card = page.locator('.kanban .bucket .tasks .task')
 			await expect(card.filter({hasText: 'After rename'})).toBeVisible()
 			await expect(card.filter({hasText: 'Before rename'})).toHaveCount(0)
@@ -521,7 +538,7 @@ test.describe('Task', () => {
 			await expect(page.locator('.global-notification')).toContainText('Success')
 
 			await expect(page).toHaveURL(/\/projects\/1\/\d+/)
-			await page.locator(`.switch-view-button[href^="/projects/${projects[0].id}/4"]`).click()
+			await switchProjectView(page, projects[0].id, 4)
 			await expect(page.locator('.kanban .bucket .tasks')).toBeVisible()
 			await expect(page.locator('.kanban .bucket .tasks .task').filter({hasText: task.title})).toHaveCount(0)
 
@@ -824,7 +841,8 @@ test.describe('Task', () => {
 
 			const dueDateColumn = page.locator('.task-view .columns.details .column').filter({hasText: 'Due Date'})
 			await expect(dueDateColumn).not.toBeVisible()
-			await page.locator('.task-view .action-buttons').click()
+			// A neutral spot in the rail: its centre can land on an action button.
+			await page.locator('.task-view .action-buttons .action-heading').first().click()
 			await page.locator('body').press('d')
 			await expect(dueDateColumn).toBeVisible()
 

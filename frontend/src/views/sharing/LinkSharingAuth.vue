@@ -1,10 +1,20 @@
 <template>
-	<div>
-		<Message v-if="loading">
+	<div class="share-auth">
+		<h1 class="share-auth-title">
+			{{ $t('sharing.sharedProject') }}
+		</h1>
+		<Message
+			v-if="loading && !authenticateWithPassword"
+			role="status"
+		>
 			{{ $t('sharing.authenticating') }}
 		</Message>
-		<Card v-if="authenticateWithPassword">
-			<p class="pbe-2">
+		<form
+			v-if="authenticateWithPassword"
+			class="share-auth-form"
+			@submit.prevent="authenticate()"
+		>
+			<p class="share-auth-text">
 				{{ $t('sharing.passwordRequired') }}
 			</p>
 			<FormField
@@ -15,20 +25,18 @@
 				autocomplete="off"
 				:label="$t('user.auth.password')"
 				:placeholder="$t('user.auth.passwordPlaceholder')"
-				@keyup.enter.prevent="authenticate()"
 			/>
-
 			<XButton
+				type="submit"
+				class="share-auth-submit"
 				:loading="loading"
-				@click="authenticate()"
 			>
 				{{ $t('user.auth.login') }}
 			</XButton>
-		</Card>
+		</form>
 		<Message
 			v-if="errorMessage !== ''"
 			variant="danger"
-			class="mbs-4"
 		>
 			{{ errorMessage }}
 		</Message>
@@ -42,7 +50,6 @@ import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useTitle} from '@vueuse/core'
 
-import Card from '@/components/misc/Card.vue'
 import Message from '@/components/misc/Message.vue'
 import FormField from '@/components/input/FormField.vue'
 import {LINK_SHARE_HASH_PREFIX} from '@/constants/linkShareHash'
@@ -52,7 +59,6 @@ import {useAuthStore} from '@/stores/auth'
 import {useRedirectToLastVisited} from '@/composables/useRedirectToLastVisited'
 
 const {t} = useI18n({useScope: 'global'})
-useTitle(t('sharing.authenticating'))
 const {getLastVisitedRoute} = useRedirectToLastVisited()
 
 function useAuth() {
@@ -182,4 +188,48 @@ const {
 	password,
 	authenticate,
 } = useAuth()
+
+useTitle(computed(() => authenticateWithPassword.value || errorMessage.value !== ''
+	? t('sharing.sharedProject')
+	: t('sharing.authenticating')))
 </script>
+
+<style lang="scss" scoped>
+.share-auth {
+	display: grid;
+	gap: var(--space-4);
+	text-align: start;
+}
+
+.share-auth-title {
+	margin: 0;
+	color: var(--text-primary);
+	font-size: var(--text-xl);
+	font-weight: var(--weight-semibold);
+	line-height: var(--leading-tight);
+}
+
+.share-auth-form {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-5);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	box-shadow: var(--elevation-1);
+
+	:deep(.field) {
+		margin-block-end: 0;
+	}
+}
+
+.share-auth-text {
+	margin: 0;
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+
+.share-auth-submit {
+	justify-self: stretch;
+}
+</style>

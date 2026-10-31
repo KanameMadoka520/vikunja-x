@@ -3,6 +3,7 @@ import type {APIRequestContext} from '@playwright/test'
 import {test, expect} from '../../../support/fixtures'
 import {TEST_PASSWORD} from '../../../support/constants'
 import {apiRootUrl} from '../../../support/apiUrl'
+import {MAIL_SERVICES_MISSING, mailServicesAvailable} from '../../../support/mailServices'
 
 async function confirmationLink(request: APIRequestContext, mailpitUrl: string, address: string) {
 	let messageId = ''
@@ -43,6 +44,7 @@ test('keeps the new address pending until it is cancelled', async ({browser, bas
 	const publicUrl = new URL('/', baseURL).href
 	const apiUrl = apiRootUrl(process.env.MAILER_API_URL || 'http://127.0.0.1:3457')
 	const mailpitUrl = process.env.MAILPIT_URL || 'http://127.0.0.1:8025'
+	test.skip(!await mailServicesAvailable(request, apiUrl, mailpitUrl), MAIL_SERVICES_MISSING)
 	const username = `pending-email-${randomBytes(8).toString('hex')}`
 	const email = `${username}@example.com`
 	const newEmail = `new-${username}@example.com`

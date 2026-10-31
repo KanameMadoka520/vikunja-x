@@ -98,39 +98,38 @@ function moveFocus(event: KeyboardEvent, index: number) {
 	align-items: center;
 	justify-content: center;
 	gap: .375rem;
-	min-block-size: 2.25rem;
-	padding: .25rem .75rem;
-	border: 1px solid var(--grey-200);
-	border-radius: 999px;
-	background: var(--white);
-	color: var(--text);
+	min-block-size: 2rem;
+	padding: .2rem .7rem;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-full);
+	background: var(--surface);
+	color: var(--text-secondary);
 	font: inherit;
-	font-size: .875rem;
+	font-size: var(--text-sm);
+	font-weight: var(--weight-medium);
 	line-height: 1.2;
 	white-space: nowrap;
 	cursor: pointer;
-	transition: background-color $transition-duration ease, border-color $transition-duration ease, color $transition-duration ease;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		border-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		border-color: var(--grey-300);
-		background: var(--grey-50);
+		border-color: var(--border-strong);
+		color: var(--text-primary);
+		background-image: linear-gradient(var(--surface-hover), var(--surface-hover));
 	}
 
 	&.is-selected {
-		border-color: hsla(var(--primary-hsl), .45);
-		background: hsla(var(--primary-hsl), .1);
-		// Plain primary on its own tint is ~4:1; mixing toward the strong text colour
-		// darkens it in light mode and lightens it in dark mode.
-		color: color-mix(in srgb, var(--primary) 70%, var(--text-strong));
-		font-weight: 600;
+		border-color: hsla(var(--primary-hsl), .5);
+		background: var(--surface-selected);
+		color: var(--accent-text);
+		font-weight: var(--weight-semibold);
 	}
 
 	@media (pointer: coarse) {
-		min-block-size: 2.75rem;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		transition: none;
+		min-block-size: var(--target-min);
 	}
 }
 
@@ -144,15 +143,15 @@ function moveFocus(event: KeyboardEvent, index: number) {
 	min-inline-size: 1.25rem;
 	padding: 0 .375rem;
 	border-radius: 999px;
-	background: var(--grey-100);
-	color: var(--text-muted);
-	font-size: .75rem;
+	background: var(--surface-active);
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
 	text-align: center;
 
 	.is-selected & {
-		background: hsla(var(--primary-hsl), .15);
+		background: var(--surface-selected-strong);
 		color: inherit;
 	}
 }

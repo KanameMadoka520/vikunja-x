@@ -27,6 +27,11 @@ async function serveTestImage(page: Page) {
 	}))
 }
 
+// Every image upload first asks whether to keep the original or compress it.
+async function confirmImageUpload(page: Page) {
+	await page.getByRole('dialog', {name: 'Choose how to upload images'}).getByRole('button', {name: 'Upload images', exact: true}).click()
+}
+
 test.describe('Editor image alt text', () => {
 	test.beforeEach(async () => {
 		await ProjectFactory.create(1)
@@ -128,7 +133,8 @@ test.describe('Editor image alt text', () => {
 			r.url().includes(`/api/v2/tasks/${tasks[0].id}/attachments`) && r.request().method() === 'POST',
 		)
 		await description.locator('#tiptap__image-upload').setInputFiles(join(__dirname, '../../fixtures/image.jpg'))
-		await uploadPromise
+		await confirmImageUpload(page)
+		expect((await uploadPromise).ok()).toBe(true)
 
 		const altInput = page.locator('input.input[placeholder="Describe this image"]')
 		await expect(altInput).toBeVisible()
@@ -155,7 +161,8 @@ test.describe('Editor image alt text', () => {
 			r.url().includes(`/api/v2/tasks/${tasks[0].id}/attachments`) && r.request().method() === 'POST',
 		)
 		await description.locator('#tiptap__image-upload').setInputFiles(join(__dirname, '../../fixtures/image.jpg'))
-		await uploadPromise
+		await confirmImageUpload(page)
+		expect((await uploadPromise).ok()).toBe(true)
 
 		const altInput = page.locator('input.input[placeholder="Describe this image"]')
 		await expect(altInput).toBeVisible()

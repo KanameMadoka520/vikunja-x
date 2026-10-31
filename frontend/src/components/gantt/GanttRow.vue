@@ -5,8 +5,8 @@
 		@select="onSelect"
 	>
 		<div
-			class="w-full flex items-center"
-			:class="index % 2 ? 'bg-row-alt' : 'bg-row'"
+			class="gantt-row-inner"
+			:class="{'is-alt': index % 2}"
 			role="presentation"
 		>
 			<slot />
@@ -30,11 +30,8 @@ const onSelect = () => emit('select', props.id)
 </script>
 
 <style scoped>
-.bg-row {
-	background: hsla(var(--white-h), var(--white-s), var(--white-l), .15); 
-}
-
-.bg-row-alt {
-	background: hsla(var(--grey-100-hsl), .5); 
+/* Translucent stripes, so weekend shading and the today line underneath stay visible. */
+.gantt-row-inner.is-alt {
+	background: var(--surface-hover);
 }
 </style>

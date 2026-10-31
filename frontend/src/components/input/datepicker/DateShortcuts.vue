@@ -91,61 +91,68 @@ function confirmShortcut(date: Date) {
 .date-shortcuts--list {
 	display: flex;
 	flex-direction: column;
-	gap: .125rem;
-	padding: .75rem;
-	background: var(--grey-50);
-	border-inline-end: 1px solid var(--grey-200);
+	gap: 2px;
+	padding: var(--space-3) var(--space-2);
+	background: var(--surface-sunken);
+	border-inline-end: 1px solid var(--border-subtle);
 	inline-size: 13rem;
 	flex-shrink: 0;
 
 	.date-shortcuts__heading {
-		font-size: .7rem;
-		font-weight: 700;
+		font-size: var(--text-2xs);
+		font-weight: var(--weight-semibold);
 		text-transform: uppercase;
 		letter-spacing: .05em;
-		color: var(--grey-600);
-		padding: .125rem .625rem .5rem;
+		color: var(--text-tertiary);
+		padding: var(--space-1) var(--space-2) var(--space-2);
 	}
 
 	.date-shortcuts__item {
 		display: flex;
 		align-items: center;
-		gap: .5rem;
+		gap: var(--space-2);
 		inline-size: 100%;
-		padding: .4375rem .625rem;
-		border-radius: $radius;
-		font-size: .85rem;
-		font-weight: 600;
-		color: var(--grey-700);
+		min-block-size: 2rem;
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-md);
+		font-weight: var(--weight-medium);
+		color: var(--text-primary);
 		text-align: start;
-		transition: background-color $transition, color $transition;
+		transition: background-color var(--motion-fast) var(--ease-standard);
 
-		&:hover, &.is-active {
-			background: var(--grey-100);
+		&:hover {
+			background: var(--surface-hover);
 		}
 
 		&.is-active {
-			color: var(--primary);
-			font-weight: 700;
+			background: var(--surface-selected);
+			color: var(--accent-text);
+			font-weight: var(--weight-semibold);
 
 			.date-shortcuts__icon {
-				color: var(--primary);
+				color: var(--accent-text);
 			}
+		}
+
+		@media (pointer: coarse) {
+			min-block-size: var(--target-min);
 		}
 	}
 
 	.date-shortcuts__icon {
 		inline-size: 1rem;
 		text-align: center;
-		font-size: .8rem;
-		color: var(--grey-400);
+		font-size: var(--text-sm);
+		color: var(--text-tertiary);
 	}
 
 	.date-shortcuts__weekday {
 		margin-inline-start: auto;
-		color: var(--text-light);
-		font-weight: 500;
-		font-size: .8rem;
+		color: var(--text-tertiary);
+		font-weight: var(--weight-regular);
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
 		text-transform: capitalize;
 	}
 }
@@ -153,9 +160,9 @@ function confirmShortcut(date: Date) {
 .date-shortcuts--chips {
 	display: flex;
 	flex-wrap: wrap;
-	gap: .5rem;
-	padding: .75rem 1rem;
-	border-block-end: 1px solid var(--grey-200);
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-4);
+	border-block-end: 1px solid var(--border-subtle);
 
 	.bottom-sheet & {
 		flex-wrap: nowrap;
@@ -170,25 +177,29 @@ function confirmShortcut(date: Date) {
 	.date-shortcuts__item {
 		display: inline-flex;
 		align-items: center;
-		gap: .25rem;
-		padding: .3125rem .6875rem;
-		border: 1px solid var(--grey-200);
-		border-radius: $radius-rounded;
-		background: var(--white);
-		font-size: .85rem;
-		font-weight: 600;
-		color: var(--grey-700);
+		gap: var(--space-1);
+		min-block-size: var(--control-height-sm);
+		padding: 0 var(--space-3);
+		border: 1px solid var(--border-default);
+		border-radius: var(--radius-full);
+		background: transparent;
+		font-size: var(--text-md);
+		font-weight: var(--weight-medium);
+		color: var(--text-primary);
 		white-space: nowrap;
-		transition: all $transition;
+		transition:
+			background-color var(--motion-fast) var(--ease-standard),
+			border-color var(--motion-fast) var(--ease-standard),
+			color var(--motion-fast) var(--ease-standard);
 
 		&:hover {
-			background: var(--grey-100);
+			background-color: var(--surface-hover);
 		}
 
 		&.is-active {
-			background: var(--primary);
-			border-color: var(--primary);
-			color: var(--primary-invert);
+			background-color: var(--surface-selected-strong);
+			border-color: transparent;
+			color: var(--accent-text);
 
 			.date-shortcuts__icon {
 				opacity: 1;
@@ -197,8 +208,8 @@ function confirmShortcut(date: Date) {
 	}
 
 	.date-shortcuts__icon {
-		font-size: .72rem;
-		opacity: .65;
+		font-size: var(--text-xs);
+		opacity: .7;
 	}
 }
 </style>

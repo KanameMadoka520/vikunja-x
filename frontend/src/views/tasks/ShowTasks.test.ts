@@ -1,7 +1,7 @@
 import {createPinia} from 'pinia'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {QueryClient, VueQueryPlugin} from '@tanstack/vue-query'
-import {reactive} from 'vue'
+import {defineComponent, reactive, ref} from 'vue'
 import {enableAutoUnmount, flushPromises, shallowMount} from '@vue/test-utils'
 import {createMemoryHistory, createRouter} from 'vue-router'
 
@@ -24,14 +24,16 @@ vi.mock('@/composables/useLabels', () => ({useLabels: () => ({getLabelById: vi.f
 vi.mock('@/helpers/setTitle', () => ({setTitle: vi.fn()}))
 vi.mock('vue-i18n', async importOriginal => ({
 	...await importOriginal<typeof import('vue-i18n')>(),
-	useI18n: () => ({t: (key: string) => key}),
+	useI18n: () => ({t: (key: string) => key, locale: ref('en')}),
 }))
 
 import ShowTasks from './ShowTasks.vue'
 
 enableAutoUnmount(afterEach)
 
-async function mountUpcoming() {
+const SlotStub = defineComponent({template: '<div><slot /></div>'})
+
+async function mountUpcoming(stubs: Record<string, unknown> = {}) {
 	const router = createRouter({
 		history: createMemoryHistory(),
 		routes: [{path: '/', component: {render: () => null}}],
@@ -54,6 +56,7 @@ async function mountUpcoming() {
 				XButton: true,
 				'i18n-t': true,
 				DatepickerWithRange: {render: () => null},
+				...stubs,
 			},
 			directives: {tooltip: () => {}, cy: () => {}},
 		},
@@ -106,5 +109,38 @@ describe('Upcoming filters', () => {
 		auth.settings = {frontend_settings: {filter_id_used_on_overview: undefined, sidebar_width: 300}}
 		await flushPromises()
 		expect(sdk.tasksList).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe('Upcoming grouping', () => {
+	beforeEach(() => sdk.tasksList.mockClear())
+
+	it('groups tasks by calendar day with undated tasks last', async () => {
+		const now = new Date()
+		const utcNoon = (offset: number) => new Date(Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + offset,
+			12,
+		)).toISOString()
+		sdk.tasksList.mockResolvedValueOnce({data: {
+			items: [
+				{id: 4, project_id: 1, title: 'Undated', due_date: null},
+				{id: 1, project_id: 1, title: 'Today', due_date: utcNoon(0)},
+				{id: 2, project_id: 1, title: 'Tomorrow', due_date: utcNoon(1)},
+				{id: 3, project_id: 1, title: 'Later', due_date: utcNoon(3)},
+			],
+			total_pages: 1,
+		}} as never)
+
+		const wrapper = await mountUpcoming({Card: SlotStub})
+		await flushPromises()
+
+		expect(wrapper.findAll('.task-group').map(group => group.attributes('data-group'))).toEqual([
+			'today',
+			'tomorrow',
+			utcNoon(3).slice(0, 10),
+			'none',
+		])
 	})
 })

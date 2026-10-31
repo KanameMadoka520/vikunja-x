@@ -7,8 +7,7 @@ import {
 } from '@/client/generated'
 import {contextMutationOptions} from './contextMutation'
 import {useSecretMutation} from './secretMutation'
-import {projectKeys} from './projects'
-import {taskKeys} from './tasks'
+import {agentReceipt, planAgentRefresh, useAgentRefresh, type AgentReceipt} from './tcyConversations'
 
 export type AIProtocol = 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini' | 'openai-transcription' | 'openai-audio'
 export type SearchProtocol = '' | 'deepseek' | 'openai-responses' | 'openai-chat' | 'anthropic' | 'gemini'
@@ -48,15 +47,20 @@ export function useTestAIConnection() {
 }
 
 export function useRunAI() {
+	const refresh = useAgentRefresh()
 	return useMutation(contextMutationOptions({
 		mutationFn: async (body: TcyAiRunData['body']): Promise<AIRunResult> => {
 			const r = (await tcyAiRun({body})).data
 			return {reply: r.reply ?? '', actions: (r.actions ?? []).map(a => ({tool: a.tool ?? '', arguments: a.arguments ?? '', result: a.result ?? '', success: a.success ?? false}))}
 		},
-		onSettled: (_input, client) => Promise.all([
-			client.invalidateQueries({queryKey: taskKeys.all}),
-			client.invalidateQueries({queryKey: projectKeys.all}),
-		]),
+		// Only the run's own successful write receipts refresh caches.
+		onSuccess: data => {
+			const receipts = data.actions.flatMap((action, index): AgentReceipt[] => {
+				const receipt = agentReceipt(`run:${index}`, action)
+				return receipt ? [receipt] : []
+			})
+			if (receipts.length) refresh.mutate(planAgentRefresh(receipts))
+		},
 	}))
 }
 

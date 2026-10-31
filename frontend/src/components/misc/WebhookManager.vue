@@ -270,6 +270,7 @@ function doDelete() {
 		/>
 
 		<Modal
+			danger
 			:enabled="showDeleteModal"
 			@close="showDeleteModal = false"
 			@submit="doDelete()"
@@ -287,8 +288,8 @@ function doDelete() {
 
 <style lang="scss" scoped>
 .available-events-check {
-	margin-inline-end: .5rem;
-	inline-size: 12.5rem;
+	margin-inline-end: var(--space-2);
+	inline-size: min(12.5rem, 100%);
 }
 
 // Webhook URLs have no break opportunities, so without this the cell's min-content

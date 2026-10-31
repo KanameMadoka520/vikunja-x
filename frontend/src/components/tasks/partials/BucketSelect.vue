@@ -1,6 +1,9 @@
 <template>
 	<template v-if="kanbanView">
-		<span class="has-text-grey-light"> &gt; </span>
+		<Icon
+			icon="chevron-right"
+			class="bucket-separator"
+		/>
 		<template v-if="canWrite">
 			<Dropdown>
 				<template #trigger="{toggleOpen, open}">
@@ -131,26 +134,40 @@ async function changeBucket(bucket: IBucket) {
 </script>
 
 <style lang="scss" scoped>
-.bucket-name {
-	color: var(--grey-800);
+.bucket-separator {
+	font-size: var(--text-2xs);
+	color: var(--text-tertiary);
+}
 
-	&:hover {
-		color: var(--primary);
-	}
+.bucket-name {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-block-size: var(--target-min);
+	padding-inline: var(--space-1);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+}
+
+button.bucket-name:hover {
+	background: var(--surface-hover);
+	color: var(--text-primary);
 }
 
 .change-indicator {
-	font-size: .75em;
-	margin-inline-start: .25rem;
-	color: var(--grey-400);
+	font-size: var(--text-2xs);
+	color: var(--text-tertiary);
 }
 
 :deep(.dropdown) {
-	display: inline;
+	display: inline-flex;
 }
 
 :deep(.dropdown-trigger) {
-	display: inline;
+	display: inline-flex;
 	padding: 0;
 }
 </style>

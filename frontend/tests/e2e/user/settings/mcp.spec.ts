@@ -3,7 +3,7 @@ import {gotoUserSettings} from '../../../support/userSettings'
 
 test('creates a scoped MCP token and shows connection instructions once', async ({authenticatedPage: page}) => {
 	await gotoUserSettings(page, 'mcp')
-	await expect(page.locator('.card-header-title')).toBeVisible()
+	await expect(page.getByRole('heading', {name: 'MCP', exact: true})).toBeVisible()
 	await expect(page.getByRole('link', {name: 'More information about MCP in Vikunja'})).toHaveAttribute('href', 'https://vikunja.io/help/mcp/')
 	await expect(page.getByLabel('Which client do you use?')).toHaveCount(0)
 	const endpoint = await page.getByLabel('MCP endpoint').inputValue()
@@ -19,9 +19,12 @@ test('creates a scoped MCP token and shows connection instructions once', async 
 	expect(token.permissions.tasks).toContain('update')
 	expect(token.permissions.other).toContain('users')
 	await page.getByLabel('Which client do you use?').selectOption('claudeCode')
-	await expect(page.locator('pre')).toContainText(token.token)
-	await expect(page.locator('pre')).toContainText(endpoint)
-	await expect(page.locator('pre')).toContainText('claude mcp add --transport http')
+	// The closed diagnostic dialog keeps its report <pre> in the DOM, so read the connection steps only.
+	const command = page.locator('.mcp-steps pre')
+	await expect(command).toBeVisible()
+	await expect(command).toContainText(token.token)
+	await expect(command).toContainText(endpoint)
+	await expect(command).toContainText('claude mcp add --transport http')
 	for (const [client, name, url] of [
 		['claudeCode', 'Claude Code', 'https://code.claude.com/docs/en/mcp'],
 		['codex', 'Codex', 'https://learn.chatgpt.com/docs/extend/mcp?surface=cli'],

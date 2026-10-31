@@ -73,6 +73,11 @@ const blurHashUrl = useBlurHashUrl(() => props.image.blur_hash ?? '')
 	inline-size: 100%;
 	background-size: cover;
 	background-position: center;
+
+	&:focus-visible {
+		@include focus-ring;
+		outline-offset: -2px;
+	}
 }
 
 .unsplash-thumbnail__image {
@@ -81,18 +86,19 @@ const blurHashUrl = useBlurHashUrl(() => props.image.blur_hash ?? '')
 	object-fit: cover;
 }
 
+// The credit sits on the photo, so it uses the fixed scrim and light text instead of themed surfaces.
 .unsplash-thumbnail__info {
 	position: absolute;
 	inset-block-end: 0;
 	inline-size: 100%;
-	padding: .25rem 0;
+	padding: var(--space-1) 0;
 	opacity: 0;
 	text-align: center;
-	background: rgba(0, 0, 0, 0.5);
-	font-size: .75rem;
-	font-weight: bold;
-	color: $white;
-	transition: opacity $transition;
+	background: var(--scrim);
+	color: var(--text-on-accent);
+	font-size: var(--text-xs);
+	font-weight: var(--weight-semibold);
+	transition: opacity var(--motion-fast) var(--ease-standard);
 
 	&:focus-visible {
 		opacity: 1;

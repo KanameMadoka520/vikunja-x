@@ -54,6 +54,7 @@ test.describe('CalDAV', () => {
 			/\/user\/settings\/token\/caldav\/\d+/.test(r.url()) && r.request().method() === 'DELETE',
 		)
 		await dataRows(page).getByRole('button', {name: 'Delete'}).click()
+		await page.locator('dialog[open] [data-cy="modalPrimary"]').click()
 		await deleted
 		await expect(dataRows(page)).toHaveCount(0)
 		await page.reload()
@@ -88,6 +89,7 @@ test.describe('CalDAV', () => {
 		await expect(dataRows(page)).toHaveCount(1)
 
 		await dataRows(page).getByRole('button', {name: 'Delete'}).click()
+		await page.locator('dialog[open] [data-cy="modalPrimary"]').click()
 		await expect(page).not.toHaveURL(/[?&]page=2/)
 		await expect(dataRows(page)).toHaveCount(pageSize)
 		await expect(page.getByRole('navigation', {name: 'pagination'})).toHaveCount(0)

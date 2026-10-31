@@ -1,13 +1,15 @@
 <template>
-	<BaseButton
-		class="trigger-button screenshot-trigger"
+	<XButton
+		class="screenshot-trigger"
+		variant="secondary"
+		icon="eye-slash"
 		:title="t('screenshot.open')"
 		:aria-label="t('screenshot.open')"
 		:disabled="loading"
 		@click="open"
 	>
-		<Icon icon="eye-slash" /><span>{{ t('screenshot.short') }}</span>
-	</BaseButton>
+		{{ t('screenshot.short') }}
+	</XButton>
 	<Teleport to="body">
 		<dialog
 			ref="dialog"
@@ -39,7 +41,7 @@
 import {ref, onBeforeUnmount, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
-import BaseButton from '@/components/base/BaseButton.vue'
+import XButton from '@/components/input/Button.vue'
 import {error} from '@/message'
 
 const {t} = useI18n()
@@ -80,83 +82,83 @@ onBeforeUnmount(() => {disposed = true; close()})
 </script>
 
 <style lang="scss">
-.screenshot-trigger {
- display: inline-flex;
- align-items: center;
- justify-content: center;
- gap: .4rem;
- padding: .5rem .65rem;
- border-radius: .75rem;
- background: var(--white);
- color: var(--text);
- box-shadow: var(--shadow-sm);
- font-size: .8rem;
- font-weight: 600;
- white-space: nowrap;
-}
-
 body.screenshot-preview-active #app,
 body.screenshot-preview-active #app * {
- visibility: hidden !important;
+	visibility: hidden !important;
 }
 
 .screenshot-dialog {
- animation: none !important;
- transition: none !important;
- opacity: 1 !important;
- transform: none !important;
- position: fixed;
- inset: 0;
- inline-size: 100vw;
- block-size: 100dvh;
- max-inline-size: none;
- max-block-size: none;
- margin: 0;
- padding: 0;
- border: 0;
- color: var(--text);
- background: var(--site-background);
- overflow: hidden;
+	animation: none !important;
+	transition: none !important;
+	opacity: 1 !important;
+	transform: none !important;
+	position: fixed;
+	inset: 0;
+	inline-size: 100vw;
+	block-size: 100dvh;
+	max-inline-size: none;
+	max-block-size: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	color: var(--text-primary);
+	background: var(--surface-app);
+	overflow: hidden;
 }
+
+// Contains the cloned app's z-indexes (fixed header, floating dock) below the toolbar.
 .screenshot-snapshot {
- block-size: 100%;
- overflow: auto;
- pointer-events: none;
- user-select: none;
- & *, & *::before, & *::after {
-  animation: none !important;
-  transition: none !important;
-  caret-color: transparent !important;
- }
+	isolation: isolate;
+	block-size: 100%;
+	overflow: auto;
+	pointer-events: none;
+	user-select: none;
+
+	& *,
+	& *::before,
+	& *::after {
+		animation: none !important;
+		transition: none !important;
+		caret-color: transparent !important;
+	}
 }
+
 .screenshot-toolbar {
- position: fixed;
- inset-inline: 1rem;
- inset-block-end: max(1rem, env(safe-area-inset-bottom));
- z-index: 2147483647;
- display: flex;
- align-items: center;
- justify-content: center;
- gap: 1rem;
- inline-size: fit-content;
- max-inline-size: calc(100% - 2rem);
- margin-inline: auto;
- padding: .65rem 1rem;
- border: 1px solid var(--grey-300);
- border-radius: 1rem;
- background: var(--white);
- color: var(--text);
- box-shadow: 0 4px 24px #00000022;
- font-size: .8rem;
- button {
-  flex-shrink: 0;
-  border: 0;
-  border-radius: .5rem;
-  padding: .6rem .8rem;
-  color: white;
-  background: var(--primary);
-  cursor: pointer;
-  font-weight: 600;
- }
+	position: fixed;
+	inset-inline: var(--space-4);
+	inset-block-end: max(var(--space-4), env(safe-area-inset-bottom));
+	z-index: var(--layer-floating);
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2) var(--space-4);
+	inline-size: fit-content;
+	max-inline-size: calc(100% - 2 * var(--space-4));
+	margin-inline: auto;
+	padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-lg);
+	background: var(--surface-raised);
+	color: var(--text-primary);
+	box-shadow: var(--elevation-3);
+	font-size: var(--text-sm);
+
+	button {
+		flex-shrink: 0;
+		min-block-size: var(--control-height);
+		padding-inline: var(--space-3);
+		border: 0;
+		border-radius: $radius;
+		color: var(--text-on-accent);
+		background: var(--switch-view-active-background);
+		cursor: pointer;
+		font-size: var(--text-md);
+		font-weight: var(--weight-semibold);
+
+		&:focus-visible {
+			@include focus-ring;
+		}
+	}
 }
 </style>

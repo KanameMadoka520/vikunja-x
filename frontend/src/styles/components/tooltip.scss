@@ -1,12 +1,15 @@
 .v-popper--theme-tooltip .v-popper__inner {
-  padding: 5px 10px;
-  font-size: 0.8rem;	
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
   background: var(--grey-900);
   color: var(--white);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elevation-2);
 }
 
 .dark .v-popper--theme-tooltip .v-popper__inner {
-  background: var(--white);
-  color: var(--grey-900);
+  background: var(--grey-800);
+  color: var(--grey-50);
 }

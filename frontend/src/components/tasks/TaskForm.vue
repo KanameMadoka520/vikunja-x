@@ -3,7 +3,7 @@
 		class="add-new-task"
 		@submit.prevent="createTask"
 	>
-		<CustomTransition name="width">
+		<CustomTransition name="fade">
 			<input
 				v-if="newTaskFieldActive"
 				ref="newTaskTitleField"
@@ -68,17 +68,18 @@ async function createTask() {
 
 <style scoped lang="scss">
 .add-new-task {
-	padding: 1rem .7rem .4rem;
 	display: flex;
+	gap: var(--space-2);
 	max-inline-size: 450px;
+	padding: var(--space-4) var(--space-3) var(--space-2);
 
 	.input {
-		margin-inline-end: .7rem;
-		font-size: .8rem;
+		font-size: var(--text-sm);
 	}
 
 	.button {
-		font-size: .68rem;
+		flex-shrink: 0;
+		font-size: var(--text-sm);
 	}
 }
 </style>

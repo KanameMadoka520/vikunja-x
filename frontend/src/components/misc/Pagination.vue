@@ -26,7 +26,7 @@
 				variant="link"
 				:to="getRouteForPagination(page.number)"
 				:is-current="isCurrent"
-				:aria-label="'Goto page ' + page.number"
+				:aria-label="$t('misc.gotoPage', {page: page.number})"
 			>
 				{{ page.number }}
 			</PaginationItem>

@@ -25,7 +25,7 @@
 			<PaginationItem
 				variant="link"
 				:is-current="isCurrent"
-				:aria-label="'Goto page ' + page.number"
+				:aria-label="$t('misc.gotoPage', {page: page.number})"
 				@click="changePage(page.number)"
 			>
 				{{ page.number }}

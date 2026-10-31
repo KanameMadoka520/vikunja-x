@@ -27,6 +27,7 @@ import {mapTaskEverywhere} from '@/client/queries/taskCache'
 import EditLabels from '@/components/tasks/partials/EditLabels.vue'
 import PercentDoneSelect from '@/components/tasks/partials/PercentDoneSelect.vue'
 import Datepicker from '@/components/input/Datepicker.vue'
+import LoadError from '@/components/misc/state/LoadError.vue'
 import TaskDetailView from './TaskDetailView.vue'
 
 enableAutoUnmount(afterEach)
@@ -115,12 +116,16 @@ describe('TaskDetailView draft', () => {
 	it('saves only progress and preserves unrelated draft fields', async () => {
 		sdk.patchTasksRead.mockImplementation(async () => ({data: serverTask(1, {percent_done: 0.9, due_date: '2024-03-03T10:00:00Z'})}))
 		const wrapper = await mountDetail()
+		// Picked but not saved yet: an unsaved edit outlives the response, a clean field would follow it.
+		dueDatePicker(wrapper).vm.$emit('update:modelValue', new Date('2024-02-02T10:00:00Z'))
+		await flushPromises()
 
 		wrapper.findComponent(PercentDoneSelect).vm.$emit('update:modelValue', 0.9)
 		await flushPromises()
 
 		expect(sdk.patchTasksRead).toHaveBeenCalledOnce()
-		expect(wrapper.findAllComponents(Datepicker)[0]?.props('modelValue')).toEqual(new Date('2024-01-01T10:00:00Z'))
+		expect(wrapper.findAllComponents(Datepicker)[0]?.props('modelValue')).toEqual(new Date('2024-02-02T10:00:00Z'))
+		expect(wrapper.findComponent(PercentDoneSelect).props('modelValue')).toBe(0.9)
 		expect(sdk.patchTasksRead.mock.calls[0][0].body).toEqual([{op: 'add', path: '/percent_done', value: 0.9}])
 	})
 	it('ignores duplicate progress submissions while saving', async () => {
@@ -151,5 +156,66 @@ describe('TaskDetailView draft', () => {
 		await flushPromises()
 		expect(wrapper.findComponent(PercentDoneSelect).props('modelValue')).toBe(0.25)
 	})
+})
 
+describe('TaskDetailView live updates', () => {
+	beforeEach(() => {
+		sdk.tasksRead.mockReset()
+		sdk.tasksRead.mockImplementation(async ({path}: {path: {task: number}}) => ({data: serverTask(path.task)}))
+		sdk.patchTasksRead.mockReset()
+	})
+
+	it('shows a skeleton only until the first task arrives', async () => {
+		let resolve!: (value: unknown) => void
+		sdk.tasksRead.mockImplementationOnce(() => new Promise(done => {resolve = done}))
+		const wrapper = await mountDetail()
+
+		expect(wrapper.find('.task-view-skeleton').exists()).toBe(true)
+		expect(wrapper.find('.task-view').exists()).toBe(false)
+
+		resolve({data: serverTask(1)})
+		await flushPromises()
+
+		expect(wrapper.find('.task-view-skeleton').exists()).toBe(false)
+		expect(wrapper.find('.task-view').exists()).toBe(true)
+	})
+
+	it('keeps the task on screen while a field saves and marks only that field busy', async () => {
+		let resolve!: (value: unknown) => void
+		sdk.patchTasksRead.mockImplementationOnce(() => new Promise(done => {resolve = done}))
+		const wrapper = await mountDetail()
+
+		dueDatePicker(wrapper).vm.$emit('update:modelValue', new Date('2024-02-02T10:00:00Z'))
+		dueDatePicker(wrapper).vm.$emit('closeOnChange')
+		await flushPromises()
+		// The per-field pending state is delayed so fast saves never flicker.
+		await new Promise(done => setTimeout(done, 150))
+
+		expect(sdk.patchTasksRead).toHaveBeenCalledOnce()
+		expect(wrapper.find('.task-view').exists()).toBe(true)
+		expect(wrapper.find('.task-view-container').classes()).not.toContain('is-loading')
+		expect(dueDatePicker(wrapper).element.closest('.column')?.getAttribute('aria-busy')).toBe('true')
+		expect(wrapper.findComponent(EditLabels).exists()).toBe(true)
+
+		resolve({data: serverTask(1, {due_date: '2024-02-02T10:00:00Z'})})
+		await flushPromises()
+
+		expect(dueDatePicker(wrapper).element.closest('.column')?.hasAttribute('aria-busy')).toBe(false)
+	})
+
+	it('shows an inline error with retry when the first load fails', async () => {
+		sdk.tasksRead.mockRejectedValueOnce({status: 500})
+		const wrapper = await mountDetail()
+
+		const loadError = wrapper.findComponent(LoadError)
+		expect(loadError.exists()).toBe(true)
+		expect(wrapper.find('.task-view').exists()).toBe(false)
+
+		await (loadError.props('retry') as () => unknown)()
+		await flushPromises()
+
+		expect(sdk.tasksRead).toHaveBeenCalledTimes(2)
+		expect(wrapper.findComponent(LoadError).exists()).toBe(false)
+		expect(wrapper.find('.task-view').exists()).toBe(true)
+	})
 })

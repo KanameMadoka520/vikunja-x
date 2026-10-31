@@ -1,7 +1,7 @@
 <template>
 	<draggable
 		v-model="availableProjects"
-		animation="100"
+		:animation="dragAnimation"
 		ghost-class="ghost"
 		group="projects"
 		handle=".handle"
@@ -34,7 +34,8 @@
 </template>
 
 <script lang="ts" setup>
-import {ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
+import {usePreferredReducedMotion} from '@vueuse/core'
 import {draggableFor} from '@/components/base/Draggable'
 import type {SortableEvent} from 'sortablejs'
 
@@ -59,6 +60,8 @@ const emit = defineEmits<{
 const draggable = draggableFor<ProjectResponse>()
 
 const {isDraggingProject} = useProjectDragState()
+const reducedMotion = usePreferredReducedMotion()
+const dragAnimation = computed(() => reducedMotion.value === 'reduce' ? 0 : 140)
 
 const projectList = useProjects()
 const updateMutation = useUpdateProjectMutation()

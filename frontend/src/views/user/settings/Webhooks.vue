@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import {useI18n} from 'vue-i18n'
 import Card from '@/components/misc/Card.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import WebhookManager from '@/components/misc/WebhookManager.vue'
 import {useTitle} from '@/composables/useTitle'
 
@@ -10,13 +11,13 @@ useTitle(() => `${t('user.settings.webhooks.title')} - ${t('user.settings.title'
 </script>
 
 <template>
-	<Card
-		:title="$t('user.settings.webhooks.title')"
-	>
-		<p class="mb-4">
-			{{ $t('user.settings.webhooks.description') }}
-		</p>
-
-		<WebhookManager :scope="{kind: 'user'}" />
-	</Card>
+	<div class="settings-page">
+		<PageHeader
+			:title="$t('user.settings.webhooks.title')"
+			:description="$t('user.settings.webhooks.description')"
+		/>
+		<Card>
+			<WebhookManager :scope="{kind: 'user'}" />
+		</Card>
+	</div>
 </template>

@@ -1,16 +1,24 @@
 <template>
-	<div class="notifications">
+	<div
+		class="notifications"
+		@keydown.esc="closeAndRestoreFocus"
+	>
 		<slot
 			name="trigger"
-			toggle-open="() => showNotifications = !showNotifications"
+			:toggle-open="toggle"
 			:has-unread-notifications="unreadNotifications > 0"
 		>
 			<BaseButton
+				ref="trigger"
 				class="trigger-button"
 				:aria-expanded="showNotifications"
-				@click.stop="showNotifications = !showNotifications"
+				:aria-controls="showNotifications ? popupId : undefined"
+				@click.stop="toggle"
 			>
-				<span class="is-sr-only">{{ $t('notification.title') }}</span>
+				<span class="is-sr-only">
+					{{ $t('notification.title') }}<template v-if="unreadNotifications > 0">,
+						{{ $t('notification.unreadCount', {count: unreadNotifications}) }}</template>
+				</span>
 				<span
 					v-if="unreadNotifications > 0"
 					class="unread-indicator"
@@ -22,11 +30,15 @@
 		<CustomTransition name="fade">
 			<div
 				v-if="showNotifications"
+				:id="popupId"
 				ref="popup"
 				class="notifications-list"
+				role="dialog"
+				tabindex="-1"
+				:aria-labelledby="`${popupId}-title`"
 			>
 				<div class="head">
-					<span>{{ $t('notification.title') }}</span>
+					<span :id="`${popupId}-title`">{{ $t('notification.title') }}</span>
 					<div class="actions">
 						<BaseButton
 							v-if="notifications.length > 0"
@@ -48,43 +60,48 @@
 						</BaseButton>
 					</div>
 				</div>
-				<div
+				<!-- Rows with a target are real buttons; only phrasing content inside keeps them valid. -->
+				<component
+					:is="n.route ? 'button' : 'div'"
 					v-for="n in notifications"
 					:key="n.id"
+					:type="n.route ? 'button' : undefined"
 					class="single-notification"
-					:class="{'is-clickable': n.route}"
+					:class="{
+						'is-clickable': n.route,
+						'is-unread': !n.read,
+					}"
 					@click="to(n)"
 				>
-					<div
+					<span
 						class="read-indicator"
 						:class="{'read': n.read}"
 					>
 						<span class="is-sr-only">{{ n.read ? $t('notification.read') : $t('notification.unread') }}</span>
-					</div>
-					<User
+					</span>
+					<UserAvatar
 						v-if="n.doer"
 						:user="n.doer"
-						:show-username="false"
-						:avatar-size="16"
+						:size="40"
+						class="notification-avatar"
 					/>
-					<div class="detail">
-						<div>
+					<span class="detail">
+						<span class="notification-text">
 							<span
 								v-if="n.doer"
-								class="has-text-weight-bold mie-1"
-							>
-								{{ n.doerName }}
-							</span>
+								class="doer"
+							>{{ n.doerName }}</span>
 							{{ n.text }}
-						</div>
-						<span
+						</span>
+						<time
 							v-tooltip="formatDateLong(n.created)"
 							class="created"
+							:datetime="n.created"
 						>
 							{{ formatDisplayDate(n.created) }}
-						</span>
-					</div>
-				</div>
+						</time>
+					</span>
+				</component>
 				<XButton
 					v-if="inbox.hasNextPage.value"
 					variant="tertiary"
@@ -117,7 +134,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, useId} from 'vue'
 import {useRouter, isNavigationFailure, NavigationFailureType} from 'vue-router'
 import {useInfiniteQuery} from '@tanstack/vue-query'
 import {
@@ -130,7 +147,7 @@ import {notificationDoer, notificationRoute, notificationText} from '@/helpers/n
 import {parseDateOrNull} from '@/helpers/parseDateOrNull'
 import BaseButton from '@/components/base/BaseButton.vue'
 import CustomTransition from '@/components/misc/CustomTransition.vue'
-import User from '@/components/misc/User.vue'
+import UserAvatar from '@/components/misc/UserAvatar.vue'
 import {closeWhenClickedOutside} from '@/helpers/closeWhenClickedOutside'
 import {formatDateLong, formatDisplayDate} from '@/helpers/time/formatDate'
 import {getDisplayName} from '@/helpers/user'
@@ -171,6 +188,21 @@ type NotificationRow = typeof notifications.value[number]
 const unreadNotifications = computed(() => notifications.value.filter(n => !n.read).length)
 const showNotifications = ref(false)
 const popup = ref<HTMLElement | null>(null)
+const trigger = ref<InstanceType<typeof BaseButton> | null>(null)
+const popupId = useId()
+
+async function toggle() {
+	showNotifications.value = !showNotifications.value
+	if (!showNotifications.value) return
+	await nextTick()
+	popup.value?.focus({preventScroll: true})
+}
+
+function closeAndRestoreFocus() {
+	if (!showNotifications.value) return
+	showNotifications.value = false
+	trigger.value?.focus()
+}
 
 onMounted(() => document.addEventListener('click', hidePopup))
 onUnmounted(() => document.removeEventListener('click', hidePopup))
@@ -198,136 +230,160 @@ function clearAll() { clearMutation.mutate() }
 	display: flex;
 
 	.trigger-button {
-		inline-size: 100%;
 		position: relative;
 	}
 
 	.unread-indicator {
 		position: absolute;
-		inset-block-start: 1rem;
-		inset-inline-end: .5rem;
-		inline-size: .75rem;
-		block-size: .75rem;
-
+		inset-block-start: 22%;
+		inset-inline-end: 22%;
+		inline-size: .5rem;
+		block-size: .5rem;
+		border: 2px solid var(--surface-app);
+		border-radius: var(--radius-full);
 		background: var(--primary);
-		border-radius: 100%;
-		border: 2px solid var(--white);
+		box-sizing: content-box;
+	}
+}
+
+.notifications-list {
+	position: absolute;
+	inset-inline-end: var(--space-2);
+	inset-block-start: calc(100% + var(--space-1));
+	z-index: var(--layer-dropdown);
+	display: flex;
+	flex-direction: column;
+	inline-size: 22rem;
+	max-inline-size: calc(100vw - var(--space-4));
+	max-block-size: min(32rem, calc(100dvh - var(--header-height) - var(--space-4)));
+	padding: var(--space-1);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+	font-size: var(--text-md);
+
+	&:focus-visible {
+		@include focus-ring;
+
+		outline-offset: -2px;
+	}
+}
+
+.head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-1) var(--space-2) var(--space-2);
+	font-size: var(--text-md);
+	font-weight: var(--weight-semibold);
+
+	.actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+}
+
+.action-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--control-height-sm);
+	block-size: var(--control-height-sm);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
+}
+
+.single-notification {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	inline-size: 100%;
+	padding: var(--space-2);
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--text-secondary);
+	font: inherit;
+	text-align: start;
+	transition: background-color var(--motion-fast) var(--ease-standard);
+
+	&.is-unread {
+		color: var(--text-primary);
 	}
 
-	.notifications-list {
-		position: absolute;
-		inset-inline-end: 1rem;
-		inset-block-start: calc(100% + 1rem);
-		max-block-size: 400px;
-		overflow-y: auto;
+	&.is-clickable {
+		cursor: pointer;
 
-		background: var(--white);
-		inline-size: 350px;
-		max-inline-size: calc(100vw - 2rem);
-		padding: .75rem .25rem;
-		border-radius: $radius;
-		box-shadow: var(--shadow-sm);
-		font-size: .85rem;
-
-		@media screen and (max-width: $tablet) {
-			max-block-size: calc(100vh - 1rem - #{$navbar-height});
+		&:hover {
+			background-color: var(--surface-hover);
 		}
+	}
 
-		.head {
-			font-family: $vikunja-font;
-			font-size: 1rem;
-			padding: .5rem;
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
+	& + & {
+		margin-block-start: 1px;
+	}
+}
 
-			.actions {
-				display: flex;
-				align-items: center;
-				gap: .5rem;
-			}
+.read-indicator {
+	flex-shrink: 0;
+	inline-size: .375rem;
+	block-size: .375rem;
+	margin-block-start: .4375rem;
+	border-radius: var(--radius-full);
+	background: var(--primary);
 
-			.action-link {
-				color: var(--grey-500);
-				transition: color $transition;
+	&.read {
+		background: transparent;
+	}
+}
 
-				&:hover,
-				&:focus {
-					color: var(--primary);
-				}
-			}
-		}
+.notification-avatar {
+	flex-shrink: 0;
+	inline-size: 1.25rem;
+	block-size: 1.25rem;
+	border-radius: var(--radius-full);
+}
 
-		.single-notification {
-			display: flex;
-			align-items: center;
-			padding: 0.25rem 0;
+.detail {
+	display: flex;
+	flex-direction: column;
+	gap: .125rem;
+	min-inline-size: 0;
+	line-height: var(--leading-tight);
+	overflow-wrap: anywhere;
+}
 
-			transition: background-color $transition;
+.doer {
+	font-weight: var(--weight-semibold);
+}
 
-			&.is-clickable {
-				cursor: pointer;
-			}
+.created {
+	color: var(--text-tertiary);
+	font-size: var(--text-xs);
+}
 
-			&:hover {
-				background: var(--grey-100);
-				border-radius: $radius;
-			}
+.nothing {
+	padding: var(--space-4) var(--space-3);
+	color: var(--text-secondary);
+	text-align: center;
 
-			.read-indicator {
-				inline-size: .35rem;
-				block-size: .35rem;
-				background: var(--primary);
-				border-radius: 100%;
-				margin: 0 .5rem;
-				flex-shrink: 0;
-
-				&.read {
-					background: transparent;
-				}
-			}
-
-			.user {
-				display: inline-flex;
-				align-items: center;
-				inline-size: auto;
-				margin: 0 .5rem;
-
-				span {
-					font-family: $family-sans-serif;
-				}
-
-				.avatar {
-					block-size: 16px;
-				}
-
-				img {
-					margin-inline-end: 0;
-				}
-			}
-
-			.created {
-				color: var(--grey-400);
-			}
-
-			&:last-child {
-				margin-block-end: .25rem;
-			}
-
-			a {
-				color: var(--grey-800);
-			}
-		}
-
-		.nothing {
-			text-align: center;
-			padding: 1rem 0;
-			color: var(--grey-500);
-
-			.explainer {
-				font-size: .75rem;
-			}
-		}
+	.explainer {
+		color: var(--text-tertiary);
+		font-size: var(--text-xs);
 	}
 }
 </style>

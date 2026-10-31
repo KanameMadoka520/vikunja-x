@@ -25,13 +25,36 @@ function translatedDriveError(cause: unknown): never {
 	throw cause
 }
 export function driveQuery(query: DriveListData['query']) {
-	return queryOptions({queryKey: [...driveKeys, 'list', query], queryFn: async ({signal}) => {const data = (await driveList({query, signal})).data; return {...data, files: (data.files ?? []).map(entry)}}})
+	return queryOptions({
+		queryKey: [...driveKeys, 'list', query],
+		queryFn: async ({signal}) => {
+			const data = (await driveList({query, signal})).data
+			return {...data, files: (data.files ?? []).map(entry)}
+		},
+		// Search, filter and page changes keep the current files on screen while they load;
+		// switching between the library and the recycle bin (or the image-only picker) does not.
+		placeholderData: (previous, previousQuery) => {
+			const old = previousQuery?.queryKey[2] as DriveListData['query']
+			return old?.trash === query?.trash && old?.images === query?.images ? previous : undefined
+		},
+		meta: {handlesError: true},
+	})
 }
 export function driveUsagesQuery(id: number) {
-	return queryOptions({queryKey: [...driveKeys, 'usages', id], queryFn: async ({signal}) => (await driveUsages({path: {file: id}, signal})).data})
+	return queryOptions({
+		queryKey: [...driveKeys, 'usages', id],
+		queryFn: async ({signal}) => (await driveUsages({path: {file: id}, signal})).data,
+		meta: {handlesError: true},
+	})
 }
+// The download button reports its own failure.
 export function driveBlobQuery(id: number) {
-	return queryOptions({queryKey: [...driveKeys, 'blob', id], queryFn: async ({signal}) => expectBlob((await driveDownload({path: {file: id}, parseAs: 'blob', signal})).data, 'Drive'), gcTime: 60_000})
+	return queryOptions({
+		queryKey: [...driveKeys, 'blob', id],
+		queryFn: async ({signal}) => expectBlob((await driveDownload({path: {file: id}, parseAs: 'blob', signal})).data, 'Drive'),
+		gcTime: 60_000,
+		meta: {handlesError: true},
+	})
 }
 export function useUploadDriveMutation() {
 	return useMutation(contextMutationOptions({
@@ -64,6 +87,13 @@ export function useDriveCoverMutation() {
 	}))
 }
 
+// A failed preview falls back to the file icon instead of toasting once per card.
 export function drivePreviewQuery(id: number) {
-	return queryOptions({queryKey: [...driveKeys, 'preview', id], queryFn: async ({signal}) => expectBlob((await drivePreview({path: {file: id}, parseAs: 'blob', signal})).data, 'Drive preview'), gcTime: 60_000, retry: false})
+	return queryOptions({
+		queryKey: [...driveKeys, 'preview', id],
+		queryFn: async ({signal}) => expectBlob((await drivePreview({path: {file: id}, parseAs: 'blob', signal})).data, 'Drive preview'),
+		gcTime: 60_000,
+		retry: false,
+		meta: {handlesError: true},
+	})
 }

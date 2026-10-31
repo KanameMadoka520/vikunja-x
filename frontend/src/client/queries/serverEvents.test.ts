@@ -358,3 +358,27 @@ it('refreshes task details and marks board membership stale after reconnecting',
 	expect(client.getQueryState(boardKey)?.isInvalidated).toBe(true)
 	expect(client.getQueryState(taskKeys.detail(1))?.isInvalidated).toBe(true)
 })
+
+it('refetches comments whose first read was still in flight when a comment notification arrived', async () => {
+	const client = new QueryClient()
+	const key = commentKeys.page(3, 'asc', 1)
+	const answers: ((value: {items: {id: number}[]}) => void)[] = []
+	const queryFn = vi.fn(() => new Promise<{items: {id: number}[]}>(resolve => answers.push(resolve)))
+	const results: ({items: {id: number}[]} | undefined)[] = []
+	const stop = new QueryObserver(client, {queryKey: key, queryFn, staleTime: Infinity})
+		.subscribe(result => results.push(result.data))
+	await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
+
+	const settled = client.getMutationCache().build(client, serverCacheEventMutationOptions())
+		.execute({kind: 'notifications', taskId: 3})
+	// Joining the pending read would never ask again; the event has to start a read of its own.
+	await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2))
+	// The first read was sent before the comment existed and answers late.
+	answers[0]({items: []})
+	answers[1]({items: [{id: 40}]})
+	await settled
+
+	expect(client.getQueryData(key)).toEqual({items: [{id: 40}]})
+	expect(results.filter(Boolean)).toEqual([{items: [{id: 40}]}])
+	stop()
+})

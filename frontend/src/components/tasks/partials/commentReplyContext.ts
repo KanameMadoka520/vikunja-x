@@ -1,5 +1,6 @@
 import type {InjectionKey} from 'vue'
 import type {TaskComment as ITaskComment} from '@/client/generated'
+import {smoothScrollBehavior} from '@/helpers/scrollIntoView'
 
 export interface CommentReplyContext {
 	findComment: (id: number) => ITaskComment | undefined
@@ -16,7 +17,11 @@ export function scrollAndHighlightComment(id: number): void {
 	if (!el) {
 		return
 	}
-	el.scrollIntoView({behavior: 'smooth', block: 'center', inline: 'nearest'})
+	el.scrollIntoView({
+		behavior: smoothScrollBehavior(),
+		block: 'center',
+		inline: 'nearest',
+	})
 	el.classList.remove(HIGHLIGHT_CLASS)
 	// Re-apply on next frame so the animation restarts even if already running.
 	requestAnimationFrame(() => {

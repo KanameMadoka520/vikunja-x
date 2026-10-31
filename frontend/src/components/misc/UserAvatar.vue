@@ -44,9 +44,12 @@ const src = computed(() => typeof avatar.data.value === 'string' ? avatar.data.v
 
 <style lang="scss">
 // Unscoped so call site styles win over the fallback size without !important or :deep().
+// A quiet disc keeps the avatar slot visible while the image loads or when there is none.
 .user-avatar-placeholder {
 	display: inline-block;
 	inline-size: var(--user-avatar-size);
 	block-size: var(--user-avatar-size);
+	border-radius: 50%;
+	background-color: var(--surface-active);
 }
 </style>

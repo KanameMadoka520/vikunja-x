@@ -303,7 +303,7 @@ function onKeydown(event: KeyboardEvent) {
 .calendar-month {
 	--calendar-day-size: 2.125rem;
 	// Translucent so the span reads on both light and dark backgrounds (--primary-light is near-white in dark mode).
-	--calendar-range-bg: hsla(var(--primary-hsl), .15);
+	--calendar-range-bg: var(--surface-selected-strong);
 	inline-size: 100%;
 	user-select: none;
 
@@ -316,7 +316,7 @@ function onKeydown(event: KeyboardEvent) {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-block-end: .5rem;
+	margin-block-end: var(--space-2);
 }
 
 .calendar-month__nav-button {
@@ -325,18 +325,19 @@ function onKeydown(event: KeyboardEvent) {
 	display: grid;
 	place-items: center;
 	border-radius: $radius;
-	color: var(--grey-600);
-	transition: background-color $transition;
+	color: var(--text-secondary);
+	transition: background-color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		background: var(--grey-100);
+		background: var(--surface-hover);
+		color: var(--text-primary);
 	}
 }
 
 .calendar-month__title {
 	display: flex;
 	align-items: center;
-	gap: .25rem;
+	gap: var(--space-1);
 }
 
 // Both read as the plain "September 2026" heading; the native controls only show on interaction.
@@ -345,17 +346,16 @@ function onKeydown(event: KeyboardEvent) {
 	appearance: none;
 	border: 0;
 	background: transparent;
-	padding: .125rem .25rem;
+	padding: 2px var(--space-1);
 	border-radius: $radius;
-	font-family: $vikunja-font;
-	font-weight: 700;
-	font-size: 1.05rem;
-	color: var(--grey-900);
+	font-weight: var(--weight-semibold);
+	font-size: var(--text-base);
+	color: var(--text-primary);
 	cursor: pointer;
-	transition: background-color $transition;
+	transition: background-color var(--motion-fast) var(--ease-standard);
 
 	&:hover {
-		background: var(--grey-100);
+		background: var(--surface-hover);
 	}
 
 	&:focus-visible {
@@ -375,11 +375,12 @@ function onKeydown(event: KeyboardEvent) {
 	inline-size: 3.25em;
 	min-inline-size: 3.25em;
 	field-sizing: content;
-	color: var(--grey-600);
-	font-weight: 500;
+	color: var(--text-secondary);
+	font-weight: var(--weight-medium);
+	font-variant-numeric: tabular-nums;
 
 	&:focus {
-		color: var(--grey-900);
+		color: var(--text-primary);
 	}
 }
 
@@ -395,12 +396,12 @@ function onKeydown(event: KeyboardEvent) {
 
 .calendar-month__weekday {
 	text-align: center;
-	font-size: .7rem;
-	font-weight: 700;
+	font-size: var(--text-2xs);
+	font-weight: var(--weight-semibold);
 	letter-spacing: .03em;
 	text-transform: uppercase;
-	color: var(--grey-600);
-	padding-block-end: .25rem;
+	color: var(--text-tertiary);
+	padding-block-end: var(--space-1);
 }
 
 .calendar-month__cell {
@@ -414,10 +415,18 @@ function onKeydown(event: KeyboardEvent) {
 
 	&.is-range-start {
 		background: linear-gradient(to right, transparent 50%, var(--calendar-range-bg) 50%);
+
+		[dir="rtl"] & {
+			background: linear-gradient(to left, transparent 50%, var(--calendar-range-bg) 50%);
+		}
 	}
 
 	&.is-range-end {
 		background: linear-gradient(to left, transparent 50%, var(--calendar-range-bg) 50%);
+
+		[dir="rtl"] & {
+			background: linear-gradient(to right, transparent 50%, var(--calendar-range-bg) 50%);
+		}
 	}
 }
 
@@ -430,29 +439,31 @@ function onKeydown(event: KeyboardEvent) {
 	border-radius: $radius;
 	background: transparent;
 	font-family: inherit;
-	font-size: .9rem;
-	font-weight: 500;
+	font-size: var(--text-md);
+	font-weight: var(--weight-medium);
 	font-variant-numeric: tabular-nums;
-	color: var(--grey-800);
+	color: var(--text-primary);
 	cursor: pointer;
-	transition: background-color $transition, color $transition;
+	transition:
+		background-color var(--motion-fast) var(--ease-standard),
+		color var(--motion-fast) var(--ease-standard);
 
 	.is-large & {
-		font-size: 1rem;
+		font-size: var(--text-base);
 	}
 
 	.is-outside & {
-		color: var(--grey-500);
+		color: var(--text-tertiary);
 	}
 
 	&.is-today {
 		border-color: var(--primary);
-		color: var(--primary);
-		font-weight: 700;
+		color: var(--accent-text);
+		font-weight: var(--weight-semibold);
 	}
 
 	&:hover:not(:disabled) {
-		background: var(--grey-100);
+		background: var(--surface-hover);
 	}
 
 	&:focus-visible {
@@ -463,9 +474,8 @@ function onKeydown(event: KeyboardEvent) {
 	.is-selected & {
 		background: var(--primary);
 		border-color: var(--primary);
-		color: var(--primary-invert);
-		font-weight: 700;
-		box-shadow: var(--shadow-sm);
+		color: var(--text-on-accent);
+		font-weight: var(--weight-semibold);
 
 		&:hover {
 			background: var(--primary);
@@ -473,7 +483,8 @@ function onKeydown(event: KeyboardEvent) {
 	}
 
 	&:disabled {
-		color: var(--grey-300);
+		color: var(--text-tertiary);
+		opacity: .45;
 		cursor: not-allowed;
 	}
 }

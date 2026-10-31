@@ -1,7 +1,9 @@
 <template>
-	<div class="content">
-		<h1>{{ $t('migrate.titleService', {name: migrator.name}) }}</h1>
-		<p>{{ $t('migrate.descriptionDo') }}</p>
+	<div class="content migration-handler">
+		<PageHeader
+			:title="$t('migrate.titleService', {name: migrator.name})"
+			:description="$t('migrate.descriptionDo')"
+		/>
 
 		<template v-if="!migrationRunning && previousMigrationFinishedAt === null">
 			<!-- the credentials form stays mounted while migrating so its input survives an error -->
@@ -151,6 +153,7 @@ import {useI18n} from 'vue-i18n'
 
 import Logo from '@/assets/logo.svg?component'
 import Message from '@/components/misc/Message.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import MigrationCredentialsForm, {type PlankaCredentials} from './MigrationCredentialsForm.vue'
 
 import {useQuery} from '@tanstack/vue-query'
@@ -315,7 +318,6 @@ function confirmMigrateAgain() {
 	overflow: visible;
 
 	span {
-		transition: all 500ms ease;
 		background: var(--grey-500);
 		block-size: 10px;
 		inline-size: 10px;

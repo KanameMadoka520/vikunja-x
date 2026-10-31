@@ -1,58 +1,66 @@
 <template>
-	<Card :title="$t('user.export.title')">
-		<Message
-			v-if="exportInfo"
-			class="mbe-4"
-		>
-			<div class="export-message">
-				<p>
-					<i18n-t
-						keypath="user.export.ready"
-						scope="global"
-					>
-						<time
-							v-tooltip="formatDateLong(exportInfo?.expires)"
-							:datetime="formatISO(exportInfo?.expires)"
+	<div class="settings-page">
+		<PageHeader
+			:title="$t('user.export.title')"
+			:description="$t('user.export.description')"
+		/>
+		<Card>
+			<Message
+				v-if="exportInfo"
+				variant="success"
+				class="mbe-4"
+			>
+				<div class="export-message">
+					<p>
+						<i18n-t
+							keypath="user.export.ready"
+							scope="global"
 						>
-							{{ formattedExpiresDate }}
-						</time>
-					</i18n-t>
+							<time
+								v-tooltip="formatDateLong(exportInfo?.expires)"
+								:datetime="formatISO(exportInfo?.expires)"
+							>
+								{{ formattedExpiresDate }}
+							</time>
+						</i18n-t>
+					</p>
+					<XButton
+						icon="download"
+						:to="{name:'user.export.download'}"
+					>
+						{{ $t('misc.download') }}
+					</XButton>
+				</div>
+			</Message>
+			<form
+				v-if="isLocalUser"
+				@submit.prevent="requestDataExport()"
+			>
+				<p class="settings-copy">
+					{{ $t('user.export.descriptionPasswordRequired') }}
 				</p>
+				<FormField
+					id="currentPasswordDataExport"
+					ref="passwordInput"
+					v-model="password"
+					:label="$t('user.settings.currentPassword')"
+					:class="{'is-danger': errPasswordRequired}"
+					:placeholder="$t('user.settings.currentPasswordPlaceholder')"
+					type="password"
+					:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
+					@keyup="() => errPasswordRequired = password === ''"
+				/>
+			</form>
+			<template #footer>
 				<XButton
-					:to="{name:'user.export.download'}"
+					:loading="requestMutation.isPending.value"
+					@click="requestDataExport()"
 				>
-					{{ $t('misc.download') }}
+					{{ $t('user.export.request') }}
 				</XButton>
-			</div>
-		</Message>
-		<p>
-			{{ $t('user.export.description') }}
-		</p>
-		<template v-if="isLocalUser">
-			<p>
-				{{ $t('user.export.descriptionPasswordRequired') }}
-			</p>
-			<FormField
-				id="currentPasswordDataExport"
-				ref="passwordInput"
-				v-model="password"
-				:label="$t('user.settings.currentPassword')"
-				:class="{'is-danger': errPasswordRequired}"
-				:placeholder="$t('user.settings.currentPasswordPlaceholder')"
-				type="password"
-				:error="errPasswordRequired ? $t('user.deletion.passwordRequired') : null"
-				@keyup="() => errPasswordRequired = password === ''"
-			/>
-		</template>
-
-		<XButton
-			:loading="requestMutation.isPending.value"
-			class="is-fullwidth mbs-4"
-			@click="requestDataExport()"
-		>
-			{{ $t('user.export.request') }}
-		</XButton>
-	</Card>
+			</template>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -67,6 +75,7 @@ import {formatISO, formatDateLong, formatDisplayDate} from '@/helpers/time/forma
 
 import Message from '@/components/misc/Message.vue'
 import FormField from '@/components/input/FormField.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 
 defineOptions({name: 'UserSettingsDataExport'})
 
@@ -86,6 +95,7 @@ const passwordInput = ref()
 const formattedExpiresDate = computed(() => formatDisplayDate(exportInfo.value?.expires))
 
 async function requestDataExport() {
+	if (requestMutation.isPending.value) return
 	if (password.value === '' && isLocalUser.value) {
 		errPasswordRequired.value = true
 		passwordInput.value?.focus()
@@ -102,6 +112,12 @@ async function requestDataExport() {
 </script>
 
 <style lang="scss" scoped>
+.settings-copy {
+	margin-block-end: var(--space-3);
+	color: var(--text-secondary);
+	font-size: var(--text-md);
+}
+
 .export-message {
 	display: flex;
 	justify-content: space-between;
@@ -113,7 +129,7 @@ async function requestDataExport() {
 		margin-block-end: 0;
 	}
 	
-	@media (max-width: $mobile) {
+	@media (max-width: $tablet) {
 		flex-direction: column;
 		align-items: flex-start;
 		

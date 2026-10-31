@@ -1,5 +1,5 @@
 import {shallowMount, flushPromises} from '@vue/test-utils'
-import {describe, expect, it, vi, beforeEach} from 'vitest'
+import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest'
 import {createPinia} from 'pinia'
 import {nextTick} from 'vue'
 import draggable from 'zhyswan-vuedraggable'
@@ -294,4 +294,133 @@ describe('ProjectKanban', () => {
 
 		expect(updateBucket).not.toHaveBeenCalled()
 	})
+
+	describe('bucket limit editing', () => {
+		let wrapper: Awaited<ReturnType<typeof mountKanban>> | undefined
+
+		beforeEach(() => {
+			vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+			updateBucket.mockImplementation(async ({path, body}) => ({
+				data: {
+					id: path.bucket,
+					...body,
+				},
+			}))
+		})
+
+		afterEach(() => {
+			wrapper?.unmount()
+			wrapper = undefined
+			queryClient.clear()
+			vi.useRealTimers()
+		})
+
+		async function editLimit(bucket = 2) {
+			wrapper = await mountKanban({
+				BucketDraggable: DRAGGABLE_STUB,
+				TaskDraggable: DRAGGABLE_STUB,
+				Dropdown: {template: '<div><slot :close="() => {}" /></div>'},
+				DropdownItem: {template: '<button @click="$emit(\'click\', $event)"><slot /></button>'},
+				XButton: {template: '<button @click="$emit(\'click\', $event)"><slot /></button>'},
+			})
+			const column = wrapper.get(`[data-bucket-id="${bucket}"]`)
+			const open = column.findAll('button').find(button => button.text() === 'project.kanban.limit')
+			expect(open).toBeDefined()
+			await open!.trigger('click')
+			return {
+				input: column.get('input[type="number"]'),
+				save: column.get('button[aria-label="misc.save"]'),
+			}
+		}
+
+		it('saves the actual input of the selected bucket once and shows the saved limit', async () => {
+			const {input, save} = await editLimit(2)
+			await input.setValue('7')
+			await save.trigger('click')
+			await flushPromises()
+			await vi.advanceTimersByTimeAsync(3000)
+
+			expect(updateBucket).toHaveBeenCalledTimes(1)
+			expect(updateBucket).toHaveBeenCalledWith(expect.objectContaining({
+				path: {
+					project: 1,
+					view: 10,
+					bucket: 2,
+				},
+				body: {
+					title: 'Second',
+					position: 250,
+					limit: 7,
+				},
+			}))
+			expect(wrapper!.get('[data-bucket-id="2"] .limit').text()).toContain('0/7')
+			expect(wrapper!.find('[data-bucket-id="1"] .limit').exists()).toBe(false)
+		})
+
+		it('saves only the latest value after typing pauses', async () => {
+			const {input} = await editLimit()
+			await input.setValue('3')
+			await vi.advanceTimersByTimeAsync(1500)
+			await input.setValue('12')
+			await vi.advanceTimersByTimeAsync(2499)
+			expect(updateBucket).not.toHaveBeenCalled()
+			await vi.advanceTimersByTimeAsync(1)
+			await flushPromises()
+			expect(updateBucket).toHaveBeenCalledTimes(1)
+			expect(updateBucket).toHaveBeenCalledWith(expect.objectContaining({
+				body: expect.objectContaining({limit: 12}),
+			}))
+		})
+
+		it('clears an existing limit with an empty input', async () => {
+			loadBoard.mockResolvedValue({data: {items: buckets.map(bucket => ({...bucket, limit: 8}))}})
+			const {input, save} = await editLimit()
+			await input.setValue('')
+			await save.trigger('click')
+			await flushPromises()
+			expect(updateBucket).toHaveBeenCalledWith(expect.objectContaining({
+				body: expect.objectContaining({limit: 0}),
+			}))
+			expect(wrapper!.find('[data-bucket-id="2"] .limit').exists()).toBe(false)
+		})
+
+		it.each(['-1', '1.5', '1e100'])('never sends invalid capacity %s to the API', async value => {
+			const {input, save} = await editLimit()
+			await input.setValue(value)
+			await save.trigger('click')
+			await vi.advanceTimersByTimeAsync(3000)
+			expect(updateBucket).not.toHaveBeenCalled()
+		})
+
+		it.each([
+			{projectId: 2, viewId: 10},
+			{projectId: 1, viewId: 20},
+		])('drops the pending save when changing board to %j', async props => {
+			const {input} = await editLimit()
+			await input.setValue('9')
+			await wrapper!.setProps(props)
+			await vi.advanceTimersByTimeAsync(3000)
+			expect(updateBucket).not.toHaveBeenCalled()
+		})
+
+		it('cancels a pending save when the board is closed', async () => {
+			const {input} = await editLimit()
+			await input.setValue('9')
+			wrapper!.unmount()
+			wrapper = undefined
+			await vi.advanceTimersByTimeAsync(3000)
+			expect(updateBucket).not.toHaveBeenCalled()
+		})
+
+		it('handles a failed autosave without an unhandled rejection', async () => {
+			const {input} = await editLimit()
+			updateBucket.mockRejectedValueOnce(new Error('Capacity save failed'))
+			await input.setValue('9')
+			await vi.advanceTimersByTimeAsync(3000)
+			await flushPromises()
+			expect(updateBucket).toHaveBeenCalledTimes(1)
+			expect(wrapper!.find('[data-bucket-id="2"] .limit').exists()).toBe(false)
+		})
+	})
+
 })

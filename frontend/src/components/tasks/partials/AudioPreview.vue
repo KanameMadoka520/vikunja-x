@@ -14,7 +14,7 @@
 		v-else
 		:loading="loading"
 		:aria-label="$t('task.attachment.playFile', {file: attachment.file?.name})"
-		class="audio-play"
+		class="audio-play is-small"
 		icon="play"
 		variant="secondary"
 		:shadow="false"
@@ -136,12 +136,12 @@ defineExpose({play})
 .audio-player {
 	inline-size: 100%;
 	max-inline-size: 30rem;
-	block-size: 2.5rem;
-	margin-block: 0 1em;
+	block-size: var(--control-height-lg);
+	margin-block: var(--space-1) 0;
 }
 
 .audio-play {
-	max-inline-size: 30rem;
-	margin-block: 0 1em;
+	align-self: flex-start;
+	margin-block: var(--space-1) 0;
 }
 </style>

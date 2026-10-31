@@ -6,6 +6,7 @@
 			:anchor="triggerEl"
 			sheet-on-mobile
 			:sheet-title="placeholder"
+			surface
 		>
 			<template #trigger="{toggle, isOpen}">
 				<button
@@ -85,25 +86,19 @@ const {rangeStart, rangeEnd, pickDay} = useRangePick(
 }
 
 .date-range-input__placeholder {
-	color: var(--input-placeholder-color, var(--grey-400));
+	color: var(--input-placeholder-color);
 }
 
-:deep(.popup) {
-	border-radius: $radius;
-	border: 1px solid var(--grey-200);
-	background-color: var(--white);
-	box-shadow: $shadow;
-
-	&.is-open {
-		inline-size: 320px;
-	}
-}
-
-.bottom-sheet .date-range-input__popup {
-	padding-block-end: 1.5rem;
+:deep(.popup.is-open) {
+	inline-size: 20rem;
+	max-inline-size: calc(100vw - 2rem);
 }
 
 .date-range-input__popup {
-	padding: .75rem 1rem 1rem;
+	padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.bottom-sheet .date-range-input__popup {
+	padding-block-end: var(--space-6);
 }
 </style>

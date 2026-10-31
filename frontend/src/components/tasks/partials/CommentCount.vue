@@ -35,34 +35,33 @@ const tooltip = computed(() => t('task.attributes.comment', props.task.comment_c
 .comment-count {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.25rem;
-	font-size: 0.875rem;
-	color: var(--text-muted);
+	gap: var(--space-1);
+	font-size: var(--text-md);
+	color: var(--text-tertiary);
 
 	.comment-count-badge {
-		font-weight: 600;
-		font-size: 0.75rem;
+		font-weight: var(--weight-semibold);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
 		line-height: 1;
 	}
 
 	&:hover {
-		color: var(--primary);
+		color: var(--accent-text);
 	}
 
 	&.is-unread {
-		font-weight: 600;
-		color: var(--primary);
+		font-weight: var(--weight-semibold);
+		color: var(--accent-text);
 
 		.unread-indicator {
 			display: inline-block;
-			inline-size: 0.375rem;
-			block-size: 0.375rem;
+			inline-size: .375rem;
+			block-size: .375rem;
 			background-color: var(--primary);
-			border-radius: 50%;
-			margin-inline-start: 0.125rem;
-			animation: pulse 2s infinite;
+			border-radius: var(--radius-full);
+			margin-inline-start: .125rem;
 		}
 	}
 }
 </style>
-

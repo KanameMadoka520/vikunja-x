@@ -2,7 +2,8 @@
 	<div
 		v-if="updateAvailable"
 		ref="banner"
-		class="update-notification"
+		class="update-notification d-print-none"
+		role="status"
 	>
 		<p class="update-notification__message">
 			{{ t('tcymc.updateAvailable', {version: targetVersion}) }}
@@ -92,42 +93,44 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+// Bottom-start, clear of the bottom-end dock (upload panel and Arona launcher).
 .update-notification {
 	position: fixed;
-	// FIXME: We should prevent usage of z-index or
-	// at least define it centrally
-	// the highest z-index of a modal is .hint-modal with 4500
-	z-index: 5000;
-	inset-block-end: 1rem;
-	inset-inline: 1rem;
-	max-inline-size: max-content;
-	margin-inline: auto;
-
+	inset-block-end: var(--dock-inset-block);
+	inset-inline-start: var(--dock-inset-inline);
+	z-index: var(--layer-floating);
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 1rem;
-	padding: .5rem .5rem .5rem 1rem;
-	background: $warning;
-	border-radius: $radius;
-	font-size: .9rem;
-	color: hsl(220.9, 39.3%, 11%);
-	// color copied to avoid it changing in dark mode
+	gap: var(--space-3);
+	max-inline-size: min(34rem, calc(100vw - var(--dock-inset-inline) - var(--dock-reserve-inline)));
+	padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+	border: 1px solid var(--border-default);
+	border-inline-start: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	background: var(--surface-raised);
+	box-shadow: var(--elevation-3);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
 }
 
 .update-notification__message {
-	inline-size: 100%;
-	text-align: center;
+	min-inline-size: 0;
+	line-height: var(--leading-normal);
+	overflow-wrap: anywhere;
 }
+
 .update-notification__message small {
 	display: block;
-	margin-block-start: .25rem;
+	margin-block-start: var(--space-1);
+	color: var(--text-secondary);
+	font-size: var(--text-xs);
 }
+
 @media (width <= 600px) {
 	.update-notification {
 		flex-direction: column;
-		max-inline-size: calc(100% - 2rem);
-		padding: .75rem;
+		align-items: stretch;
+		padding: var(--space-3);
 	}
 }
 </style>

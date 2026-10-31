@@ -27,6 +27,7 @@
 import {computed, useAttrs} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useGanttBar, type GanttBarModel} from '@/composables/useGanttBar'
+import {MILLISECONDS_A_DAY} from '@/constants/date'
 
 const props = withDefaults(
 	defineProps<{
@@ -60,10 +61,12 @@ const {
 	timelineEnd: props.timelineEnd,
 	onUpdate: props.onUpdate,
 })
-const ariaMin = computed(() => props.timelineStart.valueOf())
-const ariaMax = computed(() => props.timelineEnd.valueOf())
-const ariaNow = computed(() => props.model.start.valueOf())
-const ariaValueText = computed(() => `${props.model.start.toLocaleString()} – ${props.model.end.toLocaleString()}`)
+// Values count days from the first visible day; the readable dates live in aria-valuetext.
+const daysFromStart = (date: Date) => Math.round((date.valueOf() - props.timelineStart.valueOf()) / MILLISECONDS_A_DAY)
+const ariaMin = 0
+const ariaMax = computed(() => daysFromStart(props.timelineEnd))
+const ariaNow = computed(() => daysFromStart(props.model.start))
+const ariaValueText = computed(() => `${props.model.start.toLocaleDateString()} – ${props.model.end.toLocaleDateString()}`)
 const ariaLabel = computed(() =>
 	props.model.meta?.label
 		? t('project.gantt.taskAriaLabel', { task: props.model.meta.label })

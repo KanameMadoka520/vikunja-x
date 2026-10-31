@@ -37,26 +37,22 @@
 				/>
 			</FormField>
 
-			<div class="columns">
-				<div class="column">
-					<FormField
-						id="identifier"
-						v-model="project.identifier"
-						v-tooltip="$t('project.edit.identifierTooltip')"
-						:label="$t('project.edit.identifier')"
-						:disabled="isLoading"
-						:placeholder="$t('project.edit.identifierPlaceholder')"
-						type="text"
-						maxlength="10"
-						@keyup.enter="save"
-					/>
-				</div>
+			<div class="project-edit-meta">
+				<FormField
+					id="identifier"
+					v-model="project.identifier"
+					v-tooltip="$t('project.edit.identifierTooltip')"
+					:label="$t('project.edit.identifier')"
+					:disabled="isLoading"
+					:placeholder="$t('project.edit.identifierPlaceholder')"
+					type="text"
+					maxlength="10"
+					@keyup.enter="save"
+				/>
 
-				<div class="column">
-					<FormField :label="$t('project.edit.color')">
-						<ColorPicker v-model="project.hex_color" />
-					</FormField>
-				</div>
+				<FormField :label="$t('project.edit.color')">
+					<ColorPicker v-model="project.hex_color" />
+				</FormField>
 			</div>
 		</template>
 	</CreateEdit>
@@ -155,3 +151,12 @@ async function save() {
 	}
 }
 </script>
+
+<style lang="scss" scoped>
+.project-edit-meta {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+	gap: 0 var(--space-4);
+	align-items: start;
+}
+</style>

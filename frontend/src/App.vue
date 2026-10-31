@@ -78,6 +78,8 @@ import {useQuickAddMode} from '@/composables/useQuickAddMode'
 import {useConfirmDeletionMutation} from '@/client/queries/accountDeletion'
 import {getSensitiveParam} from '@/helpers/sensitiveQueryParams'
 
+const COLOR_SCHEME_CACHE_KEY = 'vikunja-color-scheme'
+
 const authStore = useAuthStore()
 const baseStore = useBaseStore()
 watch(() => [authStore.session?.id, authStore.session?.type], () => {clearDiagnostics(); clearUploads()})
@@ -135,7 +137,13 @@ watch(accountDeletionToken, async token => {
 }, {immediate: true})
 
 setLanguage(authStore.settings.language ?? DEFAULT_LANGUAGE)
-useColorScheme()
+const {isDark} = useColorScheme()
+// index.html reads this before the bundle loads, so dark users don't get a light boot screen.
+watch(isDark, dark => {
+	try {
+		localStorage.setItem(COLOR_SCHEME_CACHE_KEY, dark ? 'dark' : 'light')
+	} catch { /* Storage is optional; the theme still applies after mount. */ }
+}, {immediate: true})
 useTimeTrackingFavicon()
 </script>
 

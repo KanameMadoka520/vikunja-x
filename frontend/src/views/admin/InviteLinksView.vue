@@ -1,201 +1,223 @@
 <template>
-	<Card :title="$t('admin.inviteLinks.title')">
-		<XButton
-			class="mbe-4"
-			@click="openCreate"
-		>
-			{{ $t('admin.inviteLinks.create') }}
-		</XButton>
-		<p v-if="loading">
-			{{ $t('misc.loading') }}
-		</p>
-		<p v-else-if="links.length === 0">
-			{{ $t('admin.inviteLinks.empty') }}
-		</p>
-		<div
-			v-else
-			class="overflow-x-auto"
-		>
-			<table class="table has-actions is-striped is-hoverable is-fullwidth">
-				<thead>
-					<tr>
-						<th>{{ $t('admin.inviteLinks.name') }}</th>
-						<th>{{ $t('admin.inviteLinks.teams') }}</th>
-						<th>{{ $t('admin.inviteLinks.uses') }}</th>
-						<th>{{ $t('admin.inviteLinks.expiresAt') }}</th>
-						<th>{{ $t('admin.inviteLinks.createdBy') }}</th>
-						<th>{{ $t('task.attributes.created') }}</th>
-						<th />
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="link in links"
-						:key="link.id"
-					>
-						<td>{{ link.name }}</td>
-						<td>{{ (link.teams ?? []).map(team => team.name).join(', ') }}</td>
-						<td>{{ link.uses }} / {{ link.max_uses ?? '∞' }}</td>
-						<td>
-							<TimeDisplay
-								v-if="link.expires_at"
-								:date="link.expires_at"
-							/>
-							<template v-else>
-								{{ $t('admin.inviteLinks.neverExpires') }}
-							</template>
-						</td>
-						<td>
-							<User
-								v-if="link.created_by"
-								:user="link.created_by"
-								:avatar-size="24"
-							/>
-							<template v-else>
-								{{ $t('admin.inviteLinks.creatorDeleted') }}
-							</template>
-						</td>
-						<td>
-							<TimeDisplay
-								v-if="link.created"
-								:date="link.created"
-							/>
-						</td>
-						<td class="actions">
-							<XButton
-								variant="secondary"
-								danger
-								@click="pendingDelete = link"
-							>
-								{{ $t('misc.delete') }}
-							</XButton>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-		<PaginationEmit
-			v-if="totalPages > 1"
-			:total-pages="totalPages"
-			:current-page="page"
-			@pageChanged="goToPage"
-		/>
-
-		<Modal
-			v-if="createOpen"
-			variant="hint-modal"
-			:aria-label="$t('admin.inviteLinks.create')"
-			@close="closeCreate"
-		>
-			<Card
-				class="has-no-shadow"
-				:title="$t('admin.inviteLinks.create')"
-			>
-				<template v-if="createdUrl">
-					<Message
-						variant="warning"
-						class="mbe-4"
-					>
-						{{ $t('admin.inviteLinks.shownOnce') }}
-					</Message>
-					<FormField :label="$t('admin.inviteLinks.url')">
-						<template #default="{id}">
-							<input
-								:id="id"
-								:value="createdUrl"
-								class="input"
-								readonly
-								@focus="selectLink"
-							>
-						</template>
-					</FormField>
-					<XButton @click="copy(createdUrl)">
-						{{ $t(copied ? 'admin.inviteLinks.copied' : 'admin.inviteLinks.copy') }}
-					</XButton>
-				</template>
-				<form
-					v-else
-					id="invite-create-form"
-					@submit.prevent="submitCreate"
+	<div class="settings-page">
+		<PageHeader :title="$t('admin.inviteLinks.title')">
+			<template #actions>
+				<XButton
+					icon="plus"
+					@click="openCreate"
 				>
-					<FormField
-						id="invite-name"
-						v-model="form.name"
-						:label="$t('admin.inviteLinks.name')"
-						required
-						maxlength="250"
-					/>
-					<FormField :label="$t('admin.inviteLinks.teams')">
-						<template #default="{id}">
-							<Multiselect
-								:id="id"
-								v-model="selectedTeams"
-								multiple
-								show-empty
-								label="name"
-								:aria-label="$t('admin.inviteLinks.teams')"
-								:search-results="teamResults"
-								:total-results="teamData?.total"
-								:loading="loadingTeams"
-								@search="teamSearch = $event"
-							/>
-						</template>
-					</FormField>
-					<FormField
-						id="invite-max-uses"
-						v-model="form.maxUses"
-						type="number"
-						min="1"
-						step="1"
-						:label="$t('admin.inviteLinks.maxUses')"
-						:placeholder="$t('admin.inviteLinks.unlimited')"
-					/>
-					<FormField
-						id="invite-expiry"
-						v-model="form.expiresAt"
-						type="datetime-local"
-						:min="minimumExpiry"
-						:label="$t('admin.inviteLinks.expiresAt')"
-					/>
-					<FormCheckbox
-						v-model="form.skipEmailConfirm"
-						:label="$t('admin.inviteLinks.skipEmailConfirm')"
-					/>
-				</form>
-				<template #footer>
-					<XButton
-						variant="tertiary"
-						:disabled="showCreating"
-						@click="closeCreate"
+					{{ $t('admin.inviteLinks.create') }}
+				</XButton>
+			</template>
+		</PageHeader>
+		<Card>
+			<p
+				v-if="loading"
+				role="status"
+			>
+				{{ $t('misc.loading') }}
+			</p>
+			<p
+				v-else-if="links.length === 0"
+				class="admin-empty"
+			>
+				{{ $t('admin.inviteLinks.empty') }}
+			</p>
+			<div
+				v-else
+				class="has-horizontal-overflow"
+			>
+				<table class="table admin-table has-actions is-hoverable is-fullwidth">
+					<thead>
+						<tr>
+							<th>{{ $t('admin.inviteLinks.name') }}</th>
+							<th>{{ $t('admin.inviteLinks.teams') }}</th>
+							<th>{{ $t('admin.inviteLinks.uses') }}</th>
+							<th>{{ $t('admin.inviteLinks.expiresAt') }}</th>
+							<th>{{ $t('admin.inviteLinks.createdBy') }}</th>
+							<th>{{ $t('task.attributes.created') }}</th>
+							<th>
+								<span class="is-sr-only">{{ $t('misc.actions') }}</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="link in links"
+							:key="link.id"
+						>
+							<td :data-label="$t('admin.inviteLinks.name')">
+								{{ link.name }}
+							</td>
+							<td :data-label="$t('admin.inviteLinks.teams')">
+								{{ (link.teams ?? []).map(team => team.name).join(', ') }}
+							</td>
+							<td :data-label="$t('admin.inviteLinks.uses')">
+								{{ link.uses }} / {{ link.max_uses ?? '∞' }}
+							</td>
+							<td :data-label="$t('admin.inviteLinks.expiresAt')">
+								<TimeDisplay
+									v-if="link.expires_at"
+									:date="link.expires_at"
+								/>
+								<template v-else>
+									{{ $t('admin.inviteLinks.neverExpires') }}
+								</template>
+							</td>
+							<td :data-label="$t('admin.inviteLinks.createdBy')">
+								<User
+									v-if="link.created_by"
+									:user="link.created_by"
+									:avatar-size="24"
+								/>
+								<template v-else>
+									{{ $t('admin.inviteLinks.creatorDeleted') }}
+								</template>
+							</td>
+							<td :data-label="$t('task.attributes.created')">
+								<TimeDisplay
+									v-if="link.created"
+									:date="link.created"
+								/>
+							</td>
+							<td class="actions">
+								<XButton
+									variant="secondary"
+									danger
+									class="is-small"
+									@click="pendingDelete = link"
+								>
+									{{ $t('misc.delete') }}
+								</XButton>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<PaginationEmit
+				v-if="totalPages > 1"
+				:total-pages="totalPages"
+				:current-page="page"
+				@pageChanged="goToPage"
+			/>
+
+			<Modal
+				v-if="createOpen"
+				variant="hint-modal"
+				:aria-label="$t('admin.inviteLinks.create')"
+				@close="closeCreate"
+			>
+				<Card
+					class="has-no-shadow"
+					:title="$t('admin.inviteLinks.create')"
+				>
+					<template v-if="createdUrl">
+						<Message
+							variant="warning"
+							class="mbe-4"
+						>
+							{{ $t('admin.inviteLinks.shownOnce') }}
+						</Message>
+						<FormField :label="$t('admin.inviteLinks.url')">
+							<template #default="{id}">
+								<input
+									:id="id"
+									:value="createdUrl"
+									class="input"
+									readonly
+									@focus="selectLink"
+								>
+							</template>
+						</FormField>
+						<XButton @click="copy(createdUrl)">
+							{{ $t(copied ? 'admin.inviteLinks.copied' : 'admin.inviteLinks.copy') }}
+						</XButton>
+					</template>
+					<form
+						v-else
+						id="invite-create-form"
+						@submit.prevent="submitCreate"
 					>
-						{{ $t(createdUrl ? 'misc.close' : 'misc.cancel') }}
-					</XButton>
-					<XButton
-						v-if="!createdUrl"
-						type="submit"
-						form="invite-create-form"
-						:loading="creating"
-						:disabled="!form.name.trim()"
-					>
-						{{ $t('admin.inviteLinks.create') }}
-					</XButton>
+						<FormField
+							id="invite-name"
+							v-model="form.name"
+							:label="$t('admin.inviteLinks.name')"
+							required
+							maxlength="250"
+						/>
+						<FormField :label="$t('admin.inviteLinks.teams')">
+							<template #default="{id}">
+								<Multiselect
+									:id="id"
+									v-model="selectedTeams"
+									multiple
+									show-empty
+									label="name"
+									:aria-label="$t('admin.inviteLinks.teams')"
+									:search-results="teamResults"
+									:total-results="teamData?.total"
+									:loading="loadingTeams"
+									@search="teamSearch = $event"
+								/>
+							</template>
+						</FormField>
+						<FormField
+							id="invite-max-uses"
+							v-model="form.maxUses"
+							type="number"
+							min="1"
+							step="1"
+							:label="$t('admin.inviteLinks.maxUses')"
+							:placeholder="$t('admin.inviteLinks.unlimited')"
+						/>
+						<FormField
+							id="invite-expiry"
+							v-model="form.expiresAt"
+							type="datetime-local"
+							:min="minimumExpiry"
+							:label="$t('admin.inviteLinks.expiresAt')"
+						/>
+						<FormCheckbox
+							v-model="form.skipEmailConfirm"
+							:label="$t('admin.inviteLinks.skipEmailConfirm')"
+						/>
+					</form>
+					<template #footer>
+						<XButton
+							variant="tertiary"
+							:disabled="showCreating"
+							@click="closeCreate"
+						>
+							{{ $t(createdUrl ? 'misc.close' : 'misc.cancel') }}
+						</XButton>
+						<XButton
+							v-if="!createdUrl"
+							type="submit"
+							form="invite-create-form"
+							:loading="creating"
+							:disabled="!form.name.trim()"
+						>
+							{{ $t('admin.inviteLinks.create') }}
+						</XButton>
+					</template>
+				</Card>
+			</Modal>
+			<Modal
+				v-if="pendingDelete"
+				danger
+				:loading="deleting"
+				@close="pendingDelete = null"
+				@submit="deleteLink"
+			>
+				<template #header>
+					{{ $t('admin.inviteLinks.delete') }}
 				</template>
-			</Card>
-		</Modal>
-		<Modal
-			v-if="pendingDelete"
-			:loading="deleting"
-			@close="pendingDelete = null"
-			@submit="deleteLink"
-		>
-			<template #header>
-				{{ $t('admin.inviteLinks.delete') }}
-			</template>
-			<template #text>
-				{{ $t('admin.inviteLinks.deleteConfirm', {name: pendingDelete.name}) }}
-			</template>
-		</Modal>
-	</Card>
+				<template #text>
+					{{ $t('admin.inviteLinks.deleteConfirm', {name: pendingDelete.name}) }}
+				</template>
+			</Modal>
+		</Card>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -204,6 +226,7 @@ import {useClipboard} from '@vueuse/core'
 import {formatDate} from '@/helpers/time/formatDate'
 import {useI18n} from 'vue-i18n'
 import Card from '@/components/misc/Card.vue'
+import PageHeader from '@/components/misc/state/PageHeader.vue'
 import Modal from '@/components/misc/Modal.vue'
 import Message from '@/components/misc/Message.vue'
 import FormField from '@/components/input/FormField.vue'
@@ -307,3 +330,11 @@ async function deleteLink() {
 }
 
 </script>
+
+<style lang="scss" scoped>
+@import './adminTable';
+
+.admin-empty {
+	color: var(--text-secondary);
+}
+</style>

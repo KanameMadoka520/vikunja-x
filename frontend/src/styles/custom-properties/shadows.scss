@@ -1,25 +1,22 @@
-// Box-shadow tokens (--shadow-xs/sm/md/lg) built from the grey color scale.
-// Dark mode overrides strengthen the shadows for contrast on dark backgrounds.
+// Box-shadow tokens (--shadow-xs/sm/md/lg). Kept soft: borders carry most of the
+// separation, shadows only hint at elevation. Dark mode uses deep, low-spread shadows.
 
 :root {
-  --shadow-xs: 0 1px 3px hsla(var(--grey-500-hsl), .12),
-               0 1px 2px hsla(var(--grey-500-hsl), .24);
-  --shadow-sm: 0 3px 6px hsla(var(--grey-500-hsl), .12),
-               0 2px 4px hsla(var(--grey-500-hsl), .10);
-  --shadow-md: 0 10px 20px hsla(var(--grey-500-hsl), .12),
-               0 3px 6px hsla(var(--grey-500-hsl), .08);
-  --shadow-lg: 0 15px 25px hsla(var(--grey-500-hsl), .12),
-               0 5px 10px hsla(var(--grey-500-hsl), .05);
+  --shadow-xs: 0 1px 2px hsla(220, 25%, 15%, .06);
+  --shadow-sm: 0 1px 3px hsla(220, 25%, 15%, .08),
+               0 1px 2px hsla(220, 25%, 15%, .04);
+  --shadow-md: 0 4px 14px hsla(220, 25%, 15%, .1),
+               0 1px 3px hsla(220, 25%, 15%, .06);
+  --shadow-lg: 0 14px 32px hsla(220, 25%, 15%, .14),
+               0 3px 8px hsla(220, 25%, 15%, .07);
 
   &.dark {
-    // Even darker shadows for dark mode
-    --shadow-xs: 0 1px 3px hsla(var(--grey-50-hsl), 0.4),
-                 0 1px 2px hsla(var(--grey-50-hsl), 0.8);
-    --shadow-sm: 0 3px 6px hsla(var(--grey-50-hsl), 0.8),
-                 0 2px 4px hsla(var(--grey-50-hsl), 0.6);
-    --shadow-md: 0 10px 20px hsla(var(--grey-50-hsl), 0.8),
-                 0 3px 6px hsla(var(--grey-50-hsl), 0.6);
-    --shadow-lg: 0 15px 25px hsla(var(--grey-50-hsl), 0.8),
-                 0 5px 10px hsla(var(--grey-50-hsl), 0.4);
+    --shadow-xs: 0 0 0 1px hsla(210, 30%, 92%, .05);
+    --shadow-sm: 0 1px 3px hsla(222, 50%, 2%, .5),
+                 0 0 0 1px hsla(210, 30%, 92%, .04);
+    --shadow-md: 0 6px 18px hsla(222, 50%, 2%, .55),
+                 0 0 0 1px hsla(210, 30%, 92%, .05);
+    --shadow-lg: 0 16px 38px hsla(222, 50%, 2%, .62),
+                 0 0 0 1px hsla(210, 30%, 92%, .06);
   }
 }

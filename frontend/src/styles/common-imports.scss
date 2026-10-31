@@ -10,7 +10,13 @@
 // are defined here.
 //
 
-$family-sans-serif: 'Open Sans', Helvetica, Arial, sans-serif;
+// Open Sans covers Latin only (see fonts.scss unicode-range); CJK text falls through to the platform face.
+$family-sans-serif: 'Open Sans', system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+  'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', Helvetica, Arial, sans-serif;
+$radius-small: 4px;
+$radius: 6px;
+$radius-large: 10px;
+$control-height: 2.25em;
 
 // the default values get overwritten by the definitions above
 @import "bulma-css-variables/sass/utilities/_all";
@@ -18,20 +24,22 @@ $family-sans-serif: 'Open Sans', Helvetica, Arial, sans-serif;
 // mobile minimum width
 $mobile: 320px;
 
-$vikunja-font: 'Quicksand', sans-serif;
+// Headings share the UI face; the Quicksand wordmark lives in the logo SVG.
+$vikunja-font: $family-sans-serif;
 
 $pagination-current-border: var(--primary);
 $navbar-item-active-color: var(--primary);
 
 $site-background: var(--grey-100);
 
-$transition-duration: 150ms;
-$transition: $transition-duration ease;
+$transition-duration: 160ms;
+// Token-based so every `$transition` use follows prefers-reduced-motion (the tokens drop to 0ms).
+$transition: var(--motion-base) var(--ease-standard);
 
 $button-height: 34px;
 $switch-view-height: 2.69rem;
 
-$navbar-height: 4rem;
+$navbar-height: 3.25rem;
 $navbar-width: 300px;
 $navbar-padding: 2rem;
 
@@ -40,6 +48,8 @@ $vikunja-nav-selected-width: 0.4rem;
 
 $close-button-min-space: 84px;
 
+// Outline, not box-shadow: forced-colors mode drops shadows (WCAG technique C40).
 @mixin focus-ring {
-  box-shadow: 0 0 0 2px hsla(var(--primary-hsl), 0.5);
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
 }

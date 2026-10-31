@@ -27,14 +27,15 @@ test.describe('API Tokens', () => {
 		const titleInput = page.locator('#apiTokenTitle')
 		await expect(titleInput).toBeVisible()
 
-		// Find the div containing the "tasks" group by looking for the exact checkbox name
-		const tasksGroupDiv = page.locator('.mbe-2').filter({
-			has: page.getByRole('checkbox', {name: 'Checkbox tasks', exact: true}),
-		})
+		// Checkboxes are named by their visible label. The exact group name only matches "tasks",
+		// not "tasks attachments" and the other tasks_* groups.
+		const tasksGroupCheckbox = page.getByRole('checkbox', {name: 'tasks', exact: true})
+		await expect(tasksGroupCheckbox).toHaveCount(1)
+		const tasksGroupDiv = page.locator('.mbe-2').filter({has: tasksGroupCheckbox})
 		await expect(tasksGroupDiv).toBeVisible()
 
 		// Within that group, find the specific "create" permission checkbox and verify it's checked
-		const createCheckbox = tasksGroupDiv.getByRole('checkbox', {name: 'Checkbox create', exact: true})
+		const createCheckbox = tasksGroupDiv.getByRole('checkbox', {name: 'create', exact: true})
 		await expect(createCheckbox).toBeChecked()
 	})
 
@@ -72,11 +73,11 @@ test.describe('API Tokens', () => {
 
 test('creates and revokes a scoped token with stored state surviving reload', async ({authenticatedPage: page, apiContext}) => {
 	await page.goto('/user/settings/api-tokens?title=Stored%20token&scopes=tasks:read_all')
-	const tasksGroup = page.locator('.mbe-2').filter({
-		has: page.getByRole('checkbox', {name: 'Checkbox tasks', exact: true}),
-	})
+	const tasksGroupCheckbox = page.getByRole('checkbox', {name: 'tasks', exact: true})
+	await expect(tasksGroupCheckbox).toHaveCount(1)
+	const tasksGroup = page.locator('.mbe-2').filter({has: tasksGroupCheckbox})
 	await expect(page.locator('#apiTokenTitle')).toHaveValue('Stored token')
-	await expect(tasksGroup.getByRole('checkbox', {name: 'Checkbox read all', exact: true})).toBeChecked()
+	await expect(tasksGroup.getByRole('checkbox', {name: 'read all', exact: true})).toBeChecked()
 	const created = page.waitForResponse(r => r.url().endsWith('/api/v2/tokens') && r.request().method() === 'POST')
 	await page.getByRole('button', {name: 'Create token', exact: true}).click()
 	const response = await created

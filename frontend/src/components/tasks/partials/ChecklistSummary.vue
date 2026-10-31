@@ -2,11 +2,14 @@
 	<span
 		v-if="checklist.total > 0"
 		class="checklist-summary"
+		:class="{'is-compact': compact}"
 	>
 		<svg
 			width="12"
 			height="12"
 			:class="{'is-all-done': allDone}"
+			aria-hidden="true"
+			focusable="false"
 		>
 			<circle
 				stroke-width="2"
@@ -26,7 +29,11 @@
 				r="5"
 			/>
 		</svg>
-		<span>{{ label }}</span>
+		<template v-if="compact">
+			<span aria-hidden="true">{{ checklist.checked }}/{{ checklist.total }}</span>
+			<span class="is-sr-only">{{ label }}</span>
+		</template>
+		<span v-else>{{ label }}</span>
 	</span>
 </template>
 
@@ -37,9 +44,13 @@ import { useI18n } from 'vue-i18n'
 import {getChecklistStatistics} from '@/helpers/checklistFromText'
 import type {Task as ITask} from '@/client/generated'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	task: ITask
-}>()
+	// Dense rows show "1/2"; the full sentence stays available to screen readers.
+	compact?: boolean
+}>(), {
+	compact: false,
+})
 
 const checklist = computed(() => getChecklistStatistics((props.task.description ?? '')))
 
@@ -64,21 +75,28 @@ const label = computed(() => {
 
 <style scoped lang="scss">
 .checklist-summary {
-	color: var(--text-muted);
+	color: var(--text-tertiary);
 	display: inline-flex;
 	align-items: center;
-	padding-inline-start: .5rem;
-	font-size: .9rem;
+	gap: var(--space-1);
+	padding-inline-start: var(--space-2);
+	font-size: var(--text-md);
+	white-space: nowrap;
+
+	&.is-compact {
+		padding-inline-start: 0;
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
+	}
 }
 
 svg {
+	flex-shrink: 0;
 	transform: rotate(-90deg);
-	transition: stroke-dashoffset 0.35s;
-	margin-inline-end: .25rem;
 }
 
 circle {
-	stroke: var(--grey-400);
+	stroke: var(--border-strong);
 
 	&:last-child {
 		stroke: var(--primary);

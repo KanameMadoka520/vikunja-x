@@ -146,10 +146,6 @@ defineExpose({
 	user-select: none;
 	pointer-events: auto; // disable possible resets
 
-	&:focus, &.is-focused {
-		outline: transparent;
-	}
-
 	&[disabled],
 	&[aria-disabled='true'] {
 		cursor: default;
