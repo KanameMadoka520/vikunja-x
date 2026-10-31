@@ -3,6 +3,7 @@ allowBuilds:
   '@sentry/cli': true
   esbuild: true
   puppeteer: true
+  sharp: true
   vue-demi: true
 catalog:
   rollup: 4.63.3

@@ -95,7 +95,7 @@ describe('ProjectSettingsArchive', () => {
 		wrapper = mounted.wrapper
 
 		expect(document.querySelector('dialog.modal-dialog')?.textContent).toContain('Un-Archive this project')
-		expect(document.title).toBe('Archive "Test" | Vikunja X · tcymc custom edition')
+		expect(document.title).toBe('Archive "Test" | vikunja-x · -x edition')
 
 		await mounted.router.push('/tasks/by/upcoming')
 		await flushPromises()

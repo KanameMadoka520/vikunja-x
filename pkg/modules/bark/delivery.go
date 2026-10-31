@@ -51,7 +51,7 @@ type payload struct {
 // Never put the key in the URL, follow redirects, or return an upstream body (which may echo secrets).
 func deliver(ctx context.Context, s BarkSettings, p payload) (string, bool) {
 	p.DeviceKey = s.DeviceKey
-	p.Group = "Vikunja X"
+	p.Group = "vikunja-x"
 	p.Level = s.Level
 	b, err := json.Marshal(p)
 	if err != nil {
@@ -85,9 +85,9 @@ func deliver(ctx context.Context, s BarkSettings, p payload) (string, bool) {
 	return "", false
 }
 func pushContent(s BarkSettings, n *notifications.DatabaseNotification) payload {
-	p := payload{Title: "Vikunja X", Body: "You have a new notification. Open Vikunja to view it.", URL: strings.TrimRight(config.ServicePublicURL.GetString(), "/") + "/"}
+	p := payload{Title: "vikunja-x", Body: "You have a new notification. Open vikunja-x to view it.", URL: strings.TrimRight(config.ServicePublicURL.GetString(), "/") + "/"}
 	if s.Language == "zh-CN" {
-		p.Body = "你有一条新通知，请打开 Vikunja 查看。"
+		p.Body = "你有一条新通知，请打开 vikunja-x 查看。"
 	}
 	if n == nil {
 		p.Body = "Bark test notification. Your personal push connection is working."
@@ -107,9 +107,9 @@ func pushContent(s BarkSettings, n *notifications.DatabaseNotification) payload 
 		_ = json.Unmarshal(raw, &data)
 	}
 	if n.Name == "task.reminder" {
-		p.Body = "A task reminder is due. Open Vikunja to view it."
+		p.Body = "A task reminder is due. Open vikunja-x to view it."
 		if s.Language == "zh-CN" {
-			p.Body = "任务提醒时间到了，请打开 Vikunja 查看。"
+			p.Body = "任务提醒时间到了，请打开 vikunja-x 查看。"
 		}
 	}
 	if data.Task != nil {

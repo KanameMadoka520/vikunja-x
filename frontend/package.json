@@ -1,6 +1,6 @@
 {
   "name": "vikunja-x-frontend",
-  "description": "Vikunja X · tcymc二次开发版，个人 AI、语音与公开日程",
+  "description": "vikunja-x · -x 版，个人 AI、语音与公开日程",
   "private": true,
   "version": "2.7.1",
   "license": "AGPL-3.0-or-later",
@@ -49,7 +49,8 @@
     "generate:api-client": "openapi-ts",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
-    "story:preview": "histoire preview"
+    "story:preview": "histoire preview",
+    "brand:assets": "node scripts/brand-assets.mjs"
   },
   "dependencies": {
     "@floating-ui/dom": "1.8.0",
@@ -150,6 +151,7 @@
     "rollup": "catalog:",
     "rollup-plugin-visualizer": "7.1.1",
     "sass-embedded": "1.104.1",
+    "sharp": "0.34.5",
     "stylelint": "17.15.0",
     "stylelint-config-property-sort-order-smacss": "11.2.0",
     "stylelint-config-recommended-vue": "1.6.1",

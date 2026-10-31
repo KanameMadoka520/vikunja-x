@@ -211,7 +211,7 @@
   "systemStatus": {
     "appCPUScale": "100% = 1 core",
     "host": "Server",
-    "application": "Vikunja application",
+    "application": "vikunja-x application",
     "appCPU": "Application CPU",
     "gpu": "GPU",
     "gpuNone": "No GPU assigned",
@@ -222,11 +222,11 @@
     "appDisk": "Application data",
     "appCPUHelp": "100% means one fully occupied CPU core; uses the application container cgroup, excluding the separate database container.",
     "appStorageHelp": "Application file sizes plus PostgreSQL database size (including indexes). Excludes image layers, logs, WAL and backups. This is data size, not the whole filesystem or a disk quota. Storage is sampled at most once a minute without blocking requests.",
-    "appGPUHelp": "No compute GPU is assigned to this container. GPUs used by remote AI providers are not local Vikunja usage.",
+    "appGPUHelp": "No compute GPU is assigned to this container. GPUs used by remote AI providers are not local vikunja-x usage.",
     "storageSampled": "Storage sample",
     "unlimited": "No container limit",
     "title": "Server load",
-    "healthy": "Vikunja healthy",
+    "healthy": "vikunja-x healthy",
     "offline": "Disconnected",
     "degraded": "Dependency unavailable",
     "loading": "Connecting…",
@@ -236,19 +236,19 @@
     "cores": "{n} host logical CPUs",
     "unavailable": "Sampling / unavailable",
     "duration": "{days}d {hours}h {minutes}m",
-    "uptime": "Vikunja: {duration}",
+    "uptime": "vikunja-x: {duration}",
     "measurement": "How these numbers are measured",
     "cpuHelp": "CPU is the host non-idle time across all logical cores, excluding I/O wait. Guest time is not double counted. Samples use total-time deltas and are independent of container CPU quotas.",
-    "diskHelp": "Used space on the server filesystem containing Vikunja data, including all other files on that volume. This deployment uses the server root filesystem; separately mounted disks are not summed.",
-    "refreshHelp": "5-second shared server cache; CPU and other counters refresh every 5 seconds while the sidebar and tab are visible. Storage is sampled at most once a minute. Server uptime resets on reboot; Vikunja uptime resets on application restart.",
+    "diskHelp": "Used space on the server filesystem containing vikunja-x data, including all other files on that volume. This deployment uses the server root filesystem; separately mounted disks are not summed.",
+    "refreshHelp": "5-second shared server cache; CPU and other counters refresh every 5 seconds while the sidebar and tab are visible. Storage is sampled at most once a minute. Server uptime resets on reboot; vikunja-x uptime resets on application restart.",
     "sampled": "Sampled at",
     "unconfigured": "Host metrics unavailable",
     "hostUptime": "Server uptime: {duration}",
     "load": "Load average",
     "loadPeriods": "1 / 5 / 15 minutes",
     "loadHelp": "Load counts runnable and uninterruptible tasks across the host. It is not a percentage; compare sustained load with the logical CPU count. I/O waits can raise load even when CPU usage is low.",
-    "hostSource": "CPU, memory, load and boot uptime come from explicitly mounted read-only host kernel counters and include all applications. Missing host files stay unavailable. The green badge checks Vikunja dependencies, not host resource pressure.",
-    "memoryHelp": "RAM used = host total − host available memory. Available includes reclaimable caches, following the kernel estimate. This covers all applications, not only Vikunja.",
+    "hostSource": "CPU, memory, load and boot uptime come from explicitly mounted read-only host kernel counters and include all applications. Missing host files stay unavailable. The green badge checks vikunja-x dependencies, not host resource pressure.",
+    "memoryHelp": "RAM used = host total − host available memory. Available includes reclaimable caches, following the kernel estimate. This covers all applications, not only vikunja-x.",
     "ioWait": "I/O wait",
     "steal": "CPU steal"
   },
@@ -309,8 +309,8 @@
     "addToHomeScreen": "Add this app to your home screen for faster access and improved experience.",
     "goToOverview": "Go to the workspace",
     "project": {
-      "importText": "Import your projects and tasks from other services into Vikunja:",
-      "import": "Import your data into Vikunja"
+      "importText": "Import your projects and tasks from other services into vikunja-x:",
+      "import": "Import your data into vikunja-x"
     }
   },
   "demo": {
@@ -323,7 +323,7 @@
     "text": "The page you requested does not exist."
   },
   "ready": {
-    "loading": "Vikunja is loading…",
+    "loading": "vikunja-x is loading…",
     "errorOccured": "An error occurred:",
     "checkApiUrl": "Please check if the api url is correct.",
     "rateLimited": "The server received too many requests. Please wait a moment and reload the page.",
@@ -361,7 +361,7 @@
       "oauthRedirectedToApp": "You have been redirected to the app. You can close this tab now.",
       "desktopTryDemo": "Try the Demo",
       "desktopCustomServer": "Custom Server URL",
-      "desktopCustomServerDescription": "Enter the URL of your Vikunja server to get started.",
+      "desktopCustomServerDescription": "Enter the URL of your vikunja-x server to get started.",
       "desktopWaitingForAuth": "Waiting for authentication…",
       "desktopOAuthError": "Authentication failed: {error}",
       "logout": "Logout",
@@ -508,7 +508,7 @@
       },
       "caldav": {
         "title": "CalDAV",
-        "howTo": "You can connect Vikunja to CalDAV clients to view and manage all your tasks from different clients. Enter this URL into your client:",
+        "howTo": "You can connect vikunja-x to CalDAV clients to view and manage all your tasks from different clients. Enter this URL into your client:",
         "urlLabel": "CalDAV URL",
         "more": "More information about CalDAV in Vikunja",
         "tokens": "CalDAV Tokens",
@@ -528,7 +528,7 @@
       },
       "feeds": {
         "title": "Atom Feed",
-        "howTo": "You can subscribe to your Vikunja notifications from any Atom-compatible feed reader. Use the following URL:",
+        "howTo": "You can subscribe to your vikunja-x notifications from any Atom-compatible feed reader. Use the following URL:",
         "usernameIs": "Your username for the feed is: {0}",
         "apiTokenHint": "Authenticate with an API token that has the {scope} permission. Create one in {link}.",
         "tokenTitle": "Atom feed",
@@ -552,7 +552,7 @@
         "title": "Quick Add Magic Mode",
         "disabled": "Disabled",
         "todoist": "Todoist",
-        "vikunja": "Vikunja"
+        "vikunja": "vikunja-x"
       },
       "appearance": {
         "title": "Color Scheme",
@@ -571,7 +571,7 @@
       },
       "apiTokens": {
         "title": "API Tokens",
-        "general": "API tokens allow you to use Vikunja's API without user credentials.",
+        "general": "API tokens allow you to use vikunja-x's API without user credentials.",
         "apiDocs": "Check out the api docs",
         "createAToken": "Create a token",
         "createToken": "Create token",
@@ -642,18 +642,18 @@
           },
           "claudeDesktop": {
             "open": "Open Customize → Connectors → Add custom connector. On Team or Enterprise, an owner adds it under Organization settings → Connectors.",
-            "url": "Name the connector Vikunja and enter this URL: {value}",
+            "url": "Name the connector vikunja-x and enter this URL: {value}",
             "auth": "Set Authentication to No sign-in.",
             "header": "Under Request headers, choose authorization and paste this full value, including Bearer and the space, then add the connector: {value}",
-            "beta": "Request headers are in beta for a limited set of organizations. If this section is missing, connecting Vikunja is not available for your account yet."
+            "beta": "Request headers are in beta for a limited set of organizations. If this section is missing, connecting vikunja-x is not available for your account yet."
           },
           "mistral": {
             "open": "In the sidebar on the left open Context → Connectors → Add Connector → Add Custom Connector.",
-            "url": "Name the connector Vikunja, enter this URL, and select Connect: {value}",
+            "url": "Name the connector vikunja-x, enter this URL, and select Connect: {value}",
             "token": "Choose HTTP Bearer authentication and paste this token: {value}"
           },
           "chatgpt": {
-            "unavailable": "ChatGPT requires OAuth to connect to Vikunja. MCP OAuth is not supported yet, so this token cannot be used in ChatGPT."
+            "unavailable": "ChatGPT requires OAuth to connect to vikunja-x. MCP OAuth is not supported yet, so this token cannot be used in ChatGPT."
           },
           "other": {
             "title": "Other",
@@ -688,7 +688,7 @@
       "passwordDescription": "Use a long password you do not use anywhere else."
     },
     "deletion": {
-      "title": "Delete your Vikunja Account",
+      "title": "Delete your vikunja-x Account",
       "text1": "The deletion of your account is permanent and cannot be undone. We will delete all your projects, tasks and everything associated with it.",
       "text2": "To proceed, please enter your password. You will receive an email with further instructions.",
       "text3": "To proceed, please press the button below. You will receive an email with further instructions.",
@@ -696,7 +696,7 @@
       "requestSuccess": "The request was successful. You'll receive an email with further instructions.",
       "passwordRequired": "Please enter your password.",
       "confirmSuccess": "You've successfully confirmed the deletion of your account. We will delete your account in three days.",
-      "scheduled": "We will delete your Vikunja account at {date} ({dateSince}).",
+      "scheduled": "We will delete your vikunja-x account at {date} ({dateSince}).",
       "scheduledCancel": "To cancel the deletion of your account, click here.",
       "scheduledCancelText": "To cancel the deletion of your account, please enter your password below:",
       "scheduledCancelButton": "To cancel the deletion of your account, please press the button below:",
@@ -704,12 +704,12 @@
       "scheduledCancelSuccess": "We will not delete your account."
     },
     "export": {
-      "title": "Export your Vikunja data",
+      "title": "Export your vikunja-x data",
       "description": "You can request a copy of all your Vikunja data. This includes Projects, Tasks and everything associated to them. You can import this data in any Vikunja instance through the migration function.",
       "descriptionPasswordRequired": "Please enter your password to proceed:",
-      "request": "Request a copy of my Vikunja Data",
-      "success": "You've successfully requested your Vikunja Data! We will send you an email once it's ready to download.",
-      "downloadTitle": "Download your exported Vikunja data",
+      "request": "Request a copy of my vikunja-x Data",
+      "success": "You've successfully requested your vikunja-x Data! We will send you an email once it's ready to download.",
+      "downloadTitle": "Download your exported vikunja-x data",
       "ready": "Your export is ready to download. You can download it until {0}.",
       "requestNew": "Request another export"
     }
@@ -798,7 +798,7 @@
       "share": "Share",
       "links": {
         "title": "Share Links",
-        "explanation": "Share Links allow you to easily share a project with other users who don't have an account on Vikunja.",
+        "explanation": "Share Links allow you to easily share a project with other users who don't have an account on vikunja-x.",
         "create": "Create a link share",
         "name": "Name (optional)",
         "namePlaceholder": "e.g. Lorem Ipsum",
@@ -1079,18 +1079,18 @@
   },
   "migrate": {
     "title": "Import from other services",
-    "titleService": "Import your data from {name} into Vikunja",
+    "titleService": "Import your data from {name} into vikunja-x",
     "description": "Click on the logo of one of the third-party services below to get started.",
-    "descriptionDo": "Vikunja will import all lists, tasks, notes, reminders and files you have access to.",
-    "authorize": "To authorize Vikunja to access your {name} Account, click the button below.",
+    "descriptionDo": "vikunja-x will import all lists, tasks, notes, reminders and files you have access to.",
+    "authorize": "To authorize vikunja-x to access your {name} Account, click the button below.",
     "getStarted": "Get Started",
     "inProgress": "Importing in progress…",
     "alreadyMigrated1": "It looks like you've already imported your stuff from {name} at {date}.",
     "alreadyMigrated2": "Importing again is possible, but might create duplicates. Are you sure?",
     "confirm": "I am sure, please start migrating now!",
-    "importUpload": "To import data from {name} into Vikunja, click the button below to select a file.",
+    "importUpload": "To import data from {name} into vikunja-x, click the button below to select a file.",
     "upload": "Upload file",
-    "migrationStartedWillReciveEmail": "Vikunja will now import your lists/projects, tasks, notes, reminders and files from {service}. As this will take a while, we will send you an email once done. You can close this window now.",
+    "migrationStartedWillReciveEmail": "vikunja-x will now import your lists/projects, tasks, notes, reminders and files from {service}. As this will take a while, we will send you an email once done. You can close this window now.",
     "migrationFinished": "The import from {service} has finished. Everything it imported is now available in your projects.",
     "migrationFailed": "The import from {service} failed: {reason}",
     "failure": {
@@ -1118,7 +1118,7 @@
       "description": "Import tasks from a CSV file with custom column mapping.",
       "uploadDescription": "Select a CSV file to import. The file should contain task data with headers in the first row.",
       "selectFile": "Select CSV file",
-      "columnMappingDescription": "Map each column in your CSV file to a task attribute. Vikunja has auto-detected the most likely mappings. The preview below will update automatically when you change settings.",
+      "columnMappingDescription": "Map each column in your CSV file to a task attribute. vikunja-x has auto-detected the most likely mappings. The preview below will update automatically when you change settings.",
       "parsingOptions": "Parsing Options",
       "delimiter": "Delimiter",
       "dateFormat": "Date Format",
@@ -1182,7 +1182,7 @@
     "imprint": "Imprint",
     "privacy": "Privacy Policy",
     "closeSidebar": "Close sidebar",
-    "home": "Vikunja home",
+    "home": "vikunja-x home",
     "toggleChildProjects": "Toggle sub-projects",
     "main": "Main navigation",
     "savedFilters": "Saved filters",
@@ -1389,7 +1389,7 @@
       "canuse": "You can use date math to filter for relative dates.",
       "learnhow": "Check out how it works",
       "title": "Date Math",
-      "intro": "Specify relative dates which are resolved on the fly by Vikunja when applying the filter.",
+      "intro": "Specify relative dates which are resolved on the fly by vikunja-x when applying the filter.",
       "expression": "Each Date Math expression starts with an anchor date, which can either be {0}, or a date string ending with {1}. This anchor date can optionally be followed by one or more maths expressions.",
       "similar": "These expressions are similar to the ones provided by {0} and {1}.",
       "add1Day": "Add one day",
@@ -1683,12 +1683,12 @@
     },
     "quickAddMagic": {
       "hint": "Use magic prefixes to define due dates, assignees and other task properties.",
-      "quickEntryHint": "Use magic prefixes for dates, labels & more. Open the main Vikunja app and check the tooltip on the task input for more details.",
+      "quickEntryHint": "Use magic prefixes for dates, labels & more. Open the main vikunja-x app and check the tooltip on the task input for more details.",
       "title": "Quick Add Magic",
       "intro": "When creating a task, you can use special keywords to directly add attributes to the newly created task. This allows to add commonly used attributes to tasks much faster.",
       "multiple": "You can use this multiple times.",
       "label1": "To add a label, simply prefix the name of the label with {prefix}.",
-      "label2": "Vikunja will first check if the label already exist and create it if not.",
+      "label2": "vikunja-x will first check if the label already exist and create it if not.",
       "label3": "To use spaces, simply add a \" or ' around the label name.",
       "label4": "For example: {prefix}\"Label with spaces\".",
       "priority1": "To set a task's priority, add a number 1-5, prefixed with a {prefix}.",
@@ -1843,12 +1843,12 @@
     "views": "Views"
   },
   "apiConfig": {
-    "url": "Vikunja URL",
+    "url": "vikunja-x URL",
     "urlPlaceholder": "eg. https://localhost:3456",
     "change": "change",
-    "use": "Using Vikunja installation at {0}",
-    "error": "Could not find or use Vikunja installation at \"{domain}\". Please check if the url has the correct format and you can reach it when accessing it directly and try again.",
-    "success": "Using Vikunja installation at \"{domain}\".",
+    "use": "Using vikunja-x installation at {0}",
+    "error": "Could not find or use vikunja-x installation at \"{domain}\". Please check if the url has the correct format and you can reach it when accessing it directly and try again.",
+    "success": "Using vikunja-x installation at \"{domain}\".",
     "urlRequired": "A url is required."
   },
   "loadingError": {
@@ -1872,7 +1872,7 @@
   },
   "quickActions": {
     "title": "Search and quick actions",
-    "notLoggedIn": "Please log in to the main Vikunja window first.",
+    "notLoggedIn": "Please log in to the main vikunja-x window first.",
     "commands": "Commands",
     "placeholder": "Type a command or search…",
     "hint": "You can use {project} to limit the search to a project. Combine {project} or {label} (labels) with a search query to search for a task with these labels or on that project. Use {assignee} to only search for teams.",
@@ -2008,18 +2008,18 @@
     "14001": "The provided api token is invalid.",
     "14002": "The permission {permission} of group {group} is invalid.",
     "14005": "A migration from this service is already running. Please wait until it is done.",
-    "14009": "The provided zip file does not contain a Vikunja data file. Make sure you upload a Vikunja export.",
+    "14009": "The provided zip file does not contain a vikunja-x data file. Make sure you upload a vikunja-x export.",
     "14010": "The provided file could not be parsed. Please make sure it is a valid export file.",
     "14011": "The provided file is not a valid zip file.",
     "14012": "The provided file does not contain any data.",
-    "14013": "The export was created with a Vikunja version that is too old to import. Please create a new export with a more recent version.",
+    "14013": "The export was created with a vikunja-x version that is too old to import. Please create a new export with a more recent version.",
     "14016": "The import configuration could not be parsed. Please make sure it is a valid JSON object.",
     "14018": "The import contains more items than the configured maximum.",
     "14019": "The migration state is invalid or expired. Please start the migration again.",
     "14201": "Planka rejected the provided credentials. Check the URL and the API key or username and password.",
     "14202": "The Planka account requires an extra login step (two-factor code or accepting the terms). Log in to Planka in the browser once, or use an API key instead of username and password.",
     "14203": "A Planka URL and either an API key or username and password are required.",
-    "14204": "Could not reach a Planka API at the given URL. Check the URL and that Vikunja can reach the instance."
+    "14204": "Could not reach a Planka API at the given URL. Check the URL and that vikunja-x can reach the instance."
   },
   "about": {
     "title": "About",
@@ -2168,8 +2168,8 @@
       "api_base_url": "API base URL",
       "anthropic_messages_does_not_accept_raw_audio_use": "Anthropic Messages does not accept raw audio. Use it to clean up transcripts or manage tasks.",
       "asia_shanghai_china_standard_time": "Asia/Shanghai · China Standard Time",
-      "vikunja_x_tcymc_custom_edition": "Vikunja X · tcymc custom edition",
-      "tcymc_custom_edition": "tcymc custom edition",
+      "vikunja_x_tcymc_custom_edition": "vikunja-x · -x edition",
+      "tcymc_custom_edition": "-x edition",
       "3_48_lowercase_letters_numbers_or_hyphens": "· 3–48 lowercase letters, numbers or hyphens",
       "showing_until": "· Showing until",
       "mon": "Mon",
@@ -2347,7 +2347,7 @@
     "publicEyebrow": "PUBLIC SCHEDULE",
     "assistantEyebrow": "VIKUNJA X · YOUR WORK, YOUR MODELS",
     "audioConversionFailed": "Could not convert this recording to WAV. Upload a WAV/MP3 file or choose Audio Transcriptions.",
-    "updateAvailable": "This site has updated tcymc page resources ({version}). Refresh when you are ready.",
+    "updateAvailable": "This site has updated vikunja-x page resources ({version}). Refresh when you are ready.",
     "updateUnknown": "new build",
     "updateRefresh": "Load this site’s update",
     "currentVersion": "Current page version: {version}",

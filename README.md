@@ -1,10 +1,25 @@
-# Vikunja X · tcymc二次开发版
+# vikunja-x
+
+<p align="center">
+  <img src="frontend/public/images/brand/wordmark.svg" alt="vikunja-x" width="300">
+</p>
+
+> -x 版 · 个人项目、日程、记录与原生 AI 助手。
 
 基于 [Vikunja 官方 v2.7.1](https://github.com/go-vikunja/vikunja/releases/tag/v2.7.1) 的个人任务管理扩展，由 **KanameMadoka520** 维护。保留上游项目、任务、甘特图、看板、提醒、CalDAV 和 MCP，增加可配置模型的 AI 助手、语音输入和独立公开主页。
 
 - 源码与问题反馈：[KanameMadoka520/vikunja-x](https://github.com/KanameMadoka520/vikunja-x)
-- 版本：`v2.7.1-tcymc.28`
+- 版本：`v2.7.1-tcymc.29`
 - 许可证：AGPL-3.0-or-later；上游版权和许可证继续适用，参见 [LICENSE](LICENSE) 与 [上游 README](README.upstream.md)。本项目是独立二次开发版。
+
+
+## 品牌更新（tcymc.29）
+
+站点统一命名为 **vikunja-x**，原「tcymc二次开发版」标识改为「-x 版」。新的蓝色 X 标识用于导航、浏览器图标和手机桌面；原创蓝白头像用于品牌展示及登录页。阿罗娜保留自己的名称与角色头像，账户的个人头像不受影响。版本编号继续沿用 `tcymc` 序列以保证升级识别兼容。
+
+<p align="center"><img src="frontend/public/images/brand/avatar.png" alt="vikunja-x 原创品牌头像" width="240"></p>
+
+[品牌素材与生成说明](docs/brand-identity.md)包含原图、尺寸再生成命令、设计提示词和可下载文件。GitHub 链接及上游版权、许可证和致谢继续保留。
 
 
 ## 全站界面与交互更新（tcymc.28）

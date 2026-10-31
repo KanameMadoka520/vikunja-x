@@ -171,22 +171,22 @@ function getBuildConfig(env: Record<string, string>) {
 				injectRegister: false,
 				useCredentials: true,
 				manifest: {
-					name: 'Vikunja',
-					short_name: 'Vikunja',
+					name: 'vikunja-x',
+					short_name: 'vikunja-x',
 					theme_color: '#f3f4f6',
 					icons: [
 						{
-							src: './images/icons/android-chrome-192x192.png',
+							src: './images/icons/android-chrome-192x192.png?v=x29',
 							sizes: '192x192',
 							type: 'image/png',
 						},
 						{
-							src: './images/icons/android-chrome-512x512.png',
+							src: './images/icons/android-chrome-512x512.png?v=x29',
 							sizes: '512x512',
 							type: 'image/png',
 						},
 						{
-							src: './images/icons/icon-maskable.png',
+							src: './images/icons/icon-maskable.png?v=x29',
 							sizes: '1024x1024',
 							type: 'image/png',
 							purpose: 'maskable',
@@ -201,9 +201,9 @@ function getBuildConfig(env: Record<string, string>) {
 							url: '/',
 						},
 						{
-							name: 'Namespaces And Projects Overview',
-							short_name: 'Namespaces & Projects',
-							url: '/namespaces',
+							name: 'Projects',
+							short_name: 'Projects',
+							url: '/projects',
 						},
 						{
 							name: 'Tasks Next Week',

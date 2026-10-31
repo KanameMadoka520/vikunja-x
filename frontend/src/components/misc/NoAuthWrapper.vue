@@ -105,7 +105,7 @@ const heroText = computed(() => {
 	background-color: var(--site-background);
 
 	@media screen and (min-width: $tablet) {
-		background: var(--site-background) url("@/assets/llama.svg?url") no-repeat fixed bottom left;
+		background: radial-gradient(ellipse at bottom left, color-mix(in srgb, var(--primary) 10%, transparent), transparent 55%), var(--site-background);
 	}
 
 	@media screen and (max-width: $tablet) {
@@ -140,9 +140,9 @@ const heroText = computed(() => {
 		flex-direction: column;
 		justify-content: flex-end;
 		padding: var(--space-6);
-		background: url("@/assets/no-auth-image.jpg") no-repeat bottom/cover;
+		background: url("/images/brand/avatar.webp") no-repeat center/cover;
 
-		// The photo is the same in both themes, so the scrim (and the white copy on it) is too.
+		// The brand portrait is shared by both themes; keep the overlaid welcome text readable.
 		// Two layers keep the lower third dark enough for the heading without dimming the whole image.
 		&::before {
 			content: "";
